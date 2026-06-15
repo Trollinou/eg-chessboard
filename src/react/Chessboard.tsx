@@ -1,12 +1,14 @@
 import React, { useRef, useEffect, useState } from 'react';
 import type { Config } from '@lichess-org/chessground/config';
 import type { Move } from 'chess.js';
-import { BoardCore, type BoardCoreState } from '../BoardCore';
+import { BoardCore, type BoardCoreState, type StockfishConfig } from '../BoardCore';
 import { PromotionDialog } from './components/PromotionDialog';
 
 export interface ChessboardProps {
   boardConfig?: Config;
   playerColor?: 'white' | 'black' | 'both';
+  freeMode?: boolean;
+  stockfishConfig?: StockfishConfig;
   onBoardCreated?: (api: BoardCore) => void;
   onMove?: (move: Move) => void;
   onCheck?: (color: string) => void;
@@ -14,11 +16,14 @@ export interface ChessboardProps {
   onStalemate?: () => void;
   onDraw?: () => void;
   onPromotion?: (detail: { from: string; to: string; promotedTo: string }) => void;
+  onStockfishHint?: (bestMove: string) => void;
 }
 
 export const Chessboard: React.FC<ChessboardProps> = ({
   boardConfig = {},
   playerColor,
+  freeMode = false,
+  stockfishConfig = {},
   onBoardCreated,
   onMove,
   onCheck,
@@ -26,15 +31,21 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   onStalemate,
   onDraw,
   onPromotion,
+  onStockfishHint,
 }) => {
   const boardRef = useRef<HTMLDivElement>(null);
   const coreRef = useRef<BoardCore | null>(null);
 
   const [state, setState] = useState<BoardCoreState>({
     showThreats: false,
+    freeMode,
     promotionDialogState: { isEnabled: false },
     historyViewerState: { isEnabled: false },
   });
+
+  useEffect(() => {
+    setState((prev) => ({ ...prev, freeMode }));
+  }, [freeMode]);
 
   useEffect(() => {
     if (!boardRef.current) return;
@@ -46,17 +57,19 @@ export const Chessboard: React.FC<ChessboardProps> = ({
         // Sync React component state with BoardCore state
         setState({
           showThreats: core['state'].showThreats,
+          freeMode: core['state'].freeMode,
           promotionDialogState: { ...core['state'].promotionDialogState },
           historyViewerState: { ...core['state'].historyViewerState },
         });
       },
       (event, ...args) => {
-        if (event === 'move') onMove?.(args[0]);
-        else if (event === 'check') onCheck?.(args[0]);
-        else if (event === 'checkmate') onCheckmate?.(args[0]);
+        if (event === 'move') onMove?.(args[0] as Move);
+        else if (event === 'check') onCheck?.(args[0] as string);
+        else if (event === 'checkmate') onCheckmate?.(args[0] as string);
         else if (event === 'stalemate') onStalemate?.();
         else if (event === 'draw') onDraw?.();
-        else if (event === 'promotion') onPromotion?.(args[0]);
+        else if (event === 'promotion') onPromotion?.(args[0] as { from: string; to: string; promotedTo: string });
+        else if (event === 'stockfish-hint') onStockfishHint?.(args[0] as string);
       },
       {
         ...boardConfig,
@@ -64,7 +77,8 @@ export const Chessboard: React.FC<ChessboardProps> = ({
           ...boardConfig.movable,
           color: playerColor || boardConfig.movable?.color,
         },
-      }
+      },
+      stockfishConfig
     );
 
     coreRef.current = core;
@@ -81,6 +95,12 @@ export const Chessboard: React.FC<ChessboardProps> = ({
       coreRef.current.setConfig(boardConfig);
     }
   }, [boardConfig]);
+
+  useEffect(() => {
+    if (coreRef.current && stockfishConfig) {
+      coreRef.current.updateStockfishConfig(stockfishConfig);
+    }
+  }, [stockfishConfig]);
 
   return (
     <section
@@ -105,3 +125,4 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     </section>
   );
 };
+

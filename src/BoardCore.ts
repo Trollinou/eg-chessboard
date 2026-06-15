@@ -1,4 +1,4 @@
-import { Chess, type Square, type Move, type Piece } from 'chess.js';
+import { Chess, type Square, type Move, type Piece, type PieceSymbol } from 'chess.js';
 import { Chessground } from '@lichess-org/chessground';
 import type { Api } from '@lichess-org/chessground/api';
 import type { Config } from '@lichess-org/chessground/config';
@@ -7,6 +7,7 @@ import { possibleMoves, isPromotion, shortToLongColor, getThreats } from './Boar
 
 export interface BoardCoreState {
   showThreats: boolean;
+  freeMode?: boolean;
   promotionDialogState: {
     isEnabled: boolean;
     color?: Color;
@@ -15,7 +16,19 @@ export interface BoardCoreState {
   historyViewerState: {
     isEnabled: boolean;
     plyViewing?: number;
+    viewOnly?: boolean;
   };
+}
+
+export type StockfishMode = 'disabled' | 'hint' | 'elo';
+
+export interface StockfishConfig {
+  whiteMode?: StockfishMode;
+  whiteElo?: number;
+  blackMode?: StockfishMode;
+  blackElo?: number;
+  stockfishMoveTime?: number; // millisecondes
+  workerUrl?: string; // URL vers stockfish.js
 }
 
 export class BoardCore {
@@ -27,21 +40,30 @@ export class BoardCore {
   private emitEvent: (event: string, ...args: unknown[]) => void;
   private initialConfig: Config;
 
+  // Stockfish Workers
+  private evalWorker: Worker | null = null;
+  private opponentWorker: Worker | null = null;
+  private stockfishConfig: StockfishConfig = {};
+  public lastSuggestedMove = '';
+
   constructor(
     boardElement: HTMLElement,
     state: BoardCoreState,
     onStateChange: () => void,
     emitEvent: (event: string, ...args: unknown[]) => void,
-    initialConfig: Config = {}
+    initialConfig: Config = {},
+    stockfishConfig: StockfishConfig = {}
   ) {
     this.boardElement = boardElement;
     this.state = state;
     this.onStateChange = onStateChange;
     this.emitEvent = emitEvent;
     this.initialConfig = initialConfig;
+    this.stockfishConfig = stockfishConfig;
     this.game = new Chess();
 
     this.initBoard();
+    this.initStockfish();
   }
 
   private initBoard() {
@@ -55,15 +77,22 @@ export class BoardCore {
       after: (orig: Key, dest: Key, metadata: MoveMetadata) => {
         this.changeTurn(orig, dest, metadata);
       },
+      change: () => {
+        if (this.state.freeMode) {
+          this.syncGameFromBoard();
+        }
+      }
     };
+
+    const isFree = !!this.state.freeMode;
 
     const config: Config = {
       fen: this.game.fen(),
       turnColor: this.getTurnColor(),
       movable: {
-        free: false,
-        color: this.getTurnColor(),
-        dests: possibleMoves(this.game),
+        free: isFree,
+        color: isFree ? 'both' : this.getTurnColor(),
+        dests: isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.game),
         events: defaultEvents,
       },
       ...userConfig,
@@ -72,17 +101,96 @@ export class BoardCore {
     return config;
   }
 
+  private getPossibleMovesForBothColors(): Map<Key, Key[]> {
+    const dests = possibleMoves(this.game);
+    const originalFen = this.game.fen();
+    // Swap turn FEN
+    const parts = originalFen.split(' ');
+    parts[1] = parts[1] === 'w' ? 'b' : 'w';
+    const swappedFen = parts.join(' ');
+
+    try {
+      this.game.load(swappedFen);
+      const otherDests = possibleMoves(this.game);
+      for (const [key, value] of otherDests.entries()) {
+        dests.set(key, value);
+      }
+    } catch {
+      // Ignore
+    } finally {
+      this.game.load(originalFen);
+    }
+    return dests;
+  }
+
+  private isSyncing = false;
+  private syncGameFromBoard(): void {
+    if (this.isSyncing) return;
+    this.isSyncing = true;
+    try {
+      const pieces = this.board.state.pieces;
+      const tempGame = new Chess();
+      tempGame.clear();
+      const roleToPieceType: Record<string, string> = {
+        pawn: 'p',
+        knight: 'n',
+        bishop: 'b',
+        rook: 'r',
+        queen: 'q',
+        king: 'k',
+      };
+
+      for (const [square, piece] of pieces) {
+        const type = roleToPieceType[piece.role];
+        if (type) {
+          tempGame.put(
+            {
+              type: type as PieceSymbol,
+              color: piece.color === 'white' ? 'w' : 'b',
+            },
+            square as Square
+          );
+        }
+      }
+
+      const placement = tempGame.fen().split(' ')[0];
+      const currentFenParts = this.game.fen().split(' ');
+      const turn = currentFenParts[1] || 'w';
+      const castling = currentFenParts[2] || '-';
+      const ep = currentFenParts[3] || '-';
+      const halfmove = currentFenParts[4] || '0';
+      const fullmove = currentFenParts[5] || '1';
+
+      const newFen = `${placement} ${turn} ${castling} ${ep} ${halfmove} ${fullmove}`;
+
+      try {
+        this.game.load(newFen);
+      } catch {
+        // Ignore
+      }
+
+      this.emitEvent('move', {
+        after: newFen,
+      });
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
   private updateGameState({ updateFen = true } = {}): void {
     if (!this.state.historyViewerState.isEnabled) {
       if (updateFen) {
         this.board.set({ fen: this.game.fen() });
       }
 
+      const isFree = !!this.state.freeMode;
+
       this.board.set({
         turnColor: this.getTurnColor(),
         movable: {
-          color: this.getTurnColor(),
-          dests: possibleMoves(this.game),
+          free: isFree,
+          color: isFree ? 'both' : this.getTurnColor(),
+          dests: isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.game),
         },
       });
 
@@ -115,10 +223,11 @@ export class BoardCore {
   private async changeTurn(orig: Key, dest: Key, _metadata: MoveMetadata): Promise<void> {
     const piece = this.game.get(orig as Square);
     if (isPromotion(dest, piece)) {
+      const pieceColor = piece ? (piece.color === 'w' ? 'white' : 'black') : this.getTurnColor();
       const selectedPromotion = await new Promise<string>((resolve) => {
         this.state.promotionDialogState = {
           isEnabled: true,
-          color: this.getTurnColor(),
+          color: pieceColor,
           callback: (promoPiece) => {
             resolve(promoPiece);
           },
@@ -169,11 +278,16 @@ export class BoardCore {
       lastMove: undefined,
     });
     this.updateGameState({ updateFen: false });
+    this.triggerStockfish();
   }
 
   undoLastMove(): void {
     const undoMove = this.game.undo();
     if (!undoMove) return;
+
+    if (this.state.historyViewerState.isEnabled && this.state.historyViewerState.plyViewing === this.getCurrentPlyNumber()) {
+      this.stopViewingHistory();
+    }
 
     if (!this.state.historyViewerState.isEnabled) {
       this.board.set({ fen: undoMove.before });
@@ -183,6 +297,7 @@ export class BoardCore {
         lastMove: lastMove ? [lastMove.from, lastMove.to] : undefined,
       });
     }
+    this.triggerStockfish();
   }
 
   getMaterialCount() {
@@ -220,10 +335,6 @@ export class BoardCore {
     };
     for (const move of this.game.history({ verbose: true }) as Move[]) {
       if (move.captured) {
-        // move.color is 'w' or 'b'. If White captured a piece, it means the captured piece was Black.
-        // Wait, the API getCapturedPieces in vue3-chessboard returns:
-        // captured.black has the pieces captured by Black (meaning White pieces).
-        // Let's match the exact behavior:
         const capturingColor = move.color === 'w' ? 'white' : 'black';
         captured[capturingColor].push(move.captured);
       }
@@ -273,7 +384,6 @@ export class BoardCore {
 
     if (!this.state.historyViewerState.isEnabled) {
       this.board.move(resultMove.from as Key, resultMove.to as Key);
-      // For castling/promotion/en passant, update board representation after short delay
       if (
         resultMove.flags.includes('k') ||
         resultMove.flags.includes('q') ||
@@ -286,6 +396,8 @@ export class BoardCore {
       }
       this.updateGameState({ updateFen: false });
     }
+
+    this.triggerStockfish();
     return true;
   }
 
@@ -362,6 +474,7 @@ export class BoardCore {
     this.state.historyViewerState = { isEnabled: false };
     this.onStateChange();
     this.updateGameState();
+    this.triggerStockfish();
   }
 
   putPiece(piece: Piece, square: Key): boolean {
@@ -386,9 +499,170 @@ export class BoardCore {
     if (lastMove) {
       this.board.set({ lastMove: [lastMove.from, lastMove.to] });
     }
+    this.triggerStockfish();
   }
 
   getPgnInfo() {
     return this.game.header();
+  }
+
+  // NAVIGATION D'HISTORIQUE
+
+  viewHistory(ply: number): void {
+    const history = this.getHistory(true) as Move[];
+    if (ply < 0 || ply > history.length) return;
+
+    if (ply < history.length) {
+      this.state.historyViewerState = {
+        isEnabled: true,
+        plyViewing: ply,
+        viewOnly: this.board.state.viewOnly,
+      };
+      this.onStateChange();
+
+      this.board.set({
+        fen: history[ply].before,
+        viewOnly: true,
+        lastMove: ply > 0 ? [history[ply - 1].from as Key, history[ply - 1].to as Key] : undefined,
+      });
+    } else {
+      this.stopViewingHistory();
+    }
+  }
+
+  stopViewingHistory(): void {
+    if (this.state.historyViewerState.isEnabled) {
+      const history = this.getHistory(true) as Move[];
+      const lastMove = history[history.length - 1];
+      this.board.set({
+        fen: this.game.fen(),
+        viewOnly: this.state.historyViewerState.viewOnly,
+        lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
+      });
+      this.state.historyViewerState = { isEnabled: false };
+      this.onStateChange();
+      this.updateGameState({ updateFen: false });
+    }
+  }
+
+  viewStart(): void {
+    this.viewHistory(0);
+  }
+
+  viewNext(): void {
+    if (this.state.historyViewerState.isEnabled && this.state.historyViewerState.plyViewing !== undefined) {
+      this.viewHistory(this.state.historyViewerState.plyViewing + 1);
+    }
+  }
+
+  viewPrevious(): void {
+    const ply = this.state.historyViewerState.isEnabled && this.state.historyViewerState.plyViewing !== undefined
+      ? this.state.historyViewerState.plyViewing
+      : this.getCurrentPlyNumber();
+    this.viewHistory(ply - 1);
+  }
+
+  // STOCKFISH INTEGRATION
+
+  public updateStockfishConfig(config: StockfishConfig) {
+    this.stockfishConfig = { ...this.stockfishConfig, ...config };
+    this.initStockfish();
+    this.triggerStockfish();
+  }
+
+  private initStockfish() {
+    if (this.state.freeMode) {
+      this.terminateStockfish();
+      return;
+    }
+
+    const { workerUrl, whiteMode, blackMode, whiteElo, blackElo } = this.stockfishConfig;
+    if (!workerUrl) return;
+
+    // Mode Blanc
+    if (whiteMode === 'hint' || blackMode === 'hint') {
+      if (!this.evalWorker) {
+        this.evalWorker = new Worker(workerUrl);
+        this.evalWorker.onmessage = (e) => this.handleEvalMessage(e.data);
+        this.evalWorker.postMessage('uci');
+        this.evalWorker.postMessage('ucinewgame');
+        this.evalWorker.postMessage('isready');
+      }
+    }
+
+    if (whiteMode === 'elo' || blackMode === 'elo') {
+      if (!this.opponentWorker) {
+        this.opponentWorker = new Worker(workerUrl);
+        this.opponentWorker.onmessage = (e) => this.handleOpponentMessage(e.data);
+        this.opponentWorker.postMessage('uci');
+        this.opponentWorker.postMessage('ucinewgame');
+        this.opponentWorker.postMessage('isready');
+      }
+      const activeElo = this.getTurnColor() === 'white' ? (whiteElo || 1500) : (blackElo || 1500);
+      this.opponentWorker.postMessage('setoption name UCI_LimitStrength value true');
+      this.opponentWorker.postMessage(`setoption name UCI_Elo value ${activeElo}`);
+    }
+  }
+
+  private terminateStockfish() {
+    if (this.evalWorker) {
+      this.evalWorker.terminate();
+      this.evalWorker = null;
+    }
+    if (this.opponentWorker) {
+      this.opponentWorker.terminate();
+      this.opponentWorker = null;
+    }
+  }
+
+  private getEnginePositionCommand(): string {
+    const history = this.getHistory(true) as Move[];
+    const movesStr = history.map((m) => m.from + m.to + (m.promotion || '')).join(' ');
+    return movesStr ? `position startpos moves ${movesStr}` : 'position startpos';
+  }
+
+  private triggerStockfish() {
+    if (this.state.freeMode || this.getIsGameOver()) {
+      this.terminateStockfish();
+      return;
+    }
+
+    const turn = this.getTurnColor();
+    const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
+    const movetime = this.stockfishConfig.stockfishMoveTime || 1000;
+
+    if (mode === 'elo' && this.opponentWorker) {
+      const positionCmd = this.getEnginePositionCommand();
+      this.opponentWorker.postMessage(positionCmd);
+      this.opponentWorker.postMessage(`go movetime ${movetime}`);
+    } else if (mode === 'hint' && this.evalWorker) {
+      const positionCmd = this.getEnginePositionCommand();
+      this.evalWorker.postMessage(positionCmd);
+      this.evalWorker.postMessage(`go movetime ${movetime}`);
+    }
+  }
+
+  private handleEvalMessage(line: string) {
+    if (line.startsWith('bestmove')) {
+      const parts = line.split(' ');
+      const bestMove = parts[1];
+      if (bestMove && bestMove !== '(none)') {
+        this.lastSuggestedMove = bestMove;
+        this.emitEvent('stockfish-hint', bestMove);
+      }
+    }
+  }
+
+  private handleOpponentMessage(line: string) {
+    if (line.startsWith('bestmove')) {
+      const parts = line.split(' ');
+      const bestMove = parts[1];
+      if (bestMove && bestMove !== '(none)') {
+        const from = bestMove.slice(0, 2);
+        const to = bestMove.slice(2, 4);
+        const promotion = bestMove.length > 4 ? bestMove.charAt(4) : undefined;
+        this.move({ from, to, promotion });
+      }
+    }
   }
 }

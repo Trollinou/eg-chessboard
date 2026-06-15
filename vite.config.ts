@@ -2,9 +2,28 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
+import { copyFileSync, existsSync, mkdirSync } from 'fs';
+
+const copyStockfishPlugin = () => ({
+  name: 'copy-stockfish',
+  closeBundle() {
+    const distDir = resolve(__dirname, 'dist');
+    if (!existsSync(distDir)) {
+      mkdirSync(distDir, { recursive: true });
+    }
+    const srcJs = resolve(__dirname, 'node_modules/stockfish/bin/stockfish-18-lite-single.js');
+    const srcWasm = resolve(__dirname, 'node_modules/stockfish/bin/stockfish-18-lite-single.wasm');
+    if (existsSync(srcJs)) {
+      copyFileSync(srcJs, resolve(distDir, 'stockfish.js'));
+    }
+    if (existsSync(srcWasm)) {
+      copyFileSync(srcWasm, resolve(distDir, 'stockfish.wasm'));
+    }
+  }
+});
 
 export default defineConfig({
-  plugins: [vue(), react()],
+  plugins: [vue(), react(), copyStockfishPlugin()],
   build: {
     lib: {
       entry: {

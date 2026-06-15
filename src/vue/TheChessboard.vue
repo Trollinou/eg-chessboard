@@ -2,16 +2,20 @@
 import { ref, onMounted, reactive, watch } from 'vue';
 import type { Config } from '@lichess-org/chessground/config';
 import type { Move } from 'chess.js';
-import { BoardCore, type BoardCoreState } from '../BoardCore';
+import { BoardCore, type BoardCoreState, type StockfishConfig } from '../BoardCore';
 import PromotionDialog from './components/PromotionDialog.vue';
 
 const props = withDefaults(
   defineProps<{
     boardConfig?: Config;
     playerColor?: 'white' | 'black' | 'both';
+    freeMode?: boolean;
+    stockfishConfig?: StockfishConfig;
   }>(),
   {
     boardConfig: () => ({}),
+    freeMode: false,
+    stockfishConfig: () => ({}),
   }
 );
 
@@ -23,14 +27,24 @@ const emit = defineEmits<{
   (e: 'stalemate'): void;
   (e: 'draw'): void;
   (e: 'promotion', detail: { from: string; to: string; promotedTo: string }): void;
+  (e: 'stockfish-hint', bestMove: string): void;
 }>();
 
 const boardElement = ref<HTMLElement | null>(null);
 const state = reactive<BoardCoreState>({
   showThreats: false,
+  freeMode: props.freeMode,
   promotionDialogState: { isEnabled: false },
   historyViewerState: { isEnabled: false },
 });
+
+// Watch for freeMode changes
+watch(
+  () => props.freeMode,
+  (newVal) => {
+    state.freeMode = newVal;
+  }
+);
 
 onMounted(() => {
   if (!boardElement.value) return;
@@ -44,17 +58,19 @@ onMounted(() => {
     (event, ...args) => {
       // Emit events to parent Vue component
       if (event === 'move') {
-        emit('move', args[0]);
+        emit('move', args[0] as Move);
       } else if (event === 'check') {
-        emit('check', args[0]);
+        emit('check', args[0] as string);
       } else if (event === 'checkmate') {
-        emit('checkmate', args[0]);
+        emit('checkmate', args[0] as string);
       } else if (event === 'stalemate') {
         emit('stalemate');
       } else if (event === 'draw') {
         emit('draw');
       } else if (event === 'promotion') {
-        emit('promotion', args[0]);
+        emit('promotion', args[0] as { from: string; to: string; promotedTo: string });
+      } else if (event === 'stockfish-hint') {
+        emit('stockfish-hint', args[0] as string);
       }
     },
     {
@@ -63,7 +79,8 @@ onMounted(() => {
         ...props.boardConfig.movable,
         color: props.playerColor || props.boardConfig.movable?.color,
       },
-    }
+    },
+    props.stockfishConfig
   );
 
   emit('board-created', core);
@@ -74,6 +91,17 @@ onMounted(() => {
     (newConfig) => {
       if (newConfig) {
         core.setConfig(newConfig);
+      }
+    },
+    { deep: true }
+  );
+
+  // Watch for Stockfish configuration changes
+  watch(
+    () => props.stockfishConfig,
+    (newStockfishConfig) => {
+      if (newStockfishConfig) {
+        core.updateStockfishConfig(newStockfishConfig);
       }
     },
     { deep: true }
@@ -99,3 +127,4 @@ onMounted(() => {
     </div>
   </section>
 </template>
+
