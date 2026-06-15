@@ -1,0 +1,47 @@
+{
+  "name": "eg-chessboard",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./style.css": "./dist/style.css",
+    "./vue": {
+      "import": "./dist/vue.js",
+      "types": "./dist/vue/TheChessboard.vue.d.ts"
+    },
+    "./react": {
+      "import": "./dist/react.js",
+      "types": "./dist/react/Chessboard.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "vite build && vue-tsc --declaration --emitDeclarationOnly --outDir dist --noEmit false"
+  },
+  "dependencies": {
+    "@lichess-org/chessground": "^10.1.1",
+    "chess.js": "^1.4.0"
+  },
+  "peerDependencies": {
+    "vue": "^3.0.0",
+    "react": "^17.0.0 || ^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "@vitejs/plugin-vue": "^5.1.2",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2",
+    "vue-tsc": "^2.0.29",
+    "vue": "^3.4.38",
+    "react": "^18.3.1",
+    "@types/react": "^18.3.3"
+  }
+}
