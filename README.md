@@ -2,7 +2,7 @@
 
 `eg-chessboard` est une bibliothèque de composant d'échiquier modulaire et découplée, conçue pour être utilisée de manière transparente dans des applications **Vue 3** (Vite) et **React** (WordPress Gutenberg Blocks).
 
-Elle utilise **[@lichess-org/chessground](https://github.com/lichess-org/chessground)** (v10) pour l'interface utilisateur interactive et ultra-rapide et **[chess.js](https://github.com/jhlywa/chess.js)** (v1.4.0) pour la validation des règles et la logique du jeu d'échecs.
+Elle utilise **[@lichess-org/chessground](https://github.com/lichess-org/chessground)** (v10) pour l'interface utilisateur interactive et ultra-rapide, **[chess.js](https://github.com/jhlywa/chess.js)** (v1.4.0) pour la validation des règles et la logique du jeu d'échecs, et supporte **[Stockfish](https://github.com/official-stockfish/Stockfish)** (via Web Workers) pour l'analyse (suggestions de coups) et le jeu contre l'ordinateur.
 
 ---
 
