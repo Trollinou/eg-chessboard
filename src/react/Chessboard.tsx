@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import type { Config } from '@lichess-org/chessground/config';
 import { BoardCore, type BoardCoreState } from '../BoardCore';
+import { PromotionDialog } from './components/PromotionDialog';
 
 export interface ChessboardProps {
   boardConfig?: Config;
@@ -79,13 +80,6 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     }
   }, [boardConfig]);
 
-  const selectPromotion = (pieceData: string) => {
-    state.promotionDialogState.callback?.(pieceData);
-    setState((prev) => ({
-      ...prev,
-      promotionDialogState: { isEnabled: false },
-    }));
-  };
 
   return (
     <section
@@ -95,44 +89,15 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     >
       <div className="main-board">
         {state.promotionDialogState.isEnabled && (
-          <dialog className="promotion-dialog" open style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 1000,
-            background: 'white',
-            border: '2px solid #333',
-            borderRadius: '8px',
-            padding: '10px',
-            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.4)',
-          }}>
-            <div className="promotion-pieces" style={{ display: 'flex', gap: '12px' }}>
-              {['q', 'n', 'r', 'b'].map((piece) => {
-                const names: Record<string, string> = { q: 'queen', n: 'knight', r: 'rook', b: 'bishop' };
-                const name = names[piece];
-                return (
-                  <button
-                    key={piece}
-                    type="button"
-                    className={`promotion-piece-btn ${name} ${state.promotionDialogState.color}`}
-                    onClick={() => selectPromotion(piece)}
-                    style={{
-                      background: '#f0f0f0',
-                      border: '1px solid #ccc',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      width: '55px',
-                      height: '55px',
-                      backgroundSize: '80% 80%',
-                      backgroundPosition: 'center',
-                      backgroundRepeat: 'no-repeat',
-                    }}
-                  />
-                );
-              })}
-            </div>
-          </dialog>
+          <PromotionDialog
+            state={state.promotionDialogState}
+            onPromotionSelected={() => {
+              setState((prev) => ({
+                ...prev,
+                promotionDialogState: { isEnabled: false },
+              }));
+            }}
+          />
         )}
         <div ref={boardRef} />
       </div>
