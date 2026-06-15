@@ -1,4 +1,4 @@
-import type { Chess, Move, Piece } from 'chess.js';
+import type { Chess, Move, Piece, Square } from 'chess.js';
 import type { Color, Key } from '@lichess-org/chessground/types';
 
 export interface Threat {
@@ -37,7 +37,7 @@ for (const rank of rankNames) {
 export function possibleMoves(game: Chess): Map<Key, Key[]> {
   const dests: Map<Key, Key[]> = new Map();
   for (const square of SQUARES) {
-    const moves = game.moves({ square: square as any, verbose: true }) as Move[];
+    const moves = game.moves({ square: square as Square, verbose: true }) as Move[];
     if (moves.length) {
       dests.set(
         moves[0].from as Key,

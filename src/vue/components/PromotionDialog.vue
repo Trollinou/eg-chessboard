@@ -77,7 +77,9 @@ function promotionSelected(piece: PromotionPiece): void {
   background-size: 80% 80%;
   background-position: center;
   background-repeat: no-repeat;
-  transition: background-color 0.2s, transform 0.1s;
+  transition:
+    background-color 0.2s,
+    transform 0.1s;
 }
 
 .promotion-piece-btn:hover {

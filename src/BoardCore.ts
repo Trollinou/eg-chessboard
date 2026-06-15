@@ -1,4 +1,4 @@
-import { Chess, type Square } from 'chess.js';
+import { Chess, type Square, type Move, type Piece } from 'chess.js';
 import { Chessground } from '@lichess-org/chessground';
 import type { Api } from '@lichess-org/chessground/api';
 import type { Config } from '@lichess-org/chessground/config';
@@ -24,14 +24,14 @@ export class BoardCore {
   private boardElement: HTMLElement;
   private state: BoardCoreState;
   private onStateChange: () => void;
-  private emitEvent: (event: string, ...args: any[]) => void;
+  private emitEvent: (event: string, ...args: unknown[]) => void;
   private initialConfig: Config;
 
   constructor(
     boardElement: HTMLElement,
     state: BoardCoreState,
     onStateChange: () => void,
-    emitEvent: (event: string, ...args: any[]) => void,
+    emitEvent: (event: string, ...args: unknown[]) => void,
     initialConfig: Config = {}
   ) {
     this.boardElement = boardElement;
@@ -40,7 +40,7 @@ export class BoardCore {
     this.emitEvent = emitEvent;
     this.initialConfig = initialConfig;
     this.game = new Chess();
-    
+
     this.initBoard();
   }
 
@@ -54,7 +54,7 @@ export class BoardCore {
     const defaultEvents = {
       after: (orig: Key, dest: Key, metadata: MoveMetadata) => {
         this.changeTurn(orig, dest, metadata);
-      }
+      },
     };
 
     const config: Config = {
@@ -83,7 +83,7 @@ export class BoardCore {
         movable: {
           color: this.getTurnColor(),
           dests: possibleMoves(this.game),
-        }
+        },
       });
 
       this.displayInCheck(this.game.inCheck(), this.getTurnColor());
@@ -121,7 +121,7 @@ export class BoardCore {
           color: this.getTurnColor(),
           callback: (promoPiece) => {
             resolve(promoPiece);
-          }
+          },
         };
         this.onStateChange();
       });
@@ -180,7 +180,7 @@ export class BoardCore {
       this.updateGameState({ updateFen: false });
       const lastMove = this.getLastMove();
       this.board.set({
-        lastMove: lastMove ? [lastMove.from, lastMove.to] : undefined
+        lastMove: lastMove ? [lastMove.from, lastMove.to] : undefined,
       });
     }
   }
@@ -216,9 +216,9 @@ export class BoardCore {
   getCapturedPieces() {
     const captured = {
       white: [] as string[],
-      black: [] as string[]
+      black: [] as string[],
     };
-    for (const move of this.game.history({ verbose: true }) as any[]) {
+    for (const move of this.game.history({ verbose: true }) as Move[]) {
       if (move.captured) {
         // move.color is 'w' or 'b'. If White captured a piece, it means the captured piece was Black.
         // Wait, the API getCapturedPieces in vue3-chessboard returns:
@@ -238,7 +238,8 @@ export class BoardCore {
   drawThreats(): void {
     this.state.showThreats = true;
     this.onStateChange();
-    const threats = getThreats(this.game.moves({ verbose: true }) as any[]);
+    const threats = getThreats(this.game.moves({ verbose: true }) as Move[]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.board.setShapes(threats as any);
   }
 
@@ -249,12 +250,10 @@ export class BoardCore {
   }
 
   drawMove(from: Key, to: Key, brush: string): void {
-    this.board.setShapes([
-      { orig: from, dest: to, brush }
-    ]);
+    this.board.setShapes([{ orig: from, dest: to, brush }]);
   }
 
-  move(moveObj: any): boolean {
+  move(moveObj: string | { from: string; to: string; promotion?: string }): boolean {
     let resultMove;
     try {
       resultMove = this.game.move(moveObj);
@@ -268,14 +267,19 @@ export class BoardCore {
       this.emitEvent('promotion', {
         color: shortToLongColor(resultMove.color),
         promotedTo: resultMove.promotion.toUpperCase(),
-        sanMove: resultMove.san
+        sanMove: resultMove.san,
       });
     }
 
     if (!this.state.historyViewerState.isEnabled) {
       this.board.move(resultMove.from as Key, resultMove.to as Key);
       // For castling/promotion/en passant, update board representation after short delay
-      if (resultMove.flags.includes('k') || resultMove.flags.includes('q') || resultMove.flags.includes('e') || resultMove.promotion) {
+      if (
+        resultMove.flags.includes('k') ||
+        resultMove.flags.includes('q') ||
+        resultMove.flags.includes('e') ||
+        resultMove.promotion
+      ) {
         setTimeout(() => {
           this.board.set({ fen: this.game.fen() });
         }, 50);
@@ -298,12 +302,15 @@ export class BoardCore {
   }
 
   getLastMove() {
-    const history = this.game.history({ verbose: true }) as any[];
+    const history = this.game.history({ verbose: true }) as Move[];
     return history.length ? history[history.length - 1] : null;
   }
 
   getHistory(verbose = false) {
-    return this.game.history({ verbose: verbose as any });
+    if (verbose) {
+      return this.game.history({ verbose: true });
+    }
+    return this.game.history({ verbose: false });
   }
 
   getFen(): string {
@@ -357,7 +364,7 @@ export class BoardCore {
     this.updateGameState();
   }
 
-  putPiece(piece: any, square: Key): boolean {
+  putPiece(piece: Piece, square: Key): boolean {
     const res = this.game.put(piece, square as Square);
     if (res) {
       this.updateGameState();

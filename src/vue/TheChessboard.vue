@@ -1,24 +1,28 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive, watch } from 'vue';
 import type { Config } from '@lichess-org/chessground/config';
+import type { Move } from 'chess.js';
 import { BoardCore, type BoardCoreState } from '../BoardCore';
 import PromotionDialog from './components/PromotionDialog.vue';
 
-const props = withDefaults(defineProps<{
-  boardConfig?: Config;
-  playerColor?: 'white' | 'black' | 'both';
-}>(), {
-  boardConfig: () => ({}),
-});
+const props = withDefaults(
+  defineProps<{
+    boardConfig?: Config;
+    playerColor?: 'white' | 'black' | 'both';
+  }>(),
+  {
+    boardConfig: () => ({}),
+  }
+);
 
 const emit = defineEmits<{
   (e: 'board-created', api: BoardCore): void;
-  (e: 'move', move: any): void;
+  (e: 'move', move: Move): void;
   (e: 'check', color: string): void;
   (e: 'checkmate', color: string): void;
   (e: 'stalemate'): void;
   (e: 'draw'): void;
-  (e: 'promotion', detail: any): void;
+  (e: 'promotion', detail: { from: string; to: string; promotedTo: string }): void;
 }>();
 
 const boardElement = ref<HTMLElement | null>(null);
@@ -58,18 +62,22 @@ onMounted(() => {
       movable: {
         ...props.boardConfig.movable,
         color: props.playerColor || props.boardConfig.movable?.color,
-      }
+      },
     }
   );
 
   emit('board-created', core);
 
   // Watch for configuration changes
-  watch(() => props.boardConfig, (newConfig) => {
-    if (newConfig) {
-      core.setConfig(newConfig);
-    }
-  }, { deep: true });
+  watch(
+    () => props.boardConfig,
+    (newConfig) => {
+      if (newConfig) {
+        core.setConfig(newConfig);
+      }
+    },
+    { deep: true }
+  );
 });
 </script>
 

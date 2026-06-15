@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import type { Config } from '@lichess-org/chessground/config';
+import type { Move } from 'chess.js';
 import { BoardCore, type BoardCoreState } from '../BoardCore';
 import { PromotionDialog } from './components/PromotionDialog';
 
@@ -7,12 +8,12 @@ export interface ChessboardProps {
   boardConfig?: Config;
   playerColor?: 'white' | 'black' | 'both';
   onBoardCreated?: (api: BoardCore) => void;
-  onMove?: (move: any) => void;
+  onMove?: (move: Move) => void;
   onCheck?: (color: string) => void;
   onCheckmate?: (color: string) => void;
   onStalemate?: () => void;
   onDraw?: () => void;
-  onPromotion?: (detail: any) => void;
+  onPromotion?: (detail: { from: string; to: string; promotedTo: string }) => void;
 }
 
 export const Chessboard: React.FC<ChessboardProps> = ({
@@ -72,6 +73,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     return () => {
       // Clean up logic if necessary
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -79,7 +81,6 @@ export const Chessboard: React.FC<ChessboardProps> = ({
       coreRef.current.setConfig(boardConfig);
     }
   }, [boardConfig]);
-
 
   return (
     <section

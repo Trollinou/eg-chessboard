@@ -23,18 +23,22 @@ export const PromotionDialog: React.FC<PromotionDialogProps> = ({ state, onPromo
   };
 
   return (
-    <dialog className="promotion-dialog" open style={{
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      zIndex: 1000,
-      background: 'white',
-      border: '2px solid #333',
-      borderRadius: '8px',
-      padding: '10px',
-      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.4)',
-    }}>
+    <dialog
+      className="promotion-dialog"
+      open
+      style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        zIndex: 1000,
+        background: 'white',
+        border: '2px solid #333',
+        borderRadius: '8px',
+        padding: '10px',
+        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.4)',
+      }}
+    >
       <div className="promotion-pieces" style={{ display: 'flex', gap: '12px' }}>
         {promotionPieces.map((piece) => (
           <button
