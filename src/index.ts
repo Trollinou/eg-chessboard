@@ -1,6 +1,6 @@
 import './style.css';
 
-export { BoardCore, type BoardCoreState } from './BoardCore';
+export { BoardCore, type BoardCoreState, type StockfishConfig } from './BoardCore';
 export {
   possibleMoves,
   isPromotion,

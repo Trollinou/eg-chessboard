@@ -9,16 +9,19 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 ## [1.1.0] - 2026-06-15
 
 ### Ajouté
+
 - **Intégration de Stockfish** : Prise en charge du moteur Stockfish via Web Workers pour suggérer le meilleur coup (`hint`) ou pour jouer contre l'ordinateur à un ELO configurable (`elo`).
 - **Mode Libre (`freeMode`)** : Possibilité de déplacer librement toutes les pièces sur le plateau, synchronisant dynamiquement l'état FEN interne du jeu.
 - **Navigation Historique** : Ajout de fonctionnalités permettant d'explorer programmatiquement les coups précédents dans la partie (`viewHistory`, `viewStart`, `viewNext`, `viewPrevious`, `stopViewingHistory`).
 - Dépendance npm ajoutée pour `stockfish` (v18.0.7).
+- **Exportation de types** : Exportation de `StockfishConfig` et `BoardCore` depuis la racine et les modules spécifiques (Vue et React) pour faciliter l'intégration et le typage TypeScript dans les applications clientes.
 
 ---
 
 ## [1.0.0] - 2026-06-15
 
 ### Ajouté
+
 - Initialisation de la bibliothèque découplée `eg-chessboard`.
 - **`BoardCore.ts`** : Coeur logique agnostique encapsulant `chess.js` et Chessground.
 - **`BoardHelper.ts`** : Outils partagés de validation de coups, détection d'échecs, de promotions et de menaces.
@@ -31,4 +34,5 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 - Scripts npm dédiés : `lint`, `lint:fix`, `format`, et `format:check`.
 
 ### Corrigé
+
 - Nettoyage des avertissements d'analyse statique (typage strict avec `chess.js` à la place de `any` et résolution des dépendances de hooks React).

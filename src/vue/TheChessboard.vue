@@ -1,3 +1,7 @@
+<script lang="ts">
+export { BoardCore, type BoardCoreState, type StockfishConfig } from '../BoardCore';
+</script>
+
 <script setup lang="ts">
 import { ref, onMounted, reactive, watch } from 'vue';
 import type { Config } from '@lichess-org/chessground/config';

@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import type { Config } from '@lichess-org/chessground/config';
 import type { Move } from 'chess.js';
 import { BoardCore, type BoardCoreState, type StockfishConfig } from '../BoardCore';
+export { BoardCore, type BoardCoreState, type StockfishConfig };
 import { PromotionDialog } from './components/PromotionDialog';
 
 export interface ChessboardProps {
