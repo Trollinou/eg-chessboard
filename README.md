@@ -137,6 +137,62 @@ Les composants `<TheChessboard>` (Vue) et `<Chessboard>` (React) acceptent les p
 
 ---
 
+## Structures de Configuration
+
+### 1. Configuration de Stockfish (`StockfishConfig`)
+
+L'interface `StockfishConfig` vous permet de paramétrer les moteurs d'analyse ou de jeu :
+
+```typescript
+export type StockfishMode = 'disabled' | 'hint' | 'elo';
+
+export interface StockfishConfig {
+  whiteMode?: StockfishMode;      // Mode pour les Blancs ('disabled' | 'hint' | 'elo')
+  whiteElo?: number;              // Niveau ELO de Stockfish pour les Blancs (ex: 1500)
+  blackMode?: StockfishMode;      // Mode pour les Noirs
+  blackElo?: number;              // Niveau ELO de Stockfish pour les Noirs
+  stockfishMoveTime?: number;     // Temps de réflexion max de Stockfish en millisecondes (défaut : 1000)
+  workerUrl?: string;             // URL/Chemin relatif vers le script du Web Worker Stockfish (ex: '/stockfish.js')
+}
+```
+
+- **`disabled`** : Stockfish est inactif.
+- **`hint`** : Stockfish suggère le meilleur coup via l'événement `stockfish-hint` / `onStockfishHint`.
+- **`elo`** : Stockfish joue automatiquement contre le joueur lors de son tour, selon le niveau d'ELO paramétré.
+
+### 2. Configuration Chessground (`Config`)
+
+L'objet `boardConfig` accepte toutes les options natives de Chessground. Voici les principales clés utiles :
+
+```typescript
+interface Config {
+  fen?: string;                   // Position de départ au format FEN
+  orientation?: 'white' | 'black'; // Orientation de l'échiquier
+  turnColor?: 'white' | 'black';  // Joueur dont c'est le tour
+  coordinates?: boolean;          // Afficher ou non les coordonnées sur les bords (défaut : true)
+  autoCastle?: boolean;           // Roquer automatiquement lorsque le roi se déplace sur la tour (défaut : true)
+  movable?: {
+    free?: boolean;               // Permettre tous les déplacements (sans règles)
+    color?: 'white' | 'black' | 'both'; // Couleurs autorisées à jouer
+    showDests?: boolean;          // Mettre en surbrillance les cases de destination possibles (défaut : true)
+  };
+  draggable?: {
+    enabled?: boolean;            // Activer le glisser-déposer des pièces (défaut : true)
+  };
+  selectable?: {
+    enabled?: boolean;            // Permettre la sélection de pièces par simple clic (défaut : true)
+  };
+  highlight?: {
+    lastMove?: boolean;           // Mettre en surbrillance le dernier coup joué (défaut : true)
+    check?: boolean;              // Mettre en surbrillance le roi en échec (défaut : true)
+  };
+}
+```
+
+*Pour voir la liste exhaustive des configurations de l'échiquier, consultez la [documentation de Chessground](https://github.com/lichess-org/chessground).*
+
+---
+
 ## API de `BoardCore`
 
 L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l'échiquier expose de nombreuses méthodes :
