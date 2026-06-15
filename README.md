@@ -55,23 +55,38 @@ Les fichiers de sortie seront générés dans le dossier `/dist`.
 
 ```vue
 <script setup lang="ts">
-import TheChessboard from 'eg-chessboard/vue';
+import TheChessboard, { type BoardCore, type StockfishConfig } from 'eg-chessboard/vue';
 import 'eg-chessboard/style.css';
 
-function handleBoardCreated(boardApi: any) {
-  console.log('FÉNICIA :', boardApi.getFen());
+const stockfishConfig: StockfishConfig = {
+  workerUrl: '/stockfish.js', // Chemin vers le worker Stockfish
+  whiteMode: 'hint',          // 'disabled' | 'hint' | 'elo'
+  blackMode: 'elo',
+  blackElo: 1500,
+  stockfishMoveTime: 1000
+};
+
+function handleBoardCreated(boardApi: BoardCore) {
+  console.log('FEN :', boardApi.getFen());
 }
 
 function handleMove(move: any) {
   console.log('Coup joué :', move.san);
+}
+
+function handleStockfishHint(bestMove: string) {
+  console.log('Suggestion de Stockfish :', bestMove);
 }
 </script>
 
 <template>
   <TheChessboard
     :player-color="'white'"
+    :free-mode="false"
+    :stockfish-config="stockfishConfig"
     @board-created="handleBoardCreated"
     @move="handleMove"
+    @stockfish-hint="handleStockfishHint"
   />
 </template>
 ```
@@ -80,19 +95,28 @@ function handleMove(move: any) {
 
 ```tsx
 import React from 'react';
-import { Chessboard } from 'eg-chessboard/react';
+import { Chessboard, type BoardCore, type StockfishConfig } from 'eg-chessboard/react';
 import 'eg-chessboard/style.css';
 
 export const MyChessBlock = () => {
-  const handleBoardCreated = (boardApi: any) => {
-    console.log('FÉNICIA :', boardApi.getFen());
+  const stockfishConfig: StockfishConfig = {
+    workerUrl: '/stockfish.js',
+    whiteMode: 'hint',
+    blackMode: 'disabled'
+  };
+
+  const handleBoardCreated = (boardApi: BoardCore) => {
+    console.log('FEN :', boardApi.getFen());
   };
 
   return (
     <Chessboard
       playerColor="white"
+      freeMode={false}
+      stockfishConfig={stockfishConfig}
       onBoardCreated={handleBoardCreated}
       onMove={(move) => console.log('Coup joué :', move.san)}
+      onStockfishHint={(bestMove) => console.log('Suggestion Stockfish :', bestMove)}
     />
   );
 };
@@ -100,10 +124,24 @@ export const MyChessBlock = () => {
 
 ---
 
+## Propriétés des Composants (Props)
+
+Les composants `<TheChessboard>` (Vue) et `<Chessboard>` (React) acceptent les propriétés suivantes :
+
+| Prop | Type | Par défaut | Description |
+| --- | --- | --- | --- |
+| `boardConfig` | `Config` | `{}` | Configuration directe de Chessground. |
+| `playerColor` | `'white' \| 'black' \| 'both'` | `undefined` | Couleur jouable par l'utilisateur. |
+| `freeMode` | `boolean` | `false` | Active le mode libre (permet de déplacer les pièces sans contrainte de règles et synchronise la logique de jeu). |
+| `stockfishConfig` | `StockfishConfig` | `{}` | Configuration du moteur de jeu Stockfish. |
+
+---
+
 ## API de `BoardCore`
 
 L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l'échiquier expose de nombreuses méthodes :
 
+### Méthodes Générales
 - `getFen()` : Renvoie la chaîne FEN de la position actuelle.
 - `getPgn()` : Renvoie le PGN de la partie.
 - `move(coup)` : Joue un coup programmatiquement (ex: `e4` ou `{ from: 'e2', to: 'e4' }`).
@@ -115,3 +153,14 @@ L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l
 - `getMaterialCount()` : Renvoie le décompte du matériel et le différentiel.
 - `drawMove(from, to, color)` : Dessine une flèche sur l'échiquier.
 - `hideMoves()` : Efface les flèches et marques temporaires.
+
+### Moteur Stockfish
+- `updateStockfishConfig(config)` : Met à jour dynamiquement la configuration de Stockfish.
+
+### Navigation dans l'Historique
+- `viewHistory(ply)` : Navigue vers le demi-coup spécifié dans l'historique de la partie (active le mode lecture seule).
+- `stopViewingHistory()` : Revient à la position de jeu active actuelle.
+- `viewStart()` : Revient au tout début de la partie.
+- `viewNext()` : Avance au coup suivant dans l'historique.
+- `viewPrevious()` : Recule au coup précédent.
+

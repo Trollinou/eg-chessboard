@@ -81,7 +81,7 @@ export class BoardCore {
         if (this.state.freeMode) {
           this.syncGameFromBoard();
         }
-      }
+      },
     };
 
     const isFree = !!this.state.freeMode;
@@ -285,7 +285,10 @@ export class BoardCore {
     const undoMove = this.game.undo();
     if (!undoMove) return;
 
-    if (this.state.historyViewerState.isEnabled && this.state.historyViewerState.plyViewing === this.getCurrentPlyNumber()) {
+    if (
+      this.state.historyViewerState.isEnabled &&
+      this.state.historyViewerState.plyViewing === this.getCurrentPlyNumber()
+    ) {
       this.stopViewingHistory();
     }
 
@@ -550,15 +553,20 @@ export class BoardCore {
   }
 
   viewNext(): void {
-    if (this.state.historyViewerState.isEnabled && this.state.historyViewerState.plyViewing !== undefined) {
+    if (
+      this.state.historyViewerState.isEnabled &&
+      this.state.historyViewerState.plyViewing !== undefined
+    ) {
       this.viewHistory(this.state.historyViewerState.plyViewing + 1);
     }
   }
 
   viewPrevious(): void {
-    const ply = this.state.historyViewerState.isEnabled && this.state.historyViewerState.plyViewing !== undefined
-      ? this.state.historyViewerState.plyViewing
-      : this.getCurrentPlyNumber();
+    const ply =
+      this.state.historyViewerState.isEnabled &&
+      this.state.historyViewerState.plyViewing !== undefined
+        ? this.state.historyViewerState.plyViewing
+        : this.getCurrentPlyNumber();
     this.viewHistory(ply - 1);
   }
 
@@ -598,7 +606,7 @@ export class BoardCore {
         this.opponentWorker.postMessage('ucinewgame');
         this.opponentWorker.postMessage('isready');
       }
-      const activeElo = this.getTurnColor() === 'white' ? (whiteElo || 1500) : (blackElo || 1500);
+      const activeElo = this.getTurnColor() === 'white' ? whiteElo || 1500 : blackElo || 1500;
       this.opponentWorker.postMessage('setoption name UCI_LimitStrength value true');
       this.opponentWorker.postMessage(`setoption name UCI_Elo value ${activeElo}`);
     }

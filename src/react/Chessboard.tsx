@@ -44,6 +44,11 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   });
 
   useEffect(() => {
+    if (coreRef.current) {
+      coreRef.current['state'].freeMode = freeMode;
+      coreRef.current['updateGameState']();
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState((prev) => ({ ...prev, freeMode }));
   }, [freeMode]);
 
@@ -68,7 +73,8 @@ export const Chessboard: React.FC<ChessboardProps> = ({
         else if (event === 'checkmate') onCheckmate?.(args[0] as string);
         else if (event === 'stalemate') onStalemate?.();
         else if (event === 'draw') onDraw?.();
-        else if (event === 'promotion') onPromotion?.(args[0] as { from: string; to: string; promotedTo: string });
+        else if (event === 'promotion')
+          onPromotion?.(args[0] as { from: string; to: string; promotedTo: string });
         else if (event === 'stockfish-hint') onStockfishHint?.(args[0] as string);
       },
       {
@@ -125,4 +131,3 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     </section>
   );
 };
-
