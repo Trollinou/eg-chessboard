@@ -86,16 +86,26 @@ export class BoardCore {
 
     const isFree = !!this.state.freeMode;
 
+    const mergedMovable = {
+      free: isFree,
+      color: (isFree ? 'both' : this.getTurnColor()) as 'white' | 'black' | 'both',
+      dests: isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.game),
+      events: defaultEvents,
+      ...(userConfig.movable || {}),
+    };
+
+    if (userConfig.movable?.events) {
+      mergedMovable.events = {
+        ...defaultEvents,
+        ...userConfig.movable.events,
+      };
+    }
+
     const config: Config = {
       fen: this.game.fen(),
       turnColor: this.getTurnColor(),
-      movable: {
-        free: isFree,
-        color: isFree ? 'both' : this.getTurnColor(),
-        dests: isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.game),
-        events: defaultEvents,
-      },
       ...userConfig,
+      movable: mergedMovable,
     };
 
     return config;
@@ -368,10 +378,13 @@ export class BoardCore {
   }
 
   move(moveObj: string | { from: string; to: string; promotion?: string }): boolean {
+    console.log('[BoardCore] move called with:', moveObj);
     let resultMove;
     try {
       resultMove = this.game.move(moveObj);
-    } catch {
+      console.log('[BoardCore] move successful, result:', resultMove);
+    } catch (err) {
+      console.error('[BoardCore] move failed, error:', err);
       return false;
     }
 
@@ -579,7 +592,9 @@ export class BoardCore {
   }
 
   private initStockfish() {
+    console.log('[BoardCore] initStockfish called. Config:', this.stockfishConfig);
     if (this.state.freeMode) {
+      console.log('[BoardCore] initStockfish aborted: freeMode is active');
       this.terminateStockfish();
       return;
     }
@@ -653,6 +668,7 @@ export class BoardCore {
 
   private triggerStockfish() {
     if (this.state.freeMode || this.getIsGameOver()) {
+      console.log('[BoardCore] triggerStockfish ignored: freeMode or game over');
       this.terminateStockfish();
       return;
     }
@@ -660,19 +676,30 @@ export class BoardCore {
     const turn = this.getTurnColor();
     const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
     const movetime = this.stockfishConfig.stockfishMoveTime || 1000;
+    console.log('[BoardCore] triggerStockfish. Turn:', turn, 'Mode:', mode, 'MoveTime:', movetime);
 
     if (turn === 'white' && this.whiteWorker && mode && mode !== 'disabled') {
       const positionCmd = this.getEnginePositionCommand();
+      console.log('[BoardCore] Sending to White Worker:', positionCmd, `go movetime ${movetime}`);
       this.whiteWorker.postMessage(positionCmd);
       this.whiteWorker.postMessage(`go movetime ${movetime}`);
     } else if (turn === 'black' && this.blackWorker && mode && mode !== 'disabled') {
       const positionCmd = this.getEnginePositionCommand();
+      console.log('[BoardCore] Sending to Black Worker:', positionCmd, `go movetime ${movetime}`);
       this.blackWorker.postMessage(positionCmd);
       this.blackWorker.postMessage(`go movetime ${movetime}`);
+    } else {
+      console.warn(
+        '[BoardCore] triggerStockfish: No active worker matched conditions. WhiteWorker:',
+        !!this.whiteWorker,
+        'BlackWorker:',
+        !!this.blackWorker
+      );
     }
   }
 
   private handleWhiteMessage(line: string) {
+    console.log('[BoardCore] White Worker Message:', line);
     if (line.startsWith('bestmove')) {
       const parts = line.split(' ');
       const bestMove = parts[1];
@@ -692,6 +719,7 @@ export class BoardCore {
   }
 
   private handleBlackMessage(line: string) {
+    console.log('[BoardCore] Black Worker Message:', line);
     if (line.startsWith('bestmove')) {
       const parts = line.split(' ');
       const bestMove = parts[1];

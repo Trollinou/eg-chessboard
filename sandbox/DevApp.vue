@@ -1,0 +1,607 @@
+<script setup lang="ts">
+import { ref, reactive } from 'vue';
+import TheChessboard from '../src/vue/TheChessboard.vue';
+import type { Key } from '@lichess-org/chessground/types';
+import type { BoardCore, StockfishConfig } from '../src/BoardCore';
+
+const boardCore = ref<BoardCore | null>(null);
+const currentHint = ref<string>('');
+const isThreatsEnabled = ref<boolean>(false);
+const gameHistory = ref<string[]>([]);
+const gameStatus = ref<string>('En attente du premier coup...');
+const currentTurn = ref<'white' | 'black'>('white');
+const capturedPieces = reactive<{ white: string[]; black: string[] }>({
+  white: [],
+  black: [],
+});
+
+// User config according to request:
+// - Whites assigned to user (playerColor = 'white')
+// - whiteWorker in 'hint' mode
+// - blackWorker in 'elo' mode with elo = 1400
+// - blackWorker reflection time = 1500ms
+const stockfishConfig = reactive<StockfishConfig>({
+  workerUrl: '/stockfish.js',
+  whiteMode: 'hint',
+  whiteElo: 1500, // Hint mode uses full strength anyway
+  blackMode: 'elo',
+  blackElo: 1400,
+  stockfishMoveTime: 1500,
+});
+
+const onBoardCreated = (core: BoardCore) => {
+  boardCore.value = core;
+  syncState();
+};
+
+const syncState = () => {
+  if (!boardCore.value) return;
+
+  // Get history
+  gameHistory.value = boardCore.value.getHistory() as string[];
+
+  // Get turn
+  currentTurn.value = boardCore.value.getTurnColor();
+
+  // Get captured pieces
+  const cap = boardCore.value.getCapturedPieces();
+  capturedPieces.white = cap.white;
+  capturedPieces.black = cap.black;
+
+  // Set status text
+  if (boardCore.value.getIsCheckmate()) {
+    const winner =
+      boardCore.value.getTurnColor() === 'white'
+        ? 'Les Noirs gagnent par échec et mat !'
+        : 'Les Blancs gagnent par échec et mat !';
+    gameStatus.value = `🏆 ${winner}`;
+  } else if (boardCore.value.getIsDraw()) {
+    gameStatus.value = '🤝 Match nul !';
+  } else if (boardCore.value.getIsStalemate()) {
+    gameStatus.value = '🤝 Match nul par pat !';
+  } else if (boardCore.value.getIsCheck()) {
+    gameStatus.value = `⚠️ Échec au Roi (${currentTurn.value === 'white' ? 'Blancs' : 'Noirs'}) !`;
+  } else {
+    gameStatus.value =
+      currentTurn.value === 'white'
+        ? 'À vous de jouer ! (Blancs)'
+        : 'Stockfish réfléchit... (Noirs)';
+  }
+};
+
+const onMove = () => {
+  // Clear white hint when a move is played
+  currentHint.value = '';
+  syncState();
+};
+
+const onStockfishHint = (bestMove: string) => {
+  currentHint.value = bestMove;
+
+  // Draw the hint arrow on the board
+  if (boardCore.value && bestMove && bestMove.length >= 4) {
+    const from = bestMove.slice(0, 2) as Key;
+    const to = bestMove.slice(2, 4) as Key;
+    // Draw arrow on board using a green brush
+    boardCore.value.drawMove(from, to, 'green');
+  }
+};
+
+// Controls
+const handleNewGame = () => {
+  if (boardCore.value) {
+    boardCore.value.resetBoard();
+    currentHint.value = '';
+    isThreatsEnabled.value = false;
+    syncState();
+  }
+};
+
+const handleUndo = () => {
+  if (boardCore.value) {
+    boardCore.value.undoLastMove();
+    // In player vs engine, undo once undoes engine move, undo twice undoes player move
+    // We can do it twice to get back to player's turn if black just moved
+    if (boardCore.value.getTurnColor() === 'black') {
+      boardCore.value.undoLastMove();
+    }
+    currentHint.value = '';
+    syncState();
+  }
+};
+
+const toggleThreats = () => {
+  if (boardCore.value) {
+    if (isThreatsEnabled.value) {
+      boardCore.value.hideMoves();
+      isThreatsEnabled.value = false;
+    } else {
+      boardCore.value.drawThreats();
+      isThreatsEnabled.value = true;
+    }
+  }
+};
+
+const toggleOrientation = () => {
+  if (boardCore.value) {
+    boardCore.value.toggleOrientation();
+  }
+};
+
+const formatMove = (move: string, index: number) => {
+  const moveNum = Math.floor(index / 2) + 1;
+  return index % 2 === 0 ? `${moveNum}. ${move}` : `${move}`;
+};
+</script>
+
+<template>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="logo-icon">♟️</span>
+        <h1>eg-chessboard <span class="badge">Stockfish Sandbox</span></h1>
+      </div>
+      <p class="subtitle">Page de test interactive avec configuration de jeu personnalisée</p>
+    </header>
+
+    <main class="app-layout">
+      <!-- Left column: The board -->
+      <section class="board-column">
+        <div class="board-wrapper">
+          <TheChessboard
+            player-color="white"
+            :stockfish-config="stockfishConfig"
+            @board-created="onBoardCreated"
+            @move="onMove"
+            @check="syncState"
+            @checkmate="syncState"
+            @stalemate="syncState"
+            @draw="syncState"
+            @stockfish-hint="onStockfishHint"
+          />
+        </div>
+      </section>
+
+      <!-- Right column: Controls & Info -->
+      <section class="controls-column">
+        <!-- Live status card -->
+        <div class="glass-card status-card" :class="{ 'warning-border': boardCore?.getIsCheck() }">
+          <h2>Statut de la partie</h2>
+          <div class="status-indicator">
+            <span class="pulse-dot" :class="currentTurn"></span>
+            <span class="status-text">{{ gameStatus }}</span>
+          </div>
+        </div>
+
+        <!-- Hint Card -->
+        <div class="glass-card hint-card">
+          <h2>Suggestion d'aide (Mode Hint)</h2>
+          <p class="description">
+            Le <strong>whiteWorker</strong> analyse la position et propose le meilleur coup pour
+            vous (Blancs).
+          </p>
+          <div class="hint-display">
+            <span class="hint-label">Meilleur coup :</span>
+            <span v-if="currentHint" class="hint-value">{{ currentHint }}</span>
+            <span v-else class="hint-placeholder">Analyse en cours... (ou jouez un coup)</span>
+          </div>
+          <p v-if="currentHint" class="hint-subtext">
+            💡 Une flèche verte a été dessinée sur le plateau pour visualiser ce coup.
+          </p>
+        </div>
+
+        <!-- Configurations -->
+        <div class="glass-card config-card">
+          <h2>Configuration de la partie</h2>
+          <div class="config-grid">
+            <div class="config-item">
+              <span class="config-label">Joueur Blanc (Vous) :</span>
+              <span class="config-value white-text">Humain + Hint</span>
+            </div>
+            <div class="config-item">
+              <span class="config-label">Joueur Noir (Stockfish) :</span>
+              <span class="config-value black-text">ELO {{ stockfishConfig.blackElo }}</span>
+            </div>
+            <div class="config-item">
+              <span class="config-label">Temps de réflexion :</span>
+              <span class="config-value">{{ stockfishConfig.stockfishMoveTime }} ms</span>
+            </div>
+            <div class="config-item">
+              <span class="config-label">Moteur (Blancs) :</span>
+              <span class="config-value">Hint Actif</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls card -->
+        <div class="glass-card action-card">
+          <h2>Actions</h2>
+          <div class="action-buttons">
+            <button id="btn-new" class="btn btn-primary" @click="handleNewGame">
+              🔄 Nouvelle Partie
+            </button>
+            <button
+              id="btn-undo"
+              :disabled="gameHistory.length === 0"
+              class="btn btn-secondary"
+              @click="handleUndo"
+            >
+              ↩️ Annuler le coup
+            </button>
+            <button
+              id="btn-threats"
+              :class="{ active: isThreatsEnabled }"
+              class="btn btn-secondary"
+              @click="toggleThreats"
+            >
+              👁️ {{ isThreatsEnabled ? 'Masquer' : 'Montrer' }} les Menaces
+            </button>
+            <button id="btn-rotate" class="btn btn-secondary" @click="toggleOrientation">
+              🔄 Tourner le plateau
+            </button>
+          </div>
+        </div>
+
+        <!-- Game History -->
+        <div class="glass-card history-card">
+          <h2>Historique des coups</h2>
+          <div v-if="gameHistory.length > 0" class="history-list">
+            <span v-for="(move, index) in gameHistory" :key="index" class="history-move">
+              {{ formatMove(move, index) }}
+            </span>
+          </div>
+          <span v-else class="history-empty">Aucun coup joué pour le moment.</span>
+        </div>
+      </section>
+    </main>
+  </div>
+</template>
+
+<style>
+/* Page styling using curated aesthetics */
+:root {
+  --bg-color: #0b0f19;
+  --card-bg: rgba(17, 24, 39, 0.7);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --white-color: #f3f4f6;
+  --black-color: #111827;
+}
+
+body {
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: var(--bg-color);
+  background-image:
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+.app-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.app-header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.logo-icon {
+  font-size: 2.5rem;
+}
+
+.app-header h1 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin: 0;
+  background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.badge {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #a5b4fc;
+  font-weight: 500;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin-top: 0.5rem;
+}
+
+/* Layout Grid */
+.app-layout {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+@media (max-width: 968px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Chessboard Column */
+.board-column {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.board-wrapper {
+  width: 100%;
+  max-width: 600px;
+  aspect-ratio: 1;
+  background: rgba(17, 24, 39, 0.4);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.5),
+    0 10px 10px -5px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+}
+
+/* Glassmorphism Cards */
+.glass-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.glass-card h2 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: #a5b4fc;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 0.5rem;
+}
+
+/* Warning Border for Check */
+.warning-border {
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.15);
+}
+
+/* Pulse dot for turn indicator */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.pulse-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.pulse-dot.white {
+  background-color: var(--white-color);
+  color: var(--white-color);
+  animation: pulse 1.5s infinite alternate;
+}
+
+.pulse-dot.black {
+  background-color: #4f46e5;
+  color: #4f46e5;
+  animation: pulse 1.5s infinite alternate;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+/* Hint Card styling */
+.hint-card {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.description {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.hint-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-family: monospace;
+}
+
+.hint-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.hint-value {
+  color: var(--success);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.hint-placeholder {
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.hint-subtext {
+  font-size: 0.8rem;
+  color: var(--success);
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+/* Config Grid */
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.config-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.config-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.white-text {
+  color: #fff;
+}
+
+.black-text {
+  color: #a5b4fc;
+}
+
+/* Buttons */
+.action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.btn {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--card-border);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-secondary.active {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: var(--primary);
+  color: #a5b4fc;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* History List */
+.history-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-height: 120px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.75rem;
+  border-radius: 8px;
+}
+
+.history-move {
+  font-family: monospace;
+  font-size: 0.9rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.history-empty {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Force chessground to remain inside its responsive wrapper */
+.board-wrapper .main-wrap {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+.board-wrapper .cg-wrap {
+  width: 100% !important;
+  height: 100% !important;
+}
+</style>

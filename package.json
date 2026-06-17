@@ -25,10 +25,11 @@
   },
   "scripts": {
     "build": "vite build && vue-tsc --declaration --emitDeclarationOnly --outDir dist --noEmit false",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix",
-    "format": "prettier --write \"src/**/*.{ts,tsx,vue,css,json,md}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,vue,css,json,md}\""
+    "dev": "vite",
+    "lint": "eslint src sandbox",
+    "lint:fix": "eslint src sandbox --fix",
+    "format": "prettier --write \"{src,sandbox}/**/*.{ts,tsx,vue,css,json,md}\"",
+    "format:check": "prettier --check \"{src,sandbox}/**/*.{ts,tsx,vue,css,json,md}\""
   },
   "dependencies": {
     "@lichess-org/chessground": "^10.1.1",
