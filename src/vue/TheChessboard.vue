@@ -32,14 +32,18 @@ const emit = defineEmits<{
   (e: 'draw'): void;
   (e: 'promotion', detail: { from: string; to: string; promotedTo: string }): void;
   (e: 'stockfish-hint', bestMove: string): void;
+  (e: 'square-click', square: string): void;
 }>();
 
 const boardElement = ref<HTMLElement | null>(null);
+let core: BoardCore | null = null;
+
 const state = reactive<BoardCoreState>({
   showThreats: false,
   freeMode: props.freeMode,
   promotionDialogState: { isEnabled: false },
   historyViewerState: { isEnabled: false },
+  currentComment: '',
 });
 
 // Watch for freeMode changes
@@ -47,13 +51,16 @@ watch(
   () => props.freeMode,
   (newVal) => {
     state.freeMode = newVal;
+    if (core) {
+      core.setFreeMode(newVal);
+    }
   }
 );
 
 onMounted(() => {
   if (!boardElement.value) return;
 
-  const core = new BoardCore(
+  core = new BoardCore(
     boardElement.value,
     state,
     () => {
@@ -75,6 +82,8 @@ onMounted(() => {
         emit('promotion', args[0] as { from: string; to: string; promotedTo: string });
       } else if (event === 'stockfish-hint') {
         emit('stockfish-hint', args[0] as string);
+      } else if (event === 'square-click') {
+        emit('square-click', args[0] as string);
       }
     },
     {
@@ -93,7 +102,7 @@ onMounted(() => {
   watch(
     () => props.boardConfig,
     (newConfig) => {
-      if (newConfig) {
+      if (newConfig && core) {
         core.setConfig(newConfig);
       }
     },
@@ -104,7 +113,7 @@ onMounted(() => {
   watch(
     () => props.stockfishConfig,
     (newStockfishConfig) => {
-      if (newStockfishConfig) {
+      if (newStockfishConfig && core) {
         core.updateStockfishConfig(newStockfishConfig);
       }
     },
@@ -125,7 +134,7 @@ onMounted(() => {
       <PromotionDialog
         v-if="state.promotionDialogState.isEnabled"
         :state="state.promotionDialogState"
-        @promotion-selected="state.promotionDialogState = { isEnabled: false }"
+        @promotion-selected="core?.closePromotionDialog()"
       />
       <div ref="boardElement"></div>
     </div>

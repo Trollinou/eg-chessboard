@@ -18,6 +18,7 @@ export interface ChessboardProps {
   onDraw?: () => void;
   onPromotion?: (detail: { from: string; to: string; promotedTo: string }) => void;
   onStockfishHint?: (bestMove: string) => void;
+  onSquareClick?: (square: string) => void;
 }
 
 export const Chessboard: React.FC<ChessboardProps> = ({
@@ -33,6 +34,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   onDraw,
   onPromotion,
   onStockfishHint,
+  onSquareClick,
 }) => {
   const boardRef = useRef<HTMLDivElement>(null);
   const coreRef = useRef<BoardCore | null>(null);
@@ -42,12 +44,12 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     freeMode,
     promotionDialogState: { isEnabled: false },
     historyViewerState: { isEnabled: false },
+    currentComment: '',
   });
 
   useEffect(() => {
     if (coreRef.current) {
-      coreRef.current['state'].freeMode = freeMode;
-      coreRef.current['updateGameState']();
+      coreRef.current.setFreeMode(freeMode);
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState((prev) => ({ ...prev, freeMode }));
@@ -66,6 +68,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
           freeMode: core['state'].freeMode,
           promotionDialogState: { ...core['state'].promotionDialogState },
           historyViewerState: { ...core['state'].historyViewerState },
+          currentComment: core['state'].currentComment,
         });
       },
       (event, ...args) => {
@@ -77,6 +80,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
         else if (event === 'promotion')
           onPromotion?.(args[0] as { from: string; to: string; promotedTo: string });
         else if (event === 'stockfish-hint') onStockfishHint?.(args[0] as string);
+        else if (event === 'square-click') onSquareClick?.(args[0] as string);
       },
       {
         ...boardConfig,
@@ -120,10 +124,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
           <PromotionDialog
             state={state.promotionDialogState}
             onPromotionSelected={() => {
-              setState((prev) => ({
-                ...prev,
-                promotionDialogState: { isEnabled: false },
-              }));
+              coreRef.current?.closePromotionDialog();
             }}
           />
         )}

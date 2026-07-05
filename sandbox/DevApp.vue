@@ -3,6 +3,9 @@ import { ref, reactive } from 'vue';
 import TheChessboard from '../src/vue/TheChessboard.vue';
 import type { Key } from '@lichess-org/chessground/types';
 import type { BoardCore, StockfishConfig } from '../src/BoardCore';
+import PgnApp from './PgnApp.vue';
+
+const activeTab = ref<'stockfish' | 'pgn'>('stockfish');
 
 const boardCore = ref<BoardCore | null>(null);
 const currentHint = ref<string>('');
@@ -139,12 +142,28 @@ const formatMove = (move: string, index: number) => {
     <header class="app-header">
       <div class="logo-area">
         <span class="logo-icon">♟️</span>
-        <h1>eg-chessboard <span class="badge">Stockfish Sandbox</span></h1>
+        <h1>
+          eg-chessboard
+          <span class="badge">{{
+            activeTab === 'stockfish' ? 'Stockfish Sandbox' : 'PGN Reader'
+          }}</span>
+        </h1>
       </div>
-      <p class="subtitle">Page de test interactive avec configuration de jeu personnalisée</p>
+      <div class="tab-selector">
+        <button
+          :class="{ active: activeTab === 'stockfish' }"
+          class="tab-btn"
+          @click="activeTab = 'stockfish'"
+        >
+          🤖 Mode Stockfish
+        </button>
+        <button :class="{ active: activeTab === 'pgn' }" class="tab-btn" @click="activeTab = 'pgn'">
+          📖 Mode Lecteur PGN
+        </button>
+      </div>
     </header>
 
-    <main class="app-layout">
+    <main v-if="activeTab === 'stockfish'" class="app-layout">
       <!-- Left column: The board -->
       <section class="board-column">
         <div class="board-wrapper">
@@ -254,6 +273,7 @@ const formatMove = (move: string, index: number) => {
         </div>
       </section>
     </main>
+    <PgnApp v-else />
   </div>
 </template>
 
@@ -272,6 +292,34 @@ const formatMove = (move: string, index: number) => {
   --danger: #ef4444;
   --white-color: #f3f4f6;
   --black-color: #111827;
+}
+
+.tab-selector {
+  display: flex;
+  gap: 12px;
+}
+
+.tab-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
 }
 
 body {

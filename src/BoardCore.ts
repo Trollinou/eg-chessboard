@@ -3,6 +3,7 @@ import { Chessground } from '@lichess-org/chessground';
 import type { Api } from '@lichess-org/chessground/api';
 import type { Config } from '@lichess-org/chessground/config';
 import type { Color, Key, MoveMetadata } from '@lichess-org/chessground/types';
+import type { DrawShape } from '@lichess-org/chessground/draw';
 import { possibleMoves, isPromotion, shortToLongColor, getThreats } from './BoardHelper';
 
 export interface BoardCoreState {
@@ -18,6 +19,7 @@ export interface BoardCoreState {
     plyViewing?: number;
     viewOnly?: boolean;
   };
+  currentComment?: string;
 }
 
 export type StockfishMode = 'disabled' | 'hint' | 'elo';
@@ -45,6 +47,7 @@ export class BoardCore {
   private blackWorker: Worker | null = null;
   private stockfishConfig: StockfishConfig = {};
   public lastSuggestedMove = '';
+  private customDests: Map<Key, Key[]> | null = null;
 
   constructor(
     boardElement: HTMLElement,
@@ -101,11 +104,27 @@ export class BoardCore {
       };
     }
 
+    const mergedEvents = {
+      select: (key: Key) => {
+        this.emitEvent('square-click', key);
+      },
+      ...(userConfig.events || {}),
+    };
+
+    const userSelect = userConfig.events?.select;
+    if (userSelect) {
+      mergedEvents.select = (key: Key) => {
+        this.emitEvent('square-click', key);
+        userSelect(key);
+      };
+    }
+
     const config: Config = {
       fen: this.game.fen(),
       turnColor: this.getTurnColor(),
       ...userConfig,
       movable: mergedMovable,
+      events: mergedEvents,
     };
 
     return config;
@@ -200,7 +219,9 @@ export class BoardCore {
         movable: {
           free: isFree,
           color: isFree ? 'both' : this.getTurnColor(),
-          dests: isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.game),
+          dests:
+            this.customDests ||
+            (isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.game)),
         },
       });
 
@@ -208,6 +229,8 @@ export class BoardCore {
 
       if (this.state.showThreats) {
         this.drawThreats();
+      } else {
+        this.updateCommentAndShapes(this.game.fen());
       }
     }
 
@@ -259,6 +282,17 @@ export class BoardCore {
   }
 
   // PUBLIC API
+
+  closePromotionDialog(): void {
+    this.state.promotionDialogState = { isEnabled: false };
+    this.onStateChange();
+  }
+
+  setFreeMode(freeMode: boolean): void {
+    this.state.freeMode = freeMode;
+    this.updateGameState({ updateFen: false });
+    this.onStateChange();
+  }
 
   setConfig(config: Config, fillDefaults = false): void {
     const finalConfig = fillDefaults ? this.buildConfig(config) : config;
@@ -375,6 +409,86 @@ export class BoardCore {
 
   drawMove(from: Key, to: Key, brush: string): void {
     this.board.setShapes([{ orig: from, dest: to, brush }]);
+  }
+
+  drawCircle(square: Key, brush: string): void {
+    const currentShapes = this.board.state.drawable.shapes || [];
+    this.board.setShapes([...currentShapes, { orig: square, brush }]);
+  }
+
+  setShapes(shapes: DrawShape[]): void {
+    this.board.setShapes(shapes);
+  }
+
+  private parseComment(commentStr: string): { text: string; shapes: DrawShape[] } {
+    const shapes: DrawShape[] = [];
+    let text = commentStr;
+
+    // Match [%cal Gf3h4,Rb1b2]
+    const calRegex = /\[%cal\s+([^\]]+)\]/g;
+    let calMatch;
+    while ((calMatch = calRegex.exec(commentStr)) !== null) {
+      const list = calMatch[1].split(',');
+      for (const item of list) {
+        if (item.length >= 5) {
+          const brush = this.getBrushName(item[0].toLowerCase());
+          const orig = item.substring(1, 3) as Key;
+          const dest = item.substring(3, 5) as Key;
+          shapes.push({ orig, dest, brush });
+        }
+      }
+    }
+
+    // Match [%cpl Gf3,Rb1]
+    const cplRegex = /\[%cpl\s+([^\]]+)\]/g;
+    let cplMatch;
+    while ((cplMatch = cplRegex.exec(commentStr)) !== null) {
+      const list = cplMatch[1].split(',');
+      for (const item of list) {
+        if (item.length >= 3) {
+          const brush = this.getBrushName(item[0].toLowerCase());
+          const orig = item.substring(1, 3) as Key;
+          shapes.push({ orig, brush });
+        }
+      }
+    }
+
+    // Strip all [%cal ...] and [%cpl ...] tags
+    text = text.replace(/\[%(cal|cpl)\s+[^\]]+\]/g, '').trim();
+
+    return { text, shapes };
+  }
+
+  private getBrushName(char: string): string {
+    switch (char) {
+      case 'g':
+        return 'green';
+      case 'r':
+        return 'red';
+      case 'b':
+        return 'blue';
+      case 'y':
+        return 'yellow';
+      default:
+        return 'green';
+    }
+  }
+
+  private updateCommentAndShapes(fen: string): void {
+    const comments = this.game.getComments();
+    const normalizeFen = (f: string) => f.split(' ').slice(0, 4).join(' ');
+    const targetNorm = normalizeFen(fen);
+    const commentObj = comments.find((c) => normalizeFen(c.fen) === targetNorm);
+    const rawComment = commentObj
+      ? commentObj.comment
+      : normalizeFen(this.game.fen()) === targetNorm
+        ? this.game.getComment() || ''
+        : '';
+
+    const parsed = this.parseComment(rawComment);
+    this.state.currentComment = parsed.text;
+    this.board.setShapes(parsed.shapes);
+    this.onStateChange();
   }
 
   move(moveObj: string | { from: string; to: string; promotion?: string }): boolean {
@@ -541,6 +655,8 @@ export class BoardCore {
         viewOnly: true,
         lastMove: ply > 0 ? [history[ply - 1].from as Key, history[ply - 1].to as Key] : undefined,
       });
+
+      this.updateCommentAndShapes(history[ply].before);
     } else {
       this.stopViewingHistory();
     }
@@ -600,7 +716,14 @@ export class BoardCore {
     }
 
     const { workerUrl, whiteMode, blackMode, whiteElo, blackElo } = this.stockfishConfig;
-    if (!workerUrl) return;
+    if (
+      !workerUrl ||
+      (!whiteMode && !blackMode) ||
+      (whiteMode === 'disabled' && blackMode === 'disabled')
+    ) {
+      this.terminateStockfish();
+      return;
+    }
 
     // Worker Blanc
     if (whiteMode && whiteMode !== 'disabled') {
@@ -736,5 +859,107 @@ export class BoardCore {
         }
       }
     }
+  }
+
+  private shapesToPgnComment(shapes: DrawShape[]): string {
+    if (shapes.length === 0) return '';
+    const cal: string[] = [];
+    const cpl: string[] = [];
+
+    for (const s of shapes) {
+      const brushChar = this.getBrushChar(s.brush || 'green');
+      if (s.orig && s.dest) {
+        cal.push(`${brushChar}${s.orig}${s.dest}`);
+      } else if (s.orig) {
+        cpl.push(`${brushChar}${s.orig}`);
+      }
+    }
+
+    let annotation = '';
+    if (cal.length > 0) {
+      annotation += `[%cal ${cal.join(',')}]`;
+    }
+    if (cpl.length > 0) {
+      annotation += `[%cpl ${cpl.join(',')}]`;
+    }
+    return annotation;
+  }
+
+  private getBrushChar(brushName: string): string {
+    switch (brushName.toLowerCase()) {
+      case 'green':
+        return 'G';
+      case 'red':
+        return 'R';
+      case 'blue':
+        return 'B';
+      case 'yellow':
+        return 'Y';
+      default:
+        return 'G';
+    }
+  }
+
+  setCommentAtPly(ply: number, text: string, shapes: DrawShape[] = []): void {
+    const history = this.getHistory(true) as Move[];
+    if (ply < 0 || ply > history.length) return;
+
+    const tempGame = new Chess();
+    // play up to ply
+    for (let i = 0; i < ply; i++) {
+      tempGame.move(history[i]);
+    }
+    // set comment at this position
+    const shapesAnnotation = this.shapesToPgnComment(shapes);
+    const combined = `${shapesAnnotation} ${text}`.trim();
+    tempGame.setComment(combined);
+    // play rest of the game
+    for (let i = ply; i < history.length; i++) {
+      tempGame.move(history[i]);
+    }
+
+    // load new game state
+    this.game = tempGame;
+
+    // update current comment if we are currently viewing this ply
+    const isViewingThisPly = this.state.historyViewerState.isEnabled
+      ? this.state.historyViewerState.plyViewing === ply
+      : ply === history.length;
+
+    if (isViewingThisPly) {
+      this.state.currentComment = text;
+      this.board.setShapes(shapes);
+      this.onStateChange();
+    }
+  }
+
+  setComment(text: string, shapes: DrawShape[] = []): void {
+    const ply =
+      this.state.historyViewerState.isEnabled &&
+      this.state.historyViewerState.plyViewing !== undefined
+        ? this.state.historyViewerState.plyViewing
+        : (this.getHistory(true) as Move[]).length;
+    this.setCommentAtPly(ply, text, shapes);
+  }
+
+  setCustomDests(dests: Map<Key, Key[]> | null): void {
+    this.customDests = dests;
+    this.updateGameState({ updateFen: false });
+  }
+
+  restrictMovesToPieces(squares: Key[] | null): void {
+    if (!squares) {
+      this.setCustomDests(null);
+      return;
+    }
+    const allDests = possibleMoves(this.game);
+    const filteredDests = new Map<Key, Key[]>();
+    for (const sq of squares) {
+      const destsForSq = allDests.get(sq);
+      if (destsForSq) {
+        filteredDests.set(sq, destsForSq);
+      }
+    }
+    this.setCustomDests(filteredDests);
   }
 }

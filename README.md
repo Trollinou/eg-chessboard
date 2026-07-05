@@ -137,6 +137,22 @@ Les composants `<TheChessboard>` (Vue) et `<Chessboard>` (React) acceptent les p
 
 ---
 
+## Événements (Events)
+
+| Nom React | Nom Vue 3 | Signature / Type | Description |
+| --- | --- | --- | --- |
+| `onBoardCreated` | `@board-created` | `(api: BoardCore) => void` | Déclenché lorsque l'échiquier et `BoardCore` sont initialisés. |
+| `onMove` | `@move` | `(move: Move) => void` | Déclenché après chaque mouvement de pièce valide. |
+| `onCheck` | `@check` | `(color: string) => void` | Déclenché lorsque le roi d'une couleur donnée est mis en échec. |
+| `onCheckmate` | `@checkmate` | `(color: string) => void` | Déclenché lors d'un échec et mat. |
+| `onStalemate` | `@stalemate` | `() => void` | Déclenché en cas de pat. |
+| `onDraw` | `@draw` | `() => void` | Déclenché en cas de nulle. |
+| `onPromotion` | `@promotion` | `(detail: { from: string, to: string, promotedTo: string }) => void` | Déclenché lorsqu'une promotion de pion est effectuée. |
+| `onStockfishHint` | `@stockfish-hint` | `(bestMove: string) => void` | Déclenché lorsque Stockfish a calculé une suggestion de coup. |
+| `onSquareClick` | `@square-click` | `(square: string) => void` | Déclenché lors du clic sur une case de l'échiquier (utile pour le placement libre de pièces). |
+
+---
+
 ## Structures de Configuration
 
 ### 1. Configuration de Stockfish (`StockfishConfig`)
@@ -159,6 +175,8 @@ export interface StockfishConfig {
 - **`disabled`** : Stockfish est inactif.
 - **`hint`** : Stockfish suggère le meilleur coup via l'événement `stockfish-hint` / `onStockfishHint`.
 - **`elo`** : Stockfish joue automatiquement contre le joueur lors de son tour, selon le niveau d'ELO paramétré.
+
+*Note : Si `stockfishConfig` n'est pas fourni, ou si `workerUrl` n'est pas spécifié, ou si les modes sont réglés sur `disabled`, aucun Web Worker Stockfish ne sera instancié en arrière-plan.*
 
 ### 2. Configuration Chessground (`Config`)
 
@@ -199,8 +217,11 @@ L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l
 
 ### Méthodes Générales
 - `getFen()` : Renvoie la chaîne FEN de la position actuelle.
+- `setPosition(fen)` : Charge dynamiquement une position FEN sur l'échiquier.
 - `getPgn()` : Renvoie le PGN de la partie.
 - `move(coup)` : Joue un coup programmatiquement (ex: `e4` ou `{ from: 'e2', to: 'e4' }`).
+- `putPiece(piece, square)` : Place une pièce sur l'échiquier (ex: `{ type: 'q', color: 'w' }` sur `'e4'`).
+- `removePiece(square)` : Retire la pièce présente sur une case donnée.
 - `undoLastMove()` : Annule le dernier coup joué.
 - `resetBoard()` : Réinitialise l'échiquier à la position de départ.
 - `toggleOrientation()` : Alterne l'orientation de l'échiquier (Blancs/Noirs).
@@ -208,7 +229,16 @@ L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l
 - `getCapturedPieces()` : Renvoie un objet contenant les pièces capturées par chaque joueur.
 - `getMaterialCount()` : Renvoie le décompte du matériel et le différentiel.
 - `drawMove(from, to, color)` : Dessine une flèche sur l'échiquier.
-- `hideMoves()` : Efface les flèches et marques temporaires.
+- `drawCircle(square, brush)` : Dessine un cercle sur une case (ex: `'e4'`, `'red'`).
+- `setShapes(shapes)` : Définit un ensemble de formes (flèches et cercles) sur le plateau.
+- `hideMoves()` : Efface les flèches, cercles et marques temporaires.
+- `closePromotionDialog()` : Ferme manuellement la boîte de dialogue de promotion.
+- `setFreeMode(freeMode)` : Active ou désactive dynamiquement le mode libre.
+- `setCustomDests(dests)` : Définit les destinations autorisées sous forme de `Map<Key, Key[]>` (ou `null` pour réinitialiser).
+- `restrictMovesToPieces(squares)` : Filtre les coups possibles pour n'autoriser que les pièces situées sur les cases indiquées (ou `null` pour réinitialiser).
+- `setComment(text, shapes)` : Saisit un commentaire et des formes (flèches/ronds) sur le coup actuellement visualisé.
+- `setCommentAtPly(ply, text, shapes)` : Saisit un commentaire et des formes sur un coup d'index précis (ply).
+
 
 ### Moteur Stockfish
 - `updateStockfishConfig(config)` : Met à jour dynamiquement la configuration de Stockfish.

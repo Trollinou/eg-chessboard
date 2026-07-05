@@ -1,45 +1,89 @@
-# Instructions et Règles pour les Agents d'IA (AGENTS.md)
+# Spécification d'Isopérimètre : eg-chessboard
 
-Ce document définit les règles strictes que doit suivre tout agent de codage (IA ou humain) contribuant au projet `eg-chessboard`.
+Ce document définit le contrat d'interface, les règles de réactivité et l'architecture de communication pour assurer une portabilité et un comportement strictement identiques (1:1) entre les implémentations React (`Chessboard.tsx`) et Vue 3 (`TheChessboard.vue`), en s'appuyant sur le cœur agnostique `BoardCore.ts`.
 
----
+## 1. Principes Fondamentaux d'Architecture
 
-## 1. Principe d'Isopérimètre Obligatoire (Vue / React)
-
-Le cœur de la bibliothèque est agnostique (`src/BoardCore.ts`). Les composants Vue 3 (`src/vue/TheChessboard.vue`) et React (`src/react/Chessboard.tsx`) ne sont que des wrappers d'interface utilisateur autour de ce cœur.
-
-* **Parité des fonctionnalités** : Toute fonctionnalité, propriété (`prop`), événement (`emit` ou `callback`), configuration ou option ajoutée ou modifiée dans la version **Vue** doit être implémentée de manière strictement identique dans la version **React**, et inversement.
-* **Typage homogène** : Les interfaces de propriétés (`ChessboardProps` sous React et `defineProps` sous Vue) et de retour d'événements doivent utiliser des types partagés ou stricts issus de `chess.js` ou `@lichess-org/chessground`.
-
----
-
-## 2. Processus de Qualité Obligatoire
-
-Avant de finaliser une tâche, d'exécuter un build de production, ou de réaliser un commit, **vous devez obligatoirement** exécuter et valider les étapes suivantes :
-
-### Étape A : Formatage du code
-Toutes les modifications de code doivent respecter les standards définis dans `.prettierrc`.
-```bash
-npm run format
-```
-
-### Étape B : Analyse statique (Linter)
-Aucune erreur ou avertissement linter ne doit subsister.
-```bash
-npm run lint
-```
-
-### Étape C : Compilation & Typage
-S'assurer que le compilateur TypeScript et le compilateur de composants Vue (`vue-tsc`) n'émettent aucune erreur de type lors du build.
-```bash
-npm run build
-```
+Pour éviter les divergences de comportement entre le modèle *pull/immutabilité* de React et le modèle *push/Proxy* de Vue 3 :
+1. **Source de Vérité Unique** : L'état du jeu réside exclusivement dans `BoardCore`. Les frameworks ne font que refléter cet état graphiquement.
+2. **Mutations Interdites depuis la Vue** : Aucun wrapper (React ou Vue) ne doit modifier directement l'objet `state` ou ses sous-propriétés (ex: `state.promotionDialogState`). Toute modification doit passer par une méthode publique de `BoardCore`.
+3. **Flux Unidirectionnel avec Événements** : Le cœur notifie les wrappers de tout changement d'état interne via un mécanisme d'écoute (`onStateChange`). Le wrapper React met alors à jour son `useState`, et le wrapper Vue met à jour sa référence réactive.
+4. **Pas de Fuite d'Abstraction** : L'accès aux propriétés privées par contournement de typage (ex: `coreRef.current['state']`) est strictement interdit.
 
 ---
 
-## 3. Gestion de l'état et du cycle de vie
+## 2. Contrat d'Interface Public (Props & Typage)
 
-* **Agnosticisme du cœur (`BoardCore`)** : Ne jamais insérer de logique spécifique à un framework (comme des hooks React ou des `ref` Vue) dans `BoardCore.ts`. Le cœur doit uniquement manipuler le DOM natif et l'état vanilla.
-* **Synchronisation des états** : 
-  * Sous Vue : Utiliser `watch` pour synchroniser les changements de props réactives avec le cœur.
-  * Sous React : Utiliser des hooks `useEffect` appropriés pour synchroniser les props avec le cœur (en faisant attention de ne pas provoquer de rendus en cascade ou des appels redondants de `setState`).
+Les types d'entrée proviennent exclusivement de `@lichess-org/chessground` (`Config`), de `chess.js` (`Move`), ou de notre structure commune (`StockfishConfig`).
+
+### Valeurs par défaut
+* **React** : Assignées via la déstructuration ES6 au niveau des arguments du composant.
+* **Vue 3** : Assignées via la macro `withDefaults` en utilisant des fonctions *factory* pour les objets afin de prévenir les mutations de références partagées.
+
+---
+
+## 3. Matrice d'Isopérimètre et de Correspondance
+
+| Élément / Prop | Type | Nom React | Nom / Événement Vue 3 | Stratégie d'alignement & Validation |
+| :--- | :--- | :--- | :--- | :--- |
+| **Configuration** | Prop | `boardConfig` | `boardConfig` | Alignement strict des types via `Config`. |
+| **Couleur Joueur** | Prop | `playerColor` | `playerColor` | Types littéraux : `'white' \| 'black' \| 'both'`. |
+| **Mode Libre** | Prop | `freeMode` | `freeMode` | Synchronisé dynamiquement via `useEffect` (React) et `watch` (Vue). |
+| **Config Stockfish** | Prop | `stockfishConfig` | `stockfishConfig` | Synchronisation dynamique des options du moteur. Si absente ou inactive, aucun Web Worker n'est créé. |
+| **Création du Board** | Event | `onBoardCreated` | `board-created` | Transmet l'instance de `BoardCore` dès l'initialisation. |
+| **Mouvement** | Event | `onMove` | `move` | Transmet un POJO `Move` (chess.js). Sans objet d'événement natif. |
+| **Échec** | Event | `onCheck` | `check` | Transmet la couleur en paramètre (`string`). |
+| **Échec & Mat** | Event | `onCheckmate` | `checkmate` | Transmet la couleur en paramètre (`string`). |
+| **Pat (Stalemate)** | Event | `onStalemate` | `stalemate` | Signature pure sans paramètre. |
+| **Nulle (Draw)** | Event | `onDraw` | `draw` | Signature pure sans paramètre. |
+| **Promotion requis** | Event | `onPromotion` | `promotion` | Transmet un POJO avec les détails requis pour la promotion. |
+| **Indication IA** | Event | `onStockfishHint` | `stockfish-hint` | Transmet le meilleur coup calculé (`string`). |
+| **Clic sur case** | Event | `onSquareClick` | `square-click` | Transmet la case cliquée en paramètre (`string`). |
+
+---
+
+## 4. Gestion de la Réactivité & Résolution du Risque d'État
+
+Le risque majeur de désynchronisation de `this.state` dans `BoardCore` sous React est résolu par les implémentations suivantes :
+
+### Cycle de vie d'une action (Exemple de la fermeture du dialogue de Promotion) :
+
+1. L'utilisateur sélectionne une pièce dans le composant `PromotionDialog`.
+2. Le wrapper de framework intercepte l'action et appelle **exclusivement** la méthode publique du cœur :
+   * **React** : `coreRef.current?.closePromotionDialog();`
+   * **Vue 3** : `core.closePromotionDialog();`
+3. `BoardCore` met à jour son état interne et déclenche le callback global de changement d'état.
+4. Les wrappers réagissent au changement d'état global pour mettre à jour l'UI.
+
+#### Implémentation attendue dans le composant React (`Chessboard.tsx`) :
+```typescript
+// Interdit : Modifier l'état localement sans avertir le Core
+// onPromotionSelected={() => { setState(prev => ({ ...prev, promotionDialogState: { isEnabled: false } })) }}
+
+// Recommandé : Passer par l'API publique du Core
+onPromotionSelected={(pendingMove) => {
+  coreRef.current?.confirmPromotion(pendingMove); 
+  // closePromotionDialog() est géré à l'intérieur de confirmPromotion()
+}}
+
+---
+
+## 5. Gestion des annotations graphiques et commentaires PGN
+
+Pour assurer l'uniformité du traitement des exercices et des PGN :
+1. **Extraction automatique** : Le traitement des commentaires textuels et des balises propriétaires (`[%cal]` pour les flèches, `[%cpl]` pour les ronds) est opéré exclusivement par `BoardCore` dans `updateCommentAndShapes()`. Les wrappers ne doivent pas faire de parsing de commentaires PGN de leur côté.
+2. **Champ d'état commun** : Le texte de commentaire nettoyé est exposé dans l'état commun sous la clé `currentComment`.
+3. **Méthodes de dessin publiques** : Toute opération de dessin dynamique (ex: `drawMove`, `drawCircle`, `setShapes`) doit être invoquée via les méthodes publiques de `BoardCore`.
+4. **Enrichissement / Saisie de commentaires** : L'écriture de commentaires et d'annotations graphiques dans le PGN s'effectue uniquement via `core.setComment(text, shapes)` (cible le coup visualisé à l'écran) ou `core.setCommentAtPly(ply, text, shapes)`. Le PGN résultant est récupéré via `core.getPgn()`.
+
+---
+
+## 6. Gestion des restrictions de déplacements pour les exercices
+
+Pour restreindre dynamiquement les mouvements de l'utilisateur (par exemple pour proposer des choix multiples dans les exercices) :
+1. **Méthodes publiques exclusives** : Toute restriction de coups doit passer par les méthodes publiques suivantes de `BoardCore` :
+   - `core.setCustomDests(dests: Map<Key, Key[]> | null)` : Définit explicitement les pièces et leurs cases de destinations autorisées.
+   - `core.restrictMovesToPieces(squares: Key[] | null)` : Filtre automatiquement les coups légaux de la position pour n'autoriser le déplacement que des pièces situées sur les cases spécifiées.
+2. **Cycle de vie** : Ces restrictions modifient le comportement interne de Chessground de manière persistante jusqu'à ce qu'elles soient réinitialisées en passant `null`.
+
+
