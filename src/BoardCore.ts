@@ -9,6 +9,7 @@ import { possibleMoves, isPromotion, shortToLongColor, getThreats } from './Boar
 export interface BoardCoreState {
   showThreats: boolean;
   freeMode?: boolean;
+  soloMode?: boolean;
   promotionDialogState: {
     isEnabled: boolean;
     color?: Color;
@@ -48,6 +49,7 @@ export class BoardCore {
   private stockfishConfig: StockfishConfig = {};
   public lastSuggestedMove = '';
   private customDests: Map<Key, Key[]> | null = null;
+  private soloHistory: Move[] = [];
 
   constructor(
     boardElement: HTMLElement,
@@ -294,6 +296,12 @@ export class BoardCore {
     this.onStateChange();
   }
 
+  setSoloMode(soloMode: boolean): void {
+    this.state.soloMode = soloMode;
+    this.updateGameState({ updateFen: false });
+    this.onStateChange();
+  }
+
   setConfig(config: Config, fillDefaults = false): void {
     const finalConfig = fillDefaults ? this.buildConfig(config) : config;
     if (finalConfig.movable?.events && 'after' in finalConfig.movable.events) {
@@ -315,6 +323,7 @@ export class BoardCore {
 
   resetBoard(): void {
     this.game.reset();
+    this.soloHistory = [];
     this.state.historyViewerState = { isEnabled: false };
     this.onStateChange();
     this.board.set({
@@ -322,6 +331,7 @@ export class BoardCore {
       lastMove: undefined,
     });
     this.updateGameState({ updateFen: false });
+    this.initStockfish();
     this.triggerStockfish();
   }
 
@@ -497,6 +507,15 @@ export class BoardCore {
     try {
       resultMove = this.game.move(moveObj);
       console.log('[BoardCore] move successful, result:', resultMove);
+      if (this.state.soloMode) {
+        const colorBefore = resultMove.color;
+        this.soloHistory.push(resultMove);
+        const nextFen = this.game.fen();
+        const parts = nextFen.split(' ');
+        parts[1] = colorBefore;
+        const rewrittenFen = parts.join(' ');
+        this.game.load(rewrittenFen);
+      }
     } catch (err) {
       console.error('[BoardCore] move failed, error:', err);
       return false;
@@ -604,6 +623,7 @@ export class BoardCore {
     this.state.historyViewerState = { isEnabled: false };
     this.onStateChange();
     this.updateGameState();
+    this.initStockfish();
     this.triggerStockfish();
   }
 
@@ -629,6 +649,7 @@ export class BoardCore {
     if (lastMove) {
       this.board.set({ lastMove: [lastMove.from, lastMove.to] });
     }
+    this.initStockfish();
     this.triggerStockfish();
   }
 
@@ -961,5 +982,37 @@ export class BoardCore {
       }
     }
     this.setCustomDests(filteredDests);
+  }
+
+  isSquareAttacked(square: Key, byColor: 'white' | 'black'): boolean {
+    const chessJsColor = byColor === 'white' ? 'w' : 'b';
+    return this.game.isAttacked(square as Square, chessJsColor);
+  }
+
+  getPieces(): Map<Key, { type: string; color: 'w' | 'b' }> {
+    const piecesMap = new Map<Key, { type: string; color: 'w' | 'b' }>();
+    const boardState = this.board.state.pieces;
+    const roleToPieceType: Record<string, string> = {
+      pawn: 'p',
+      knight: 'n',
+      bishop: 'b',
+      rook: 'r',
+      queen: 'q',
+      king: 'k',
+    };
+    for (const [square, piece] of boardState) {
+      const type = roleToPieceType[piece.role];
+      if (type) {
+        piecesMap.set(square as Key, {
+          type,
+          color: piece.color === 'white' ? 'w' : 'b',
+        });
+      }
+    }
+    return piecesMap;
+  }
+
+  getSoloHistory(): Move[] {
+    return this.soloHistory;
   }
 }

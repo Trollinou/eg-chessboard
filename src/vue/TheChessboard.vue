@@ -14,11 +14,13 @@ const props = withDefaults(
     boardConfig?: Config;
     playerColor?: 'white' | 'black' | 'both';
     freeMode?: boolean;
+    soloMode?: boolean;
     stockfishConfig?: StockfishConfig;
   }>(),
   {
     boardConfig: () => ({}),
     freeMode: false,
+    soloMode: false,
     stockfishConfig: () => ({}),
   }
 );
@@ -41,6 +43,7 @@ let core: BoardCore | null = null;
 const state = reactive<BoardCoreState>({
   showThreats: false,
   freeMode: props.freeMode,
+  soloMode: props.soloMode,
   promotionDialogState: { isEnabled: false },
   historyViewerState: { isEnabled: false },
   currentComment: '',
@@ -53,6 +56,17 @@ watch(
     state.freeMode = newVal;
     if (core) {
       core.setFreeMode(newVal);
+    }
+  }
+);
+
+// Watch for soloMode changes
+watch(
+  () => props.soloMode,
+  (newVal) => {
+    state.soloMode = newVal;
+    if (core) {
+      core.setSoloMode(newVal);
     }
   }
 );

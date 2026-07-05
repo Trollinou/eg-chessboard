@@ -133,6 +133,7 @@ Les composants `<TheChessboard>` (Vue) et `<Chessboard>` (React) acceptent les p
 | `boardConfig` | `Config` | `{}` | Configuration directe de Chessground. |
 | `playerColor` | `'white' \| 'black' \| 'both'` | `undefined` | Couleur jouable par l'utilisateur. |
 | `freeMode` | `boolean` | `false` | Active le mode libre (permet de déplacer les pièces sans contrainte de règles et synchronise la logique de jeu). |
+| `soloMode` | `boolean` | `false` | Active le mode solo (permet d'effectuer des déplacements consécutifs avec la même pièce sans alternance forcée du tour). |
 | `stockfishConfig` | `StockfishConfig` | `{}` | Configuration du moteur de jeu Stockfish. |
 
 ---
@@ -234,8 +235,12 @@ L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l
 - `hideMoves()` : Efface les flèches, cercles et marques temporaires.
 - `closePromotionDialog()` : Ferme manuellement la boîte de dialogue de promotion.
 - `setFreeMode(freeMode)` : Active ou désactive dynamiquement le mode libre.
+- `setSoloMode(soloMode)` : Active ou désactive le mode solo pour les exercices.
 - `setCustomDests(dests)` : Définit les destinations autorisées sous forme de `Map<Key, Key[]>` (ou `null` pour réinitialiser).
 - `restrictMovesToPieces(squares)` : Filtre les coups possibles pour n'autoriser que les pièces situées sur les cases indiquées (ou `null` pour réinitialiser).
+- `isSquareAttacked(square, byColor)` : Vérifie si une case donnée de l'échiquier est attaquée par une couleur spécifique (`'white'` ou `'black'`).
+- `getPieces()` : Renvoie l'intégralité des pièces présentes sur l'échiquier sous forme de `Map<Key, { type: string, color: 'w' | 'b' }>`.
+- `getSoloHistory()` : Renvoie l'historique des déplacements effectués dans le cadre du mode solo.
 - `setComment(text, shapes)` : Saisit un commentaire et des formes (flèches/ronds) sur le coup actuellement visualisé.
 - `setCommentAtPly(ply, text, shapes)` : Saisit un commentaire et des formes sur un coup d'index précis (ply).
 

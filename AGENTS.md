@@ -29,6 +29,7 @@ Les types d'entrée proviennent exclusivement de `@lichess-org/chessground` (`Co
 | **Configuration** | Prop | `boardConfig` | `boardConfig` | Alignement strict des types via `Config`. |
 | **Couleur Joueur** | Prop | `playerColor` | `playerColor` | Types littéraux : `'white' \| 'black' \| 'both'`. |
 | **Mode Libre** | Prop | `freeMode` | `freeMode` | Synchronisé dynamiquement via `useEffect` (React) et `watch` (Vue). |
+| **Mode Solo** | Prop | `soloMode` | `soloMode` | Utilisé pour les exercices d'apprentissage (déplacements consécutifs sans alternance de tour). |
 | **Config Stockfish** | Prop | `stockfishConfig` | `stockfishConfig` | Synchronisation dynamique des options du moteur. Si absente ou inactive, aucun Web Worker n'est créé. |
 | **Création du Board** | Event | `onBoardCreated` | `board-created` | Transmet l'instance de `BoardCore` dès l'initialisation. |
 | **Mouvement** | Event | `onMove` | `move` | Transmet un POJO `Move` (chess.js). Sans objet d'événement natif. |
@@ -65,6 +66,7 @@ onPromotionSelected={(pendingMove) => {
   coreRef.current?.confirmPromotion(pendingMove); 
   // closePromotionDialog() est géré à l'intérieur de confirmPromotion()
 }}
+```
 
 ---
 
@@ -78,12 +80,15 @@ Pour assurer l'uniformité du traitement des exercices et des PGN :
 
 ---
 
-## 6. Gestion des restrictions de déplacements pour les exercices
+## 6. Gestion des restrictions de déplacements et aides pour les exercices
 
-Pour restreindre dynamiquement les mouvements de l'utilisateur (par exemple pour proposer des choix multiples dans les exercices) :
-1. **Méthodes publiques exclusives** : Toute restriction de coups doit passer par les méthodes publiques suivantes de `BoardCore` :
+Pour restreindre dynamiquement les mouvements de l'utilisateur ou valider ses actions dans le cadre d'exercices d'apprentissage :
+1. **Méthodes publiques exclusives** : Toute restriction ou vérification de coups doit s'appuyer sur les méthodes publiques de `BoardCore` :
    - `core.setCustomDests(dests: Map<Key, Key[]> | null)` : Définit explicitement les pièces et leurs cases de destinations autorisées.
    - `core.restrictMovesToPieces(squares: Key[] | null)` : Filtre automatiquement les coups légaux de la position pour n'autoriser le déplacement que des pièces situées sur les cases spécifiées.
-2. **Cycle de vie** : Ces restrictions modifient le comportement interne de Chessground de manière persistante jusqu'à ce qu'elles soient réinitialisées en passant `null`.
+   - `core.isSquareAttacked(square: Key, byColor: 'white' | 'black'): boolean` : Permet à l'application hôte de détecter si le joueur s'est déplacé sur une case menacée afin de déclencher un avertissement ou une réinitialisation de l'exercice.
+   - `core.getPieces(): Map<Key, { type: string; color: 'w' | 'b' }>` : Retourne la liste des pièces restantes sur l'échiquier pour valider la capture complète des pièces adverses.
+   - `core.getSoloHistory(): Move[]` : Retourne l'historique des coups joués en mode solo.
+2. **Cycle de vie** : Les restrictions modifient le comportement interne de Chessground de manière persistante jusqu'à ce qu'elles soient réinitialisées en passant `null`. En `soloMode`, après chaque coup, le trait est automatiquement conservé sur la couleur de la pièce jouée pour autoriser les déplacements consécutifs.
 
 

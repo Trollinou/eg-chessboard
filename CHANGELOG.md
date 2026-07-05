@@ -6,6 +6,19 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ---
 
+## [1.1.1] - 2026-07-05
+
+### Ajouté
+
+- **Mode Solo (`soloMode`)** : Prise en charge des déplacements consécutifs sans alternance forcée de tour pour les exercices d'apprentissage (disponible dans les composants Vue, React et dans `BoardCore`).
+- **APIs d'exercices** : Ajout de `isSquareAttacked`, `getPieces`, et `getSoloHistory` dans `BoardCore` pour valider les actions de l'utilisateur dans les exercices.
+
+### Corrigé
+
+- **Réinitialisation de Stockfish** : Correction d'un bug où le moteur Stockfish n'était plus réinitialisé après une partie terminée en cliquant sur "Nouvelle partie" ou en chargeant un nouveau FEN / PGN. Les workers sont désormais ré-instanciés correctement si nécessaire.
+
+---
+
 ## [1.1.0] - 2026-06-15
 
 ### Ajouté

@@ -9,6 +9,7 @@ export interface ChessboardProps {
   boardConfig?: Config;
   playerColor?: 'white' | 'black' | 'both';
   freeMode?: boolean;
+  soloMode?: boolean;
   stockfishConfig?: StockfishConfig;
   onBoardCreated?: (api: BoardCore) => void;
   onMove?: (move: Move) => void;
@@ -25,6 +26,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   boardConfig = {},
   playerColor,
   freeMode = false,
+  soloMode = false,
   stockfishConfig = {},
   onBoardCreated,
   onMove,
@@ -42,6 +44,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   const [state, setState] = useState<BoardCoreState>({
     showThreats: false,
     freeMode,
+    soloMode,
     promotionDialogState: { isEnabled: false },
     historyViewerState: { isEnabled: false },
     currentComment: '',
@@ -56,6 +59,14 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   }, [freeMode]);
 
   useEffect(() => {
+    if (coreRef.current) {
+      coreRef.current.setSoloMode(soloMode);
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setState((prev) => ({ ...prev, soloMode }));
+  }, [soloMode]);
+
+  useEffect(() => {
     if (!boardRef.current) return;
 
     const core = new BoardCore(
@@ -66,6 +77,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
         setState({
           showThreats: core['state'].showThreats,
           freeMode: core['state'].freeMode,
+          soloMode: core['state'].soloMode,
           promotionDialogState: { ...core['state'].promotionDialogState },
           historyViewerState: { ...core['state'].historyViewerState },
           currentComment: core['state'].currentComment,
