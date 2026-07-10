@@ -27,12 +27,12 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'board-created': [api: BoardCore];
-  'move': [move: Move];
-  'check': [color: string];
-  'checkmate': [color: string];
-  'stalemate': [];
-  'draw': [];
-  'promotion': [detail: { from: string; to: string; promotedTo: string }];
+  move: [move: Move];
+  check: [color: string];
+  checkmate: [color: string];
+  stalemate: [];
+  draw: [];
+  promotion: [detail: { from: string; to: string; promotedTo: string }];
   'stockfish-hint': [bestMove: string];
   'square-click': [square: string];
 }>();
