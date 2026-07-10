@@ -3,7 +3,7 @@ export { BoardCore, type BoardCoreState, type StockfishConfig } from '../BoardCo
 </script>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive, watch } from 'vue';
+import { ref, shallowRef, onMounted, reactive, watch } from 'vue';
 import type { Config } from '@lichess-org/chessground/config';
 import type { Move } from 'chess.js';
 import { BoardCore, type BoardCoreState, type StockfishConfig } from '../BoardCore';
@@ -26,19 +26,19 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  (e: 'board-created', api: BoardCore): void;
-  (e: 'move', move: Move): void;
-  (e: 'check', color: string): void;
-  (e: 'checkmate', color: string): void;
-  (e: 'stalemate'): void;
-  (e: 'draw'): void;
-  (e: 'promotion', detail: { from: string; to: string; promotedTo: string }): void;
-  (e: 'stockfish-hint', bestMove: string): void;
-  (e: 'square-click', square: string): void;
+  'board-created': [api: BoardCore];
+  'move': [move: Move];
+  'check': [color: string];
+  'checkmate': [color: string];
+  'stalemate': [];
+  'draw': [];
+  'promotion': [detail: { from: string; to: string; promotedTo: string }];
+  'stockfish-hint': [bestMove: string];
+  'square-click': [square: string];
 }>();
 
 const boardElement = ref<HTMLElement | null>(null);
-let core: BoardCore | null = null;
+const core = shallowRef<BoardCore | null>(null);
 
 const state = reactive<BoardCoreState>({
   showThreats: false,
@@ -54,8 +54,8 @@ watch(
   () => props.freeMode,
   (newVal) => {
     state.freeMode = newVal;
-    if (core) {
-      core.setFreeMode(newVal);
+    if (core.value) {
+      core.value.setFreeMode(newVal);
     }
   }
 );
@@ -65,8 +65,8 @@ watch(
   () => props.soloMode,
   (newVal) => {
     state.soloMode = newVal;
-    if (core) {
-      core.setSoloMode(newVal);
+    if (core.value) {
+      core.value.setSoloMode(newVal);
     }
   }
 );
@@ -74,7 +74,7 @@ watch(
 onMounted(() => {
   if (!boardElement.value) return;
 
-  core = new BoardCore(
+  core.value = new BoardCore(
     boardElement.value,
     state,
     () => {
@@ -110,14 +110,14 @@ onMounted(() => {
     props.stockfishConfig
   );
 
-  emit('board-created', core);
+  emit('board-created', core.value!);
 
   // Watch for configuration changes
   watch(
     () => props.boardConfig,
     (newConfig) => {
-      if (newConfig && core) {
-        core.setConfig(newConfig);
+      if (newConfig && core.value) {
+        core.value.setConfig(newConfig);
       }
     },
     { deep: true }
@@ -127,8 +127,8 @@ onMounted(() => {
   watch(
     () => props.stockfishConfig,
     (newStockfishConfig) => {
-      if (newStockfishConfig && core) {
-        core.updateStockfishConfig(newStockfishConfig);
+      if (newStockfishConfig && core.value) {
+        core.value.updateStockfishConfig(newStockfishConfig);
       }
     },
     { deep: true }
