@@ -13,7 +13,7 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
-    "./style.css": "./dist/style.css",
+    "./style.css": "./dist/eg-chessboard.css",
     "./vue": {
       "import": "./dist/vue.js",
       "types": "./dist/vue/TheChessboard.vue.d.ts"
