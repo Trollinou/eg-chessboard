@@ -4,6 +4,20 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [1.1.2] - 2026-07-10
+
+### Modifié
+
+- **Compatibilité TypeScript 6.0.3 et `vue-tsc`** :
+  - Configuration de `"rootDir": "src"` dans `tsconfig.json` pour la génération des fichiers de déclaration.
+  - Déclaration globale de module pour les fichiers `.css` dans `src/env.d.ts`.
+  - Passage de l'instance `core` en `shallowRef` dans `TheChessboard.vue` pour conserver l'exactitude du type original de `BoardCore` sans enveloppement Proxy de Vue.
+  - Migration de `defineEmits` vers le format objet de tuples pour se conformer au typage strict de TS 6.
+
+### Corrigé
+
+- **Conflits de Dépendances ESLint** : Rétrogradation d'ESLint de `^10.6.0` (encore instable/incompatible) vers la version stable `^9.21.0` afin de résoudre les conflits d'installation `EROSOLVE` avec les plugins React/Vue.
+
 ---
 
 ## [1.1.1] - 2026-07-05
