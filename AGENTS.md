@@ -32,7 +32,7 @@ Les types d'entrée proviennent exclusivement de `@lichess-org/chessground` (`Co
 | **Mode Solo** | Prop | `soloMode` | `soloMode` | Utilisé pour les exercices d'apprentissage (déplacements consécutifs sans alternance de tour). |
 | **Config Stockfish** | Prop | `stockfishConfig` | `stockfishConfig` | Synchronisation dynamique des options du moteur. Si absente ou inactive, aucun Web Worker n'est créé. |
 | **Création du Board** | Event | `onBoardCreated` | `board-created` | Transmet l'instance de `BoardCore` dès l'initialisation. |
-| **Mouvement** | Event | `onMove` | `move` | Transmet un POJO `Move` (chess.js). Sans objet d'événement natif. |
+| **Mouvement** | Event | `onMove` | `move` | Transmet un POJO `Move` (chess.js). Sans objet d'événement natif. Émis uniquement après la mise à jour graphique complète de l'échiquier (permettant un `undoLastMove` immédiat sans désynchronisation visuelle). |
 | **Échec** | Event | `onCheck` | `check` | Transmet la couleur en paramètre (`string`). |
 | **Échec & Mat** | Event | `onCheckmate` | `checkmate` | Transmet la couleur en paramètre (`string`). |
 | **Pat (Stalemate)** | Event | `onStalemate` | `stalemate` | Signature pure sans paramètre. |

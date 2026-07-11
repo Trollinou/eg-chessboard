@@ -143,7 +143,7 @@ Les composants `<TheChessboard>` (Vue) et `<Chessboard>` (React) acceptent les p
 | Nom React | Nom Vue 3 | Signature / Type | Description |
 | --- | --- | --- | --- |
 | `onBoardCreated` | `@board-created` | `(api: BoardCore) => void` | Déclenché lorsque l'échiquier et `BoardCore` sont initialisés. |
-| `onMove` | `@move` | `(move: Move) => void` | Déclenché après chaque mouvement de pièce valide. |
+| `onMove` | `@move` | `(move: Move) => void` | Déclenché après chaque mouvement de pièce valide (après la mise à jour graphique du plateau, permettant d'appeler `undoLastMove` en toute sécurité). |
 | `onCheck` | `@check` | `(color: string) => void` | Déclenché lorsque le roi d'une couleur donnée est mis en échec. |
 | `onCheckmate` | `@checkmate` | `(color: string) => void` | Déclenché lors d'un échec et mat. |
 | `onStalemate` | `@stalemate` | `() => void` | Déclenché en cas de pat. |
@@ -185,7 +185,7 @@ L'objet `boardConfig` accepte toutes les options natives de Chessground. Voici l
 
 ```typescript
 interface Config {
-  fen?: string;                   // Position de départ au format FEN
+  fen?: string;                   // Position de départ au format FEN (chargée au démarrage pour synchroniser les coups légaux)
   orientation?: 'white' | 'black'; // Orientation de l'échiquier
   turnColor?: 'white' | 'black';  // Joueur dont c'est le tour
   coordinates?: boolean;          // Afficher ou non les coordonnées sur les bords (défaut : true)

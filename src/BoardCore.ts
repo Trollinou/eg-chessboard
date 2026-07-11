@@ -72,6 +72,9 @@ export class BoardCore {
   }
 
   private initBoard() {
+    if (this.initialConfig.fen) {
+      this.game.load(this.initialConfig.fen);
+    }
     const config = this.buildConfig(this.initialConfig);
     this.board = Chessground(this.boardElement, config);
     this.updateGameState({ updateFen: false });
@@ -521,16 +524,6 @@ export class BoardCore {
       return false;
     }
 
-    this.emitEvent('move', resultMove);
-
-    if (resultMove.promotion) {
-      this.emitEvent('promotion', {
-        color: shortToLongColor(resultMove.color),
-        promotedTo: resultMove.promotion.toUpperCase(),
-        sanMove: resultMove.san,
-      });
-    }
-
     if (!this.state.historyViewerState.isEnabled) {
       this.board.move(resultMove.from as Key, resultMove.to as Key);
       if (
@@ -544,6 +537,16 @@ export class BoardCore {
         }, 50);
       }
       this.updateGameState({ updateFen: false });
+    }
+
+    this.emitEvent('move', resultMove);
+
+    if (resultMove.promotion) {
+      this.emitEvent('promotion', {
+        color: shortToLongColor(resultMove.color),
+        promotedTo: resultMove.promotion.toUpperCase(),
+        sanMove: resultMove.san,
+      });
     }
 
     this.triggerStockfish();
