@@ -73,7 +73,11 @@ export class BoardCore {
 
   private initBoard() {
     if (this.initialConfig.fen) {
-      this.game.load(this.initialConfig.fen);
+      try {
+        this.game.load(this.initialConfig.fen);
+      } catch (e) {
+        console.warn('Invalid initial FEN loaded in chess.js:', this.initialConfig.fen, e);
+      }
     }
     const config = this.buildConfig(this.initialConfig);
     this.board = Chessground(this.boardElement, config);
@@ -588,6 +592,46 @@ export class BoardCore {
     return this.game.fen();
   }
 
+  getPlacementFen(): string {
+    const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const roleToChar: Record<string, string> = {
+      pawn: 'p',
+      knight: 'n',
+      bishop: 'b',
+      rook: 'r',
+      queen: 'q',
+      king: 'k',
+    };
+
+    const pieces = this.board.state.pieces;
+    const rows: string[] = [];
+
+    for (const rank of ranks) {
+      let emptyCount = 0;
+      let rowStr = '';
+      for (const file of files) {
+        const square = `${file}${rank}`;
+        const piece = pieces.get(square as Key);
+        if (piece) {
+          if (emptyCount > 0) {
+            rowStr += emptyCount;
+            emptyCount = 0;
+          }
+          const char = roleToChar[piece.role];
+          rowStr += piece.color === 'white' ? char.toUpperCase() : char.toLowerCase();
+        } else {
+          emptyCount++;
+        }
+      }
+      if (emptyCount > 0) {
+        rowStr += emptyCount;
+      }
+      rows.push(rowStr);
+    }
+    return rows.join('/');
+  }
+
   getPgn(): string {
     return this.game.pgn();
   }
@@ -629,10 +673,25 @@ export class BoardCore {
   }
 
   setPosition(fen: string): void {
-    this.game.load(fen);
+    let success = true;
+    try {
+      this.game.load(fen);
+    } catch (e) {
+      success = false;
+      console.warn('Invalid FEN loaded in chess.js, fallback to visual set:', fen, e);
+    }
+
     this.state.historyViewerState = { isEnabled: false };
     this.onStateChange();
-    this.updateGameState();
+
+    if (!success) {
+      // Chessground est purement visuel et accepte n'importe quelle disposition (même vide)
+      this.board.set({ fen: fen.split(' ')[0] });
+      this.emitEvents();
+    } else {
+      this.updateGameState();
+    }
+
     this.initStockfish();
     this.triggerStockfish();
   }

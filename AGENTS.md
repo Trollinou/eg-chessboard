@@ -103,3 +103,4 @@ Pour restreindre dynamiquement les mouvements de l'utilisateur ou valider ses ac
 Pour interroger l'état interne de l'échiquier de manière uniforme :
 
 - `core.getOrientation(): 'white' | 'black'` : Retourne l'orientation actuelle du plateau de jeu.
+- `core.getPlacementFen(): string` : Retourne la FEN de placement actuelle des pièces (sans les autres métadonnées de FEN) extraite directement de Chessground, sans dépendre de la validation de `chess.js` (utile en mode libre ou pour les FENs en cours d'édition).

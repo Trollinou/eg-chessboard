@@ -221,6 +221,7 @@ L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l
 ### Méthodes Générales
 
 - `getFen()` : Renvoie la chaîne FEN de la position actuelle.
+- `getPlacementFen()` : Renvoie la FEN de placement uniquement (disposition des pièces), extraite directement de Chessground (utile pour le mode libre ou FENs incomplètes sans crash).
 - `setPosition(fen)` : Charge dynamiquement une position FEN sur l'échiquier.
 - `getPgn()` : Renvoie le PGN de la partie.
 - `move(coup)` : Joue un coup programmatiquement (ex: `e4` ou `{ from: 'e2', to: 'e4' }`).
