@@ -402,6 +402,13 @@ export class BoardCore {
     return captured;
   }
 
+  /**
+   * Retourne l'orientation actuelle du plateau de jeu.
+   */
+  public getOrientation(): 'white' | 'black' {
+    return this.board ? this.board.state.orientation : 'white';
+  }
+
   toggleOrientation(): void {
     this.board.toggleOrientation();
   }
@@ -822,22 +829,29 @@ export class BoardCore {
 
     const turn = this.getTurnColor();
     const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
+
+    if (!mode || mode === 'disabled') {
+      return;
+    }
+
     const movetime = this.stockfishConfig.stockfishMoveTime || 1000;
     console.log('[BoardCore] triggerStockfish. Turn:', turn, 'Mode:', mode, 'MoveTime:', movetime);
 
-    if (turn === 'white' && this.whiteWorker && mode && mode !== 'disabled') {
+    if (turn === 'white' && this.whiteWorker) {
       const positionCmd = this.getEnginePositionCommand();
       console.log('[BoardCore] Sending to White Worker:', positionCmd, `go movetime ${movetime}`);
       this.whiteWorker.postMessage(positionCmd);
       this.whiteWorker.postMessage(`go movetime ${movetime}`);
-    } else if (turn === 'black' && this.blackWorker && mode && mode !== 'disabled') {
+    } else if (turn === 'black' && this.blackWorker) {
       const positionCmd = this.getEnginePositionCommand();
       console.log('[BoardCore] Sending to Black Worker:', positionCmd, `go movetime ${movetime}`);
       this.blackWorker.postMessage(positionCmd);
       this.blackWorker.postMessage(`go movetime ${movetime}`);
     } else {
       console.warn(
-        '[BoardCore] triggerStockfish: No active worker matched conditions. WhiteWorker:',
+        '[BoardCore] triggerStockfish: Worker not initialized for mode:',
+        mode,
+        'WhiteWorker:',
         !!this.whiteWorker,
         'BlackWorker:',
         !!this.blackWorker

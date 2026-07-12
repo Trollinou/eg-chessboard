@@ -9,6 +9,7 @@ Elle utilise **[@lichess-org/chessground](https://github.com/lichess-org/chessgr
 ## Architecture
 
 La bibliothèque est découpée de manière à isoler la logique métier du framework de rendu :
+
 - **`BoardCore` (TS pur)** : Moteur logique agnostique gérant la partie, l'historique, le matériel, le PGN/FEN et la synchronisation avec l'API Chessground.
 - **Wrapper Vue 3 (`TheChessboard.vue`)** : Composant Vue 3 prêt à l'emploi.
 - **Wrapper React (`Chessboard.tsx`)** : Composant React (Gutenberg) prêt à l'emploi.
@@ -27,6 +28,7 @@ Pour l'ajouter dans vos projets locaux en tant que dépendance :
 ```
 
 Puis lancez l'installation :
+
 ```bash
 npm install
 ```
@@ -60,10 +62,10 @@ import 'eg-chessboard/style.css';
 
 const stockfishConfig: StockfishConfig = {
   workerUrl: '/stockfish.js', // Chemin vers le worker Stockfish
-  whiteMode: 'hint',          // 'disabled' | 'hint' | 'elo'
+  whiteMode: 'hint', // 'disabled' | 'hint' | 'elo'
   blackMode: 'elo',
   blackElo: 1500,
-  stockfishMoveTime: 1000
+  stockfishMoveTime: 1000,
 };
 
 function handleBoardCreated(boardApi: BoardCore) {
@@ -102,7 +104,7 @@ export const MyChessBlock = () => {
   const stockfishConfig: StockfishConfig = {
     workerUrl: '/stockfish.js',
     whiteMode: 'hint',
-    blackMode: 'disabled'
+    blackMode: 'disabled',
   };
 
   const handleBoardCreated = (boardApi: BoardCore) => {
@@ -128,29 +130,29 @@ export const MyChessBlock = () => {
 
 Les composants `<TheChessboard>` (Vue) et `<Chessboard>` (React) acceptent les propriétés suivantes :
 
-| Prop | Type | Par défaut | Description |
-| --- | --- | --- | --- |
-| `boardConfig` | `Config` | `{}` | Configuration directe de Chessground. |
-| `playerColor` | `'white' \| 'black' \| 'both'` | `undefined` | Couleur jouable par l'utilisateur. |
-| `freeMode` | `boolean` | `false` | Active le mode libre (permet de déplacer les pièces sans contrainte de règles et synchronise la logique de jeu). |
-| `soloMode` | `boolean` | `false` | Active le mode solo (permet d'effectuer des déplacements consécutifs avec la même pièce sans alternance forcée du tour). |
-| `stockfishConfig` | `StockfishConfig` | `{}` | Configuration du moteur de jeu Stockfish. |
+| Prop              | Type                           | Par défaut  | Description                                                                                                              |
+| ----------------- | ------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `boardConfig`     | `Config`                       | `{}`        | Configuration directe de Chessground.                                                                                    |
+| `playerColor`     | `'white' \| 'black' \| 'both'` | `undefined` | Couleur jouable par l'utilisateur.                                                                                       |
+| `freeMode`        | `boolean`                      | `false`     | Active le mode libre (permet de déplacer les pièces sans contrainte de règles et synchronise la logique de jeu).         |
+| `soloMode`        | `boolean`                      | `false`     | Active le mode solo (permet d'effectuer des déplacements consécutifs avec la même pièce sans alternance forcée du tour). |
+| `stockfishConfig` | `StockfishConfig`              | `{}`        | Configuration du moteur de jeu Stockfish.                                                                                |
 
 ---
 
 ## Événements (Events)
 
-| Nom React | Nom Vue 3 | Signature / Type | Description |
-| --- | --- | --- | --- |
-| `onBoardCreated` | `@board-created` | `(api: BoardCore) => void` | Déclenché lorsque l'échiquier et `BoardCore` sont initialisés. |
-| `onMove` | `@move` | `(move: Move) => void` | Déclenché après chaque mouvement de pièce valide (après la mise à jour graphique du plateau, permettant d'appeler `undoLastMove` en toute sécurité). |
-| `onCheck` | `@check` | `(color: string) => void` | Déclenché lorsque le roi d'une couleur donnée est mis en échec. |
-| `onCheckmate` | `@checkmate` | `(color: string) => void` | Déclenché lors d'un échec et mat. |
-| `onStalemate` | `@stalemate` | `() => void` | Déclenché en cas de pat. |
-| `onDraw` | `@draw` | `() => void` | Déclenché en cas de nulle. |
-| `onPromotion` | `@promotion` | `(detail: { from: string, to: string, promotedTo: string }) => void` | Déclenché lorsqu'une promotion de pion est effectuée. |
-| `onStockfishHint` | `@stockfish-hint` | `(bestMove: string) => void` | Déclenché lorsque Stockfish a calculé une suggestion de coup. |
-| `onSquareClick` | `@square-click` | `(square: string) => void` | Déclenché lors du clic sur une case de l'échiquier (utile pour le placement libre de pièces). |
+| Nom React         | Nom Vue 3         | Signature / Type                                                     | Description                                                                                                                                          |
+| ----------------- | ----------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `onBoardCreated`  | `@board-created`  | `(api: BoardCore) => void`                                           | Déclenché lorsque l'échiquier et `BoardCore` sont initialisés.                                                                                       |
+| `onMove`          | `@move`           | `(move: Move) => void`                                               | Déclenché après chaque mouvement de pièce valide (après la mise à jour graphique du plateau, permettant d'appeler `undoLastMove` en toute sécurité). |
+| `onCheck`         | `@check`          | `(color: string) => void`                                            | Déclenché lorsque le roi d'une couleur donnée est mis en échec.                                                                                      |
+| `onCheckmate`     | `@checkmate`      | `(color: string) => void`                                            | Déclenché lors d'un échec et mat.                                                                                                                    |
+| `onStalemate`     | `@stalemate`      | `() => void`                                                         | Déclenché en cas de pat.                                                                                                                             |
+| `onDraw`          | `@draw`           | `() => void`                                                         | Déclenché en cas de nulle.                                                                                                                           |
+| `onPromotion`     | `@promotion`      | `(detail: { from: string, to: string, promotedTo: string }) => void` | Déclenché lorsqu'une promotion de pion est effectuée.                                                                                                |
+| `onStockfishHint` | `@stockfish-hint` | `(bestMove: string) => void`                                         | Déclenché lorsque Stockfish a calculé une suggestion de coup.                                                                                        |
+| `onSquareClick`   | `@square-click`   | `(square: string) => void`                                           | Déclenché lors du clic sur une case de l'échiquier (utile pour le placement libre de pièces).                                                        |
 
 ---
 
@@ -164,12 +166,12 @@ L'interface `StockfishConfig` vous permet de paramétrer les moteurs d'analyse o
 export type StockfishMode = 'disabled' | 'hint' | 'elo';
 
 export interface StockfishConfig {
-  whiteMode?: StockfishMode;      // Mode pour les Blancs ('disabled' | 'hint' | 'elo')
-  whiteElo?: number;              // Niveau ELO de Stockfish pour les Blancs (ex: 1500)
-  blackMode?: StockfishMode;      // Mode pour les Noirs
-  blackElo?: number;              // Niveau ELO de Stockfish pour les Noirs
-  stockfishMoveTime?: number;     // Temps de réflexion max de Stockfish en millisecondes (défaut : 1000)
-  workerUrl?: string;             // URL/Chemin relatif vers le script du Web Worker Stockfish (ex: '/stockfish.js')
+  whiteMode?: StockfishMode; // Mode pour les Blancs ('disabled' | 'hint' | 'elo')
+  whiteElo?: number; // Niveau ELO de Stockfish pour les Blancs (ex: 1500)
+  blackMode?: StockfishMode; // Mode pour les Noirs
+  blackElo?: number; // Niveau ELO de Stockfish pour les Noirs
+  stockfishMoveTime?: number; // Temps de réflexion max de Stockfish en millisecondes (défaut : 1000)
+  workerUrl?: string; // URL/Chemin relatif vers le script du Web Worker Stockfish (ex: '/stockfish.js')
 }
 ```
 
@@ -177,7 +179,7 @@ export interface StockfishConfig {
 - **`hint`** : Stockfish suggère le meilleur coup via l'événement `stockfish-hint` / `onStockfishHint`.
 - **`elo`** : Stockfish joue automatiquement contre le joueur lors de son tour, selon le niveau d'ELO paramétré.
 
-*Note : Si `stockfishConfig` n'est pas fourni, ou si `workerUrl` n'est pas spécifié, ou si les modes sont réglés sur `disabled`, aucun Web Worker Stockfish ne sera instancié en arrière-plan.*
+_Note : Si `stockfishConfig` n'est pas fourni, ou si `workerUrl` n'est pas spécifié, ou si les modes sont réglés sur `disabled`, aucun Web Worker Stockfish ne sera instancié en arrière-plan._
 
 ### 2. Configuration Chessground (`Config`)
 
@@ -185,30 +187,30 @@ L'objet `boardConfig` accepte toutes les options natives de Chessground. Voici l
 
 ```typescript
 interface Config {
-  fen?: string;                   // Position de départ au format FEN (chargée au démarrage pour synchroniser les coups légaux)
+  fen?: string; // Position de départ au format FEN (chargée au démarrage pour synchroniser les coups légaux)
   orientation?: 'white' | 'black'; // Orientation de l'échiquier
-  turnColor?: 'white' | 'black';  // Joueur dont c'est le tour
-  coordinates?: boolean;          // Afficher ou non les coordonnées sur les bords (défaut : true)
-  autoCastle?: boolean;           // Roquer automatiquement lorsque le roi se déplace sur la tour (défaut : true)
+  turnColor?: 'white' | 'black'; // Joueur dont c'est le tour
+  coordinates?: boolean; // Afficher ou non les coordonnées sur les bords (défaut : true)
+  autoCastle?: boolean; // Roquer automatiquement lorsque le roi se déplace sur la tour (défaut : true)
   movable?: {
-    free?: boolean;               // Permettre tous les déplacements (sans règles)
+    free?: boolean; // Permettre tous les déplacements (sans règles)
     color?: 'white' | 'black' | 'both'; // Couleurs autorisées à jouer
-    showDests?: boolean;          // Mettre en surbrillance les cases de destination possibles (défaut : true)
+    showDests?: boolean; // Mettre en surbrillance les cases de destination possibles (défaut : true)
   };
   draggable?: {
-    enabled?: boolean;            // Activer le glisser-déposer des pièces (défaut : true)
+    enabled?: boolean; // Activer le glisser-déposer des pièces (défaut : true)
   };
   selectable?: {
-    enabled?: boolean;            // Permettre la sélection de pièces par simple clic (défaut : true)
+    enabled?: boolean; // Permettre la sélection de pièces par simple clic (défaut : true)
   };
   highlight?: {
-    lastMove?: boolean;           // Mettre en surbrillance le dernier coup joué (défaut : true)
-    check?: boolean;              // Mettre en surbrillance le roi en échec (défaut : true)
+    lastMove?: boolean; // Mettre en surbrillance le dernier coup joué (défaut : true)
+    check?: boolean; // Mettre en surbrillance le roi en échec (défaut : true)
   };
 }
 ```
 
-*Pour voir la liste exhaustive des configurations de l'échiquier, consultez la [documentation de Chessground](https://github.com/lichess-org/chessground).*
+_Pour voir la liste exhaustive des configurations de l'échiquier, consultez la [documentation de Chessground](https://github.com/lichess-org/chessground)._
 
 ---
 
@@ -217,6 +219,7 @@ interface Config {
 L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l'échiquier expose de nombreuses méthodes :
 
 ### Méthodes Générales
+
 - `getFen()` : Renvoie la chaîne FEN de la position actuelle.
 - `setPosition(fen)` : Charge dynamiquement une position FEN sur l'échiquier.
 - `getPgn()` : Renvoie le PGN de la partie.
@@ -226,6 +229,7 @@ L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l
 - `undoLastMove()` : Annule le dernier coup joué.
 - `resetBoard()` : Réinitialise l'échiquier à la position de départ.
 - `toggleOrientation()` : Alterne l'orientation de l'échiquier (Blancs/Noirs).
+- `getOrientation()` : Renvoie l'orientation actuelle du plateau de jeu (`'white'` ou `'black'`).
 - `getTurnColor()` : Renvoie `'white'` ou `'black'`.
 - `getCapturedPieces()` : Renvoie un objet contenant les pièces capturées par chaque joueur.
 - `getMaterialCount()` : Renvoie le décompte du matériel et le différentiel.
@@ -244,14 +248,14 @@ L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l
 - `setComment(text, shapes)` : Saisit un commentaire et des formes (flèches/ronds) sur le coup actuellement visualisé.
 - `setCommentAtPly(ply, text, shapes)` : Saisit un commentaire et des formes sur un coup d'index précis (ply).
 
-
 ### Moteur Stockfish
+
 - `updateStockfishConfig(config)` : Met à jour dynamiquement la configuration de Stockfish.
 
 ### Navigation dans l'Historique
+
 - `viewHistory(ply)` : Navigue vers le demi-coup spécifié dans l'historique de la partie (active le mode lecture seule).
 - `stopViewingHistory()` : Revient à la position de jeu active actuelle.
 - `viewStart()` : Revient au tout début de la partie.
 - `viewNext()` : Avance au coup suivant dans l'historique.
 - `viewPrevious()` : Recule au coup précédent.
-

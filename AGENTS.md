@@ -4,7 +4,8 @@ Ce document définit le contrat d'interface, les règles de réactivité et l'ar
 
 ## 1. Principes Fondamentaux d'Architecture
 
-Pour éviter les divergences de comportement entre le modèle *pull/immutabilité* de React et le modèle *push/Proxy* de Vue 3 :
+Pour éviter les divergences de comportement entre le modèle _pull/immutabilité_ de React et le modèle _push/Proxy_ de Vue 3 :
+
 1. **Source de Vérité Unique** : L'état du jeu réside exclusivement dans `BoardCore`. Les frameworks ne font que refléter cet état graphiquement.
 2. **Mutations Interdites depuis la Vue** : Aucun wrapper (React ou Vue) ne doit modifier directement l'objet `state` ou ses sous-propriétés (ex: `state.promotionDialogState`). Toute modification doit passer par une méthode publique de `BoardCore`.
 3. **Flux Unidirectionnel avec Événements** : Le cœur notifie les wrappers de tout changement d'état interne via un mécanisme d'écoute (`onStateChange`). Le wrapper React met alors à jour son `useState`, et le wrapper Vue met à jour sa référence réactive.
@@ -17,29 +18,30 @@ Pour éviter les divergences de comportement entre le modèle *pull/immutabilit�
 Les types d'entrée proviennent exclusivement de `@lichess-org/chessground` (`Config`), de `chess.js` (`Move`), ou de notre structure commune (`StockfishConfig`).
 
 ### Valeurs par défaut
-* **React** : Assignées via la déstructuration ES6 au niveau des arguments du composant.
-* **Vue 3** : Assignées via la macro `withDefaults` en utilisant des fonctions *factory* pour les objets afin de prévenir les mutations de références partagées.
+
+- **React** : Assignées via la déstructuration ES6 au niveau des arguments du composant.
+- **Vue 3** : Assignées via la macro `withDefaults` en utilisant des fonctions _factory_ pour les objets afin de prévenir les mutations de références partagées.
 
 ---
 
 ## 3. Matrice d'Isopérimètre et de Correspondance
 
-| Élément / Prop | Type | Nom React | Nom / Événement Vue 3 | Stratégie d'alignement & Validation |
-| :--- | :--- | :--- | :--- | :--- |
-| **Configuration** | Prop | `boardConfig` | `boardConfig` | Alignement strict des types via `Config`. |
-| **Couleur Joueur** | Prop | `playerColor` | `playerColor` | Types littéraux : `'white' \| 'black' \| 'both'`. |
-| **Mode Libre** | Prop | `freeMode` | `freeMode` | Synchronisé dynamiquement via `useEffect` (React) et `watch` (Vue). |
-| **Mode Solo** | Prop | `soloMode` | `soloMode` | Utilisé pour les exercices d'apprentissage (déplacements consécutifs sans alternance de tour). |
-| **Config Stockfish** | Prop | `stockfishConfig` | `stockfishConfig` | Synchronisation dynamique des options du moteur. Si absente ou inactive, aucun Web Worker n'est créé. |
-| **Création du Board** | Event | `onBoardCreated` | `board-created` | Transmet l'instance de `BoardCore` dès l'initialisation. |
-| **Mouvement** | Event | `onMove` | `move` | Transmet un POJO `Move` (chess.js). Sans objet d'événement natif. Émis uniquement après la mise à jour graphique complète de l'échiquier (permettant un `undoLastMove` immédiat sans désynchronisation visuelle). |
-| **Échec** | Event | `onCheck` | `check` | Transmet la couleur en paramètre (`string`). |
-| **Échec & Mat** | Event | `onCheckmate` | `checkmate` | Transmet la couleur en paramètre (`string`). |
-| **Pat (Stalemate)** | Event | `onStalemate` | `stalemate` | Signature pure sans paramètre. |
-| **Nulle (Draw)** | Event | `onDraw` | `draw` | Signature pure sans paramètre. |
-| **Promotion requis** | Event | `onPromotion` | `promotion` | Transmet un POJO avec les détails requis pour la promotion. |
-| **Indication IA** | Event | `onStockfishHint` | `stockfish-hint` | Transmet le meilleur coup calculé (`string`). |
-| **Clic sur case** | Event | `onSquareClick` | `square-click` | Transmet la case cliquée en paramètre (`string`). |
+| Élément / Prop        | Type  | Nom React         | Nom / Événement Vue 3 | Stratégie d'alignement & Validation                                                                                                                                                                               |
+| :-------------------- | :---- | :---------------- | :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Configuration**     | Prop  | `boardConfig`     | `boardConfig`         | Alignement strict des types via `Config`.                                                                                                                                                                         |
+| **Couleur Joueur**    | Prop  | `playerColor`     | `playerColor`         | Types littéraux : `'white' \| 'black' \| 'both'`.                                                                                                                                                                 |
+| **Mode Libre**        | Prop  | `freeMode`        | `freeMode`            | Synchronisé dynamiquement via `useEffect` (React) et `watch` (Vue).                                                                                                                                               |
+| **Mode Solo**         | Prop  | `soloMode`        | `soloMode`            | Utilisé pour les exercices d'apprentissage (déplacements consécutifs sans alternance de tour).                                                                                                                    |
+| **Config Stockfish**  | Prop  | `stockfishConfig` | `stockfishConfig`     | Synchronisation dynamique des options du moteur. Si absente ou inactive, aucun Web Worker n'est créé.                                                                                                             |
+| **Création du Board** | Event | `onBoardCreated`  | `board-created`       | Transmet l'instance de `BoardCore` dès l'initialisation.                                                                                                                                                          |
+| **Mouvement**         | Event | `onMove`          | `move`                | Transmet un POJO `Move` (chess.js). Sans objet d'événement natif. Émis uniquement après la mise à jour graphique complète de l'échiquier (permettant un `undoLastMove` immédiat sans désynchronisation visuelle). |
+| **Échec**             | Event | `onCheck`         | `check`               | Transmet la couleur en paramètre (`string`).                                                                                                                                                                      |
+| **Échec & Mat**       | Event | `onCheckmate`     | `checkmate`           | Transmet la couleur en paramètre (`string`).                                                                                                                                                                      |
+| **Pat (Stalemate)**   | Event | `onStalemate`     | `stalemate`           | Signature pure sans paramètre.                                                                                                                                                                                    |
+| **Nulle (Draw)**      | Event | `onDraw`          | `draw`                | Signature pure sans paramètre.                                                                                                                                                                                    |
+| **Promotion requis**  | Event | `onPromotion`     | `promotion`           | Transmet un POJO avec les détails requis pour la promotion.                                                                                                                                                       |
+| **Indication IA**     | Event | `onStockfishHint` | `stockfish-hint`      | Transmet le meilleur coup calculé (`string`).                                                                                                                                                                     |
+| **Clic sur case**     | Event | `onSquareClick`   | `square-click`        | Transmet la case cliquée en paramètre (`string`).                                                                                                                                                                 |
 
 ---
 
@@ -51,19 +53,20 @@ Le risque majeur de désynchronisation de `this.state` dans `BoardCore` sous Rea
 
 1. L'utilisateur sélectionne une pièce dans le composant `PromotionDialog`.
 2. Le wrapper de framework intercepte l'action et appelle **exclusivement** la méthode publique du cœur :
-   * **React** : `coreRef.current?.closePromotionDialog();`
-   * **Vue 3** : `core.closePromotionDialog();`
+   - **React** : `coreRef.current?.closePromotionDialog();`
+   - **Vue 3** : `core.closePromotionDialog();`
 3. `BoardCore` met à jour son état interne et déclenche le callback global de changement d'état.
 4. Les wrappers réagissent au changement d'état global pour mettre à jour l'UI.
 
 #### Implémentation attendue dans le composant React (`Chessboard.tsx`) :
+
 ```typescript
 // Interdit : Modifier l'état localement sans avertir le Core
 // onPromotionSelected={() => { setState(prev => ({ ...prev, promotionDialogState: { isEnabled: false } })) }}
 
 // Recommandé : Passer par l'API publique du Core
 onPromotionSelected={(pendingMove) => {
-  coreRef.current?.confirmPromotion(pendingMove); 
+  coreRef.current?.confirmPromotion(pendingMove);
   // closePromotionDialog() est géré à l'intérieur de confirmPromotion()
 }}
 ```
@@ -73,6 +76,7 @@ onPromotionSelected={(pendingMove) => {
 ## 5. Gestion des annotations graphiques et commentaires PGN
 
 Pour assurer l'uniformité du traitement des exercices et des PGN :
+
 1. **Extraction automatique** : Le traitement des commentaires textuels et des balises propriétaires (`[%cal]` pour les flèches, `[%cpl]` pour les ronds) est opéré exclusivement par `BoardCore` dans `updateCommentAndShapes()`. Les wrappers ne doivent pas faire de parsing de commentaires PGN de leur côté.
 2. **Champ d'état commun** : Le texte de commentaire nettoyé est exposé dans l'état commun sous la clé `currentComment`.
 3. **Méthodes de dessin publiques** : Toute opération de dessin dynamique (ex: `drawMove`, `drawCircle`, `setShapes`) doit être invoquée via les méthodes publiques de `BoardCore`.
@@ -83,6 +87,7 @@ Pour assurer l'uniformité du traitement des exercices et des PGN :
 ## 6. Gestion des restrictions de déplacements et aides pour les exercices
 
 Pour restreindre dynamiquement les mouvements de l'utilisateur ou valider ses actions dans le cadre d'exercices d'apprentissage :
+
 1. **Méthodes publiques exclusives** : Toute restriction ou vérification de coups doit s'appuyer sur les méthodes publiques de `BoardCore` :
    - `core.setCustomDests(dests: Map<Key, Key[]> | null)` : Définit explicitement les pièces et leurs cases de destinations autorisées.
    - `core.restrictMovesToPieces(squares: Key[] | null)` : Filtre automatiquement les coups légaux de la position pour n'autoriser le déplacement que des pièces situées sur les cases spécifiées.
@@ -91,4 +96,10 @@ Pour restreindre dynamiquement les mouvements de l'utilisateur ou valider ses ac
    - `core.getSoloHistory(): Move[]` : Retourne l'historique des coups joués en mode solo.
 2. **Cycle de vie** : Les restrictions modifient le comportement interne de Chessground de manière persistante jusqu'à ce qu'elles soient réinitialisées en passant `null`. En `soloMode`, après chaque coup, le trait est automatiquement conservé sur la couleur de la pièce jouée pour autoriser les déplacements consécutifs.
 
+---
 
+## 7. Méthodes Utilitaires d'État
+
+Pour interroger l'état interne de l'échiquier de manière uniforme :
+
+- `core.getOrientation(): 'white' | 'black'` : Retourne l'orientation actuelle du plateau de jeu.
