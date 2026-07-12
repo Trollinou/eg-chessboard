@@ -89,11 +89,6 @@ export class BoardCore {
       after: (orig: Key, dest: Key, metadata: MoveMetadata) => {
         this.changeTurn(orig, dest, metadata);
       },
-      change: () => {
-        if (this.state.freeMode) {
-          this.syncGameFromBoard();
-        }
-      },
     };
 
     const isFree = !!this.state.freeMode;
@@ -114,6 +109,11 @@ export class BoardCore {
     }
 
     const mergedEvents = {
+      change: () => {
+        if (this.state.freeMode) {
+          this.syncGameFromBoard();
+        }
+      },
       select: (key: Key) => {
         this.emitEvent('square-click', key);
       },
@@ -125,6 +125,16 @@ export class BoardCore {
       mergedEvents.select = (key: Key) => {
         this.emitEvent('square-click', key);
         userSelect(key);
+      };
+    }
+
+    const userChange = userConfig.events?.change;
+    if (userChange) {
+      mergedEvents.change = () => {
+        if (this.state.freeMode) {
+          this.syncGameFromBoard();
+        }
+        userChange();
       };
     }
 

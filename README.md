@@ -134,7 +134,7 @@ Les composants `<TheChessboard>` (Vue) et `<Chessboard>` (React) acceptent les p
 | ----------------- | ------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `boardConfig`     | `Config`                       | `{}`        | Configuration directe de Chessground.                                                                                    |
 | `playerColor`     | `'white' \| 'black' \| 'both'` | `undefined` | Couleur jouable par l'utilisateur.                                                                                       |
-| `freeMode`        | `boolean`                      | `false`     | Active le mode libre (permet de déplacer les pièces sans contrainte de règles et synchronise la logique de jeu).         |
+| `freeMode`        | `boolean`                      | `false`     | Active le mode libre (permet de déplacer les pièces sans contrainte de règles et synchronise automatiquement l'état et la FEN du jeu lors de tout déplacement/drag-and-drop grâce à l'événement `change` de Chessground). |
 | `soloMode`        | `boolean`                      | `false`     | Active le mode solo (permet d'effectuer des déplacements consécutifs avec la même pièce sans alternance forcée du tour). |
 | `stockfishConfig` | `StockfishConfig`              | `{}`        | Configuration du moteur de jeu Stockfish.                                                                                |
 
