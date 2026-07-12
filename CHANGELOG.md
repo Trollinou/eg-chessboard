@@ -4,6 +4,17 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [1.1.3] - 2026-07-12
+
+### Modifié
+
+- **Compatibilité React 17 & 18** :
+  - Rétrogradation des `peerDependencies` et `devDependencies` de React vers la version `^18.2.0` (types inclus) pour assurer la compatibilité et éviter les conflits lors de builds avec React 19.
+- **Externalisation de `react/jsx-runtime`** :
+  - Configuration de Vite (`vite.config.ts`) pour marquer `'react/jsx-runtime'` comme dépendance externe dans `rollupOptions.external` afin d'éviter d'embarquer (inliner) le runtime JSX dans le bundle compilé de React.
+
+---
+
 ## [1.1.2] - 2026-07-10
 
 ### Modifié

@@ -43,7 +43,7 @@ export default defineConfig(({ command }) => {
         formats: ['es'],
       },
       rollupOptions: {
-        external: ['vue', 'react', 'react-dom', 'chess.js', '@lichess-org/chessground'],
+        external: ['vue', 'react', 'react-dom', 'react/jsx-runtime', 'chess.js', '@lichess-org/chessground'],
         output: {
           entryFileNames: '[name].js',
           chunkFileNames: 'chunks/[name]-[hash].js',
