@@ -1011,18 +1011,38 @@ export class BoardCore {
     const history = this.getHistory(true) as Move[];
     if (ply < 0 || ply > history.length) return;
 
+    // Get all comments from the existing game
+    const oldComments = this.game.getComments();
+
     const tempGame = new Chess();
+    const normalizeFen = (f: string) => f.split(' ').slice(0, 4).join(' ');
+
+    const applyOldComment = (fen: string) => {
+      const norm = normalizeFen(fen);
+      const matched = oldComments.find((c) => normalizeFen(c.fen) === norm);
+      if (matched) {
+        tempGame.setComment(matched.comment);
+      }
+    };
+
+    // Apply old comment on the starting position if any
+    applyOldComment(tempGame.fen());
+
     // play up to ply
     for (let i = 0; i < ply; i++) {
       tempGame.move(history[i]);
+      applyOldComment(tempGame.fen());
     }
-    // set comment at this position
+
+    // set comment at this position (overwrite)
     const shapesAnnotation = this.shapesToPgnComment(shapes);
     const combined = `${shapesAnnotation} ${text}`.trim();
     tempGame.setComment(combined);
+
     // play rest of the game
     for (let i = ply; i < history.length; i++) {
       tempGame.move(history[i]);
+      applyOldComment(tempGame.fen());
     }
 
     // load new game state

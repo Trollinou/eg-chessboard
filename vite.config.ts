@@ -34,6 +34,7 @@ export default defineConfig(({ command }) => {
       },
     },
     build: {
+      target: 'es2021',
       lib: {
         entry: {
           index: resolve(__dirname, 'src/index.ts'),
