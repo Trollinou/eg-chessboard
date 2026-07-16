@@ -1,8 +1,13 @@
 import React, { useRef, useEffect, useState } from 'react';
 import type { Config } from '@lichess-org/chessground/config';
 import type { Move } from 'chess.js';
-import { BoardCore, type BoardCoreState, type StockfishConfig } from '../BoardCore';
-export { BoardCore, type BoardCoreState, type StockfishConfig };
+import {
+  BoardCore,
+  type BoardCoreState,
+  type StockfishConfig,
+  type ChessDiagram,
+} from '../BoardCore';
+export { BoardCore, type BoardCoreState, type StockfishConfig, type ChessDiagram };
 import { PromotionDialog } from './components/PromotionDialog';
 
 export interface ChessboardProps {
@@ -11,6 +16,7 @@ export interface ChessboardProps {
   freeMode?: boolean;
   soloMode?: boolean;
   stockfishConfig?: StockfishConfig;
+  diagram?: ChessDiagram;
   onBoardCreated?: (api: BoardCore) => void;
   onMove?: (move: Move) => void;
   onCheck?: (color: string) => void;
@@ -28,6 +34,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   freeMode = false,
   soloMode = false,
   stockfishConfig = {},
+  diagram,
   onBoardCreated,
   onMove,
   onCheck,
@@ -101,7 +108,8 @@ export const Chessboard: React.FC<ChessboardProps> = ({
           color: playerColor || boardConfig.movable?.color,
         },
       },
-      stockfishConfig
+      stockfishConfig,
+      diagram
     );
 
     coreRef.current = core;
@@ -124,6 +132,12 @@ export const Chessboard: React.FC<ChessboardProps> = ({
       coreRef.current.updateStockfishConfig(stockfishConfig);
     }
   }, [stockfishConfig]);
+
+  useEffect(() => {
+    if (coreRef.current && diagram) {
+      coreRef.current.setDiagram(diagram);
+    }
+  }, [diagram]);
 
   return (
     <section

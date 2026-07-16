@@ -1,12 +1,22 @@
 <script lang="ts">
-export { BoardCore, type BoardCoreState, type StockfishConfig } from '../BoardCore';
+export {
+  BoardCore,
+  type BoardCoreState,
+  type StockfishConfig,
+  type ChessDiagram,
+} from '../BoardCore';
 </script>
 
 <script setup lang="ts">
 import { ref, shallowRef, onMounted, reactive, watch } from 'vue';
 import type { Config } from '@lichess-org/chessground/config';
 import type { Move } from 'chess.js';
-import { BoardCore, type BoardCoreState, type StockfishConfig } from '../BoardCore';
+import {
+  BoardCore,
+  type BoardCoreState,
+  type StockfishConfig,
+  type ChessDiagram,
+} from '../BoardCore';
 import PromotionDialog from './components/PromotionDialog.vue';
 
 const props = withDefaults(
@@ -16,6 +26,7 @@ const props = withDefaults(
     freeMode?: boolean;
     soloMode?: boolean;
     stockfishConfig?: StockfishConfig;
+    diagram?: ChessDiagram;
   }>(),
   {
     boardConfig: () => ({}),
@@ -107,7 +118,8 @@ onMounted(() => {
         color: props.playerColor || props.boardConfig.movable?.color,
       },
     },
-    props.stockfishConfig
+    props.stockfishConfig,
+    props.diagram
   );
 
   emit('board-created', core.value!);
@@ -129,6 +141,17 @@ onMounted(() => {
     (newStockfishConfig) => {
       if (newStockfishConfig && core.value) {
         core.value.updateStockfishConfig(newStockfishConfig);
+      }
+    },
+    { deep: true }
+  );
+
+  // Watch for diagram changes
+  watch(
+    () => props.diagram,
+    (newDiagram) => {
+      if (newDiagram && core.value) {
+        core.value.setDiagram(newDiagram);
       }
     },
     { deep: true }

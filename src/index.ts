@@ -1,6 +1,11 @@
 import './style.css';
 
-export { BoardCore, type BoardCoreState, type StockfishConfig } from './BoardCore';
+export {
+  BoardCore,
+  type BoardCoreState,
+  type StockfishConfig,
+  type ChessDiagram,
+} from './BoardCore';
 export {
   possibleMoves,
   isPromotion,

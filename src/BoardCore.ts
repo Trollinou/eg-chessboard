@@ -34,6 +34,11 @@ export interface StockfishConfig {
   workerUrl?: string; // URL vers stockfish.js
 }
 
+export interface ChessDiagram {
+  fen: string;
+  shapes?: DrawShape[];
+}
+
 export class BoardCore {
   public game: Chess;
   public board!: Api;
@@ -57,7 +62,8 @@ export class BoardCore {
     onStateChange: () => void,
     emitEvent: (event: string, ...args: unknown[]) => void,
     initialConfig: Config = {},
-    stockfishConfig: StockfishConfig = {}
+    stockfishConfig: StockfishConfig = {},
+    diagram?: ChessDiagram
   ) {
     this.boardElement = boardElement;
     this.state = state;
@@ -69,6 +75,10 @@ export class BoardCore {
 
     this.initBoard();
     this.initStockfish();
+
+    if (diagram) {
+      this.setDiagram(diagram);
+    }
   }
 
   private initBoard() {
@@ -704,6 +714,18 @@ export class BoardCore {
 
     this.initStockfish();
     this.triggerStockfish();
+  }
+
+  setDiagram(diagram: ChessDiagram): void {
+    this.setPosition(diagram.fen);
+    this.board.setShapes(diagram.shapes || []);
+  }
+
+  getDiagram(): ChessDiagram {
+    return {
+      fen: this.getFen(),
+      shapes: this.board.state.drawable.shapes || [],
+    };
   }
 
   putPiece(piece: Piece, square: Key): boolean {

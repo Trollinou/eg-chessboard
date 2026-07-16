@@ -130,13 +130,14 @@ export const MyChessBlock = () => {
 
 Les composants `<TheChessboard>` (Vue) et `<Chessboard>` (React) acceptent les propriétés suivantes :
 
-| Prop              | Type                           | Par défaut  | Description                                                                                                              |
-| ----------------- | ------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `boardConfig`     | `Config`                       | `{}`        | Configuration directe de Chessground.                                                                                    |
-| `playerColor`     | `'white' \| 'black' \| 'both'` | `undefined` | Couleur jouable par l'utilisateur.                                                                                       |
+| Prop              | Type                           | Par défaut  | Description                                                                                                                                                                                                               |
+| ----------------- | ------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `boardConfig`     | `Config`                       | `{}`        | Configuration directe de Chessground.                                                                                                                                                                                     |
+| `playerColor`     | `'white' \| 'black' \| 'both'` | `undefined` | Couleur jouable par l'utilisateur.                                                                                                                                                                                        |
 | `freeMode`        | `boolean`                      | `false`     | Active le mode libre (permet de déplacer les pièces sans contrainte de règles et synchronise automatiquement l'état et la FEN du jeu lors de tout déplacement/drag-and-drop grâce à l'événement `change` de Chessground). |
-| `soloMode`        | `boolean`                      | `false`     | Active le mode solo (permet d'effectuer des déplacements consécutifs avec la même pièce sans alternance forcée du tour). |
-| `stockfishConfig` | `StockfishConfig`              | `{}`        | Configuration du moteur de jeu Stockfish.                                                                                |
+| `soloMode`        | `boolean`                      | `false`     | Active le mode solo (permet d'effectuer des déplacements consécutifs avec la même pièce sans alternance forcée du tour).                                                                                                  |
+| `stockfishConfig` | `StockfishConfig`              | `{}`        | Configuration du moteur de jeu Stockfish.                                                                                                                                                                                 |
+| `diagram`         | `ChessDiagram`                 | `undefined` | Permet d'instancier ou de modifier l'échiquier avec une position FEN et des formes (flèches/cercles) dessinées.                                                                                                           |
 
 ---
 
@@ -181,7 +182,20 @@ export interface StockfishConfig {
 
 _Note : Si `stockfishConfig` n'est pas fourni, ou si `workerUrl` n'est pas spécifié, ou si les modes sont réglés sur `disabled`, aucun Web Worker Stockfish ne sera instancié en arrière-plan._
 
-### 2. Configuration Chessground (`Config`)
+### 2. Structure de Diagramme (`ChessDiagram`)
+
+L'interface `ChessDiagram` permet d'associer une position FEN et des formes (flèches ou cercles) dessinées sur l'échiquier :
+
+```typescript
+import type { DrawShape } from '@lichess-org/chessground/draw';
+
+export interface ChessDiagram {
+  fen: string; // Position au format FEN
+  shapes?: DrawShape[]; // Formes à dessiner sur l'échiquier
+}
+```
+
+### 3. Configuration Chessground (`Config`)
 
 L'objet `boardConfig` accepte toutes les options natives de Chessground. Voici les principales clés utiles :
 
@@ -223,6 +237,8 @@ L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l
 - `getFen()` : Renvoie la chaîne FEN de la position actuelle.
 - `getPlacementFen()` : Renvoie la FEN de placement uniquement (disposition des pièces), extraite directement de Chessground (utile pour le mode libre ou FENs incomplètes sans crash).
 - `setPosition(fen)` : Charge dynamiquement une position FEN sur l'échiquier.
+- `setDiagram(diagram)` : Charge une position FEN et dessine les formes (cercles/flèches) associées.
+- `getDiagram()` : Renvoie l'état actuel de l'échiquier sous forme de diagramme `{ fen, shapes }`.
 - `getPgn()` : Renvoie le PGN de la partie.
 - `move(coup)` : Joue un coup programmatiquement (ex: `e4` ou `{ from: 'e2', to: 'e4' }`).
 - `putPiece(piece, square)` : Place une pièce sur l'échiquier (ex: `{ type: 'q', color: 'w' }` sur `'e4'`).
