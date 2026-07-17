@@ -10,6 +10,10 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 - **Optimisation de la synchronisation en mode libre** : Remplacement de l'instanciation coûteuse de l'objet `Chess` temporaire dans `syncGameFromBoard()` par l'utilisation directe de `getPlacementFen()`.
 
+### Corrigé
+
+- **Crash lors de la restauration de FEN invalides** : Correction d'une exception non interceptée dans le bloc `finally` de `getPossibleMovesForBothColors()`. Les appels à `this.game.load()` y ont été remplacés par `this.safeLoadFen()` afin de tolérer la restauration de FEN incomplètes sans faire planter l'application.
+
 ---
 
 ## [1.1.3] - 2026-07-12

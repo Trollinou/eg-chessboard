@@ -213,7 +213,7 @@ export class BoardCore {
     const swappedFen = parts.join(' ');
 
     try {
-      this.game.load(swappedFen);
+      this.safeLoadFen(swappedFen);
       const otherDests = possibleMoves(this.game);
       for (const [key, value] of otherDests.entries()) {
         dests.set(key, value);
@@ -221,7 +221,7 @@ export class BoardCore {
     } catch {
       // Ignore
     } finally {
-      this.game.load(originalFen);
+      this.safeLoadFen(originalFen);
     }
     return dests;
   }
