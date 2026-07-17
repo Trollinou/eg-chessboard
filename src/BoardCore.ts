@@ -1085,6 +1085,24 @@ export class BoardCore {
     const oldComments = this.game.getComments();
 
     const tempGame = new Chess();
+    const oldHeaders = this.game.header();
+
+    // S'il y a une position initiale personnalisée (SetUp/FEN), on la charge en premier dans tempGame
+    if (oldHeaders['SetUp'] === '1' && typeof oldHeaders['FEN'] === 'string') {
+      try {
+        tempGame.load(oldHeaders['FEN']);
+      } catch (e) {
+        console.warn('Failed to load custom starting FEN into tempGame:', e);
+      }
+    }
+
+    // Copier toutes les entêtes (headers) existantes vers le nouveau tempGame
+    for (const [key, value] of Object.entries(oldHeaders)) {
+      if (value !== undefined && value !== null) {
+        tempGame.header(key, value);
+      }
+    }
+
     const normalizeFen = (f: string) => f.split(' ').slice(0, 4).join(' ');
 
     const applyOldComment = (fen: string) => {
