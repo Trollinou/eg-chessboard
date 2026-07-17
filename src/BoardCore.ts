@@ -55,6 +55,7 @@ export class BoardCore {
   public lastSuggestedMove = '';
   private customDests: Map<Key, Key[]> | null = null;
   private soloHistory: Move[] = [];
+  private isDrawingUpdate = false;
 
   constructor(
     boardElement: HTMLElement,
@@ -96,7 +97,7 @@ export class BoardCore {
       return true;
     } catch (e) {
       console.warn('Invalid FEN loaded in chess.js, fallback to manual piece placing:', fen, e);
-      
+
       const parts = fen.split(' ');
       const placement = parts[0];
       const turn = parts[1] === 'b' ? 'b' : 'w';
@@ -107,7 +108,7 @@ export class BoardCore {
       } catch {
         // En cas d'échec improbable, on utilise le comportement par défaut
       }
-      
+
       // Retirer les rois temporaires
       this.game.remove('e1');
       this.game.remove('e8');
@@ -193,12 +194,21 @@ export class BoardCore {
       };
     }
 
+    const mergedDrawable = {
+      enabled: true,
+      onChange: (shapes: DrawShape[]) => {
+        this.handleDrawableChange(shapes);
+      },
+      ...(userConfig.drawable || {}),
+    };
+
     const config: Config = {
       fen: this.game.fen(),
       turnColor: this.getTurnColor(),
       ...userConfig,
       movable: mergedMovable,
       events: mergedEvents,
+      drawable: mergedDrawable,
     };
 
     return config;
@@ -786,7 +796,12 @@ export class BoardCore {
 
       this.board.set({
         fen: history[ply].before,
-        viewOnly: true,
+        viewOnly: false,
+        movable: {
+          color: undefined,
+          dests: undefined,
+          free: false,
+        },
         lastMove: ply > 0 ? [history[ply - 1].from as Key, history[ply - 1].to as Key] : undefined,
       });
 
@@ -1041,7 +1056,28 @@ export class BoardCore {
     }
   }
 
-  setCommentAtPly(ply: number, text: string, shapes: DrawShape[] = []): void {
+  private handleDrawableChange(shapes: DrawShape[]): void {
+    if (this.isDrawingUpdate) return;
+    this.isDrawingUpdate = true;
+    try {
+      const ply =
+        this.state.historyViewerState.isEnabled &&
+        this.state.historyViewerState.plyViewing !== undefined
+          ? this.state.historyViewerState.plyViewing
+          : (this.getHistory(true) as Move[]).length;
+
+      this.setCommentAtPly(ply, this.state.currentComment || '', shapes, false);
+    } finally {
+      this.isDrawingUpdate = false;
+    }
+  }
+
+  setCommentAtPly(
+    ply: number,
+    text: string,
+    shapes: DrawShape[] = [],
+    updateBoardShapes = true
+  ): void {
     const history = this.getHistory(true) as Move[];
     if (ply < 0 || ply > history.length) return;
 
@@ -1089,7 +1125,9 @@ export class BoardCore {
 
     if (isViewingThisPly) {
       this.state.currentComment = text;
-      this.board.setShapes(shapes);
+      if (updateBoardShapes) {
+        this.board.setShapes(shapes);
+      }
       this.onStateChange();
     }
   }
