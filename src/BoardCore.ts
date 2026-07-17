@@ -623,7 +623,7 @@ export class BoardCore {
   }
 
   getCurrentPlyNumber(): number {
-    return 2 * this.getCurrentTurnNumber() - (this.getTurnColor() === 'black' ? 1 : 2);
+    return (this.getHistory(true) as Move[]).length;
   }
 
   getLastMove() {
