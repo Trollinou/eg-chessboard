@@ -80,7 +80,7 @@ Pour assurer l'uniformité du traitement des exercices et des PGN :
 
 1. **Extraction automatique** : Le traitement des commentaires textuels et des balises propriétaires (`[%cal]` pour les flèches, `[%cpl]` pour les ronds) est opéré exclusivement par `BoardCore` dans `updateCommentAndShapes()`. Les wrappers ne doivent pas faire de parsing de commentaires PGN de leur côté.
 2. **Champ d'état commun** : Le texte de commentaire nettoyé est exposé dans l'état commun sous la clé `currentComment`.
-3. **Méthodes de dessin publiques** : Toute opération de dessin dynamique (ex: `drawMove`, `drawCircle`, `setShapes`) doit être invoquée via les méthodes publiques de `BoardCore`.
+3. **Méthodes de dessin et d'extraction publiques** : Toute opération de dessin dynamique (ex: `drawMove`, `drawCircle`, `setShapes`) ou d'extraction des formes posées sur l'échiquier (`getShapes(): DrawShape[]`) doit être invoquée via les méthodes publiques de `BoardCore`.
 4. **Enrichissement / Saisie de commentaires** : L'écriture de commentaires et d'annotations graphiques dans le PGN s'effectue uniquement via `core.setComment(text, shapes)` (cible le coup visualisé à l'écran) ou `core.setCommentAtPly(ply, text, shapes)`. Le PGN résultant est récupéré via `core.getPgn()`.
 
 ---

@@ -757,8 +757,12 @@ export class BoardCore {
   getDiagram(): ChessDiagram {
     return {
       fen: this.getFen(),
-      shapes: this.board.state.drawable.shapes || [],
+      shapes: this.getShapes(),
     };
+  }
+
+  getShapes(): DrawShape[] {
+    return this.board.state.drawable.shapes || [];
   }
 
   putPiece(piece: Piece, square: Key): boolean {

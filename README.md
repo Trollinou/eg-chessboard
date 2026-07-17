@@ -239,6 +239,7 @@ L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l
 - `setPosition(fen)` : Charge dynamiquement une position FEN sur l'échiquier. Supporte les FENs incomplètes ou invalides (ex: sans rois, échiquier vide) en basculant automatiquement sur un placement manuel des pièces afin de préserver la synchronisation du moteur.
 - `setDiagram(diagram)` : Charge une position FEN et dessine les formes (cercles/flèches) associées.
 - `getDiagram()` : Renvoie l'état actuel de l'échiquier sous forme de diagramme `{ fen, shapes }`.
+- `getShapes()` : Renvoie la liste des formes (flèches et cercles) dessinées actuellement sur le plateau de jeu.
 - `getPgn()` : Renvoie le PGN de la partie.
 - `move(coup)` : Joue un coup programmatiquement (ex: `e4` ou `{ from: 'e2', to: 'e4' }`).
 - `putPiece(piece, square)` : Place une pièce sur l'échiquier (ex: `{ type: 'q', color: 'w' }` sur `'e4'`).
