@@ -272,7 +272,7 @@ L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l
 
 ### Navigation dans l'Historique
 
-- `viewHistory(ply)` : Navigue vers le demi-coup spécifié dans l'historique de la partie (active le mode lecture seule).
+- `viewHistory(ply)` : Navigue vers le demi-coup spécifié dans l'historique de la partie (désactive les mouvements de pièces mais permet le tracé interactif de flèches/ronds pour l'enrichissement du PGN).
 - `stopViewingHistory()` : Revient à la position de jeu active actuelle.
 - `viewStart()` : Revient au tout début de la partie.
 - `viewNext()` : Avance au coup suivant dans l'historique.
