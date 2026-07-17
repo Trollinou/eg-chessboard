@@ -4,6 +4,14 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [1.1.4] - 2026-07-17
+
+### Modifié
+
+- **Optimisation de la synchronisation en mode libre** : Remplacement de l'instanciation coûteuse de l'objet `Chess` temporaire dans `syncGameFromBoard()` par l'utilisation directe de `getPlacementFen()`.
+
+---
+
 ## [1.1.3] - 2026-07-12
 
 ### Modifié

@@ -231,32 +231,7 @@ export class BoardCore {
     if (this.isSyncing) return;
     this.isSyncing = true;
     try {
-      const pieces = this.board.state.pieces;
-      const tempGame = new Chess();
-      tempGame.clear();
-      const roleToPieceType: Record<string, string> = {
-        pawn: 'p',
-        knight: 'n',
-        bishop: 'b',
-        rook: 'r',
-        queen: 'q',
-        king: 'k',
-      };
-
-      for (const [square, piece] of pieces) {
-        const type = roleToPieceType[piece.role];
-        if (type) {
-          tempGame.put(
-            {
-              type: type as PieceSymbol,
-              color: piece.color === 'white' ? 'w' : 'b',
-            },
-            square as Square
-          );
-        }
-      }
-
-      const placement = tempGame.fen().split(' ')[0];
+      const placement = this.getPlacementFen();
       const currentFenParts = this.game.fen().split(' ');
       const turn = currentFenParts[1] || 'w';
       const castling = currentFenParts[2] || '-';
