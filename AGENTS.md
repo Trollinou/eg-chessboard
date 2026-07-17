@@ -108,7 +108,7 @@ Pour interroger l'état interne de l'échiquier de manière uniforme :
 
 ---
 
-## 8. Gestion des Diagrammes (FEN + Formes)
+## 8. Gestion des Diagrammes (FEN + Formes) et tolérance aux FENs invalides/incomplètes
 
 Pour instancier et lire des diagrammes combinant une position FEN et des formes dessinées (flèches et cercles) :
 
@@ -117,3 +117,4 @@ Pour instancier et lire des diagrammes combinant une position FEN et des formes 
 3. **Synchronisation réactive** :
    - **React** : Le composant surveille la prop `diagram` via `useEffect` et appelle `coreRef.current?.setDiagram(diagram)`.
    - **Vue 3** : Le composant surveille la prop `diagram` via un `watch` avec `deep: true` et appelle `core.value?.setDiagram(diagram)`.
+4. **Tolérance aux positions incomplètes/invalides** : Si la FEN chargée via `setPosition` ou `setDiagram` ne respecte pas les contraintes strictes de `chess.js` (par exemple absence de rois, échiquier vide ou pièce unique), `BoardCore` charge une position minimale contenant le trait (turn) approprié, retire les rois factices, puis injecte manuellement chaque pièce sur le plateau. Ceci prévient tout crash ou désynchronisation de l'état logique par rapport à l'affichage visuel de Chessground.

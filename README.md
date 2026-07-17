@@ -236,7 +236,7 @@ L'instance d'API (`boardApi` ou `BoardCore`) renvoyée lors de la création de l
 
 - `getFen()` : Renvoie la chaîne FEN de la position actuelle.
 - `getPlacementFen()` : Renvoie la FEN de placement uniquement (disposition des pièces), extraite directement de Chessground (utile pour le mode libre ou FENs incomplètes sans crash).
-- `setPosition(fen)` : Charge dynamiquement une position FEN sur l'échiquier.
+- `setPosition(fen)` : Charge dynamiquement une position FEN sur l'échiquier. Supporte les FENs incomplètes ou invalides (ex: sans rois, échiquier vide) en basculant automatiquement sur un placement manuel des pièces afin de préserver la synchronisation du moteur.
 - `setDiagram(diagram)` : Charge une position FEN et dessine les formes (cercles/flèches) associées.
 - `getDiagram()` : Renvoie l'état actuel de l'échiquier sous forme de diagramme `{ fen, shapes }`.
 - `getPgn()` : Renvoie le PGN de la partie.

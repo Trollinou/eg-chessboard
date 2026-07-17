@@ -83,15 +83,60 @@ export class BoardCore {
 
   private initBoard() {
     if (this.initialConfig.fen) {
-      try {
-        this.game.load(this.initialConfig.fen);
-      } catch (e) {
-        console.warn('Invalid initial FEN loaded in chess.js:', this.initialConfig.fen, e);
-      }
+      this.safeLoadFen(this.initialConfig.fen);
     }
     const config = this.buildConfig(this.initialConfig);
     this.board = Chessground(this.boardElement, config);
     this.updateGameState({ updateFen: false });
+  }
+
+  private safeLoadFen(fen: string): boolean {
+    try {
+      this.game.load(fen);
+      return true;
+    } catch (e) {
+      console.warn('Invalid FEN loaded in chess.js, fallback to manual piece placing:', fen, e);
+      
+      const parts = fen.split(' ');
+      const placement = parts[0];
+      const turn = parts[1] === 'b' ? 'b' : 'w';
+
+      // Charger une position minimale valide pour régler le trait (turn)
+      try {
+        this.game.load(`4k3/8/8/8/8/8/8/4K3 ${turn} - - 0 1`);
+      } catch {
+        // En cas d'échec improbable, on utilise le comportement par défaut
+      }
+      
+      // Retirer les rois temporaires
+      this.game.remove('e1');
+      this.game.remove('e8');
+
+      // Placer les pièces de la FEN
+      const ranks = placement.split('/');
+      const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+      for (let r = 0; r < 8; r++) {
+        const rankStr = ranks[r];
+        if (!rankStr) continue;
+        let fileIdx = 0;
+        for (let i = 0; i < rankStr.length; i++) {
+          const char = rankStr[i];
+          if (/[1-8]/.test(char)) {
+            fileIdx += parseInt(char, 10);
+          } else {
+            const color = char === char.toUpperCase() ? 'w' : 'b';
+            const type = char.toLowerCase() as PieceSymbol;
+            const square = `${files[fileIdx]}${8 - r}` as Square;
+            if (fileIdx < 8) {
+              this.game.put({ type, color }, square);
+            }
+            fileIdx++;
+          }
+        }
+      }
+      return false;
+    }
   }
 
   private buildConfig(userConfig: Config): Config {
@@ -693,24 +738,12 @@ export class BoardCore {
   }
 
   setPosition(fen: string): void {
-    let success = true;
-    try {
-      this.game.load(fen);
-    } catch (e) {
-      success = false;
-      console.warn('Invalid FEN loaded in chess.js, fallback to visual set:', fen, e);
-    }
+    this.safeLoadFen(fen);
 
     this.state.historyViewerState = { isEnabled: false };
     this.onStateChange();
 
-    if (!success) {
-      // Chessground est purement visuel et accepte n'importe quelle disposition (même vide)
-      this.board.set({ fen: fen.split(' ')[0] });
-      this.emitEvents();
-    } else {
-      this.updateGameState();
-    }
+    this.updateGameState();
 
     this.initStockfish();
     this.triggerStockfish();
