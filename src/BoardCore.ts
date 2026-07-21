@@ -578,7 +578,7 @@ export class BoardCore {
         const parts = nextFen.split(' ');
         parts[1] = colorBefore;
         const rewrittenFen = parts.join(' ');
-        this.game.load(rewrittenFen);
+        this.game.load(rewrittenFen, { skipValidation: true });
       }
     } catch (err) {
       console.error('[BoardCore] move failed, error:', err);

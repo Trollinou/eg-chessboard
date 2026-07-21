@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import TheChessboard from '../src/vue/TheChessboard.vue';
 import type { Key } from '@lichess-org/chessground/types';
 import type { BoardCore, StockfishConfig } from '../src/BoardCore';
 import PgnApp from './PgnApp.vue';
 
-const activeTab = ref<'stockfish' | 'pgn'>('stockfish');
+const activeTab = ref<'stockfish' | 'pgn' | 'solo'>('stockfish');
 
 const boardCore = ref<BoardCore | null>(null);
 const currentHint = ref<string>('');
@@ -17,6 +17,94 @@ const capturedPieces = reactive<{ white: string[]; black: string[] }>({
   white: [],
   black: [],
 });
+
+// Solo Mode State
+const soloBoardCore = ref<BoardCore | null>(null);
+const soloHistory = ref<string[]>([]);
+const soloSelectedPiece = ref<'knight' | 'rook' | 'bishop' | 'queen' | 'king'>('knight');
+const soloExercise = ref<'alone' | 'capture'>('alone');
+const remainingTargets = ref<number>(0);
+
+const getSoloFen = () => {
+  if (soloSelectedPiece.value === 'knight') {
+    return soloExercise.value === 'alone'
+      ? '8/8/8/8/4N3/8/8/8 w - - 0 1'
+      : '8/8/3p1p2/2p3p1/4N3/8/8/8 w - - 0 1';
+  } else if (soloSelectedPiece.value === 'rook') {
+    return soloExercise.value === 'alone'
+      ? '8/8/8/8/4R3/8/8/8 w - - 0 1'
+      : '8/3p4/8/2p1p3/4R3/8/3p4/8 w - - 0 1';
+  } else if (soloSelectedPiece.value === 'bishop') {
+    return soloExercise.value === 'alone'
+      ? '8/8/8/8/4B3/8/8/8 w - - 0 1'
+      : '8/1p5p/8/8/4B3/8/2p3p1/8 w - - 0 1';
+  } else if (soloSelectedPiece.value === 'queen') {
+    return soloExercise.value === 'alone'
+      ? '8/8/8/8/4Q3/8/8/8 w - - 0 1'
+      : '8/1p3p2/8/2p5/4Q3/5p2/8/8 w - - 0 1';
+  } else {
+    // King
+    return soloExercise.value === 'alone'
+      ? '8/8/8/8/4K3/8/8/8 w - - 0 1'
+      : '8/8/3ppp2/3pK3/3ppp2/8/8/8 w - - 0 1';
+  }
+};
+
+const soloDiagram = computed(() => ({
+  fen: getSoloFen(),
+}));
+
+const updateTargetsCount = () => {
+  if (!soloBoardCore.value) return;
+  let count = 0;
+  const pieces = soloBoardCore.value.getPieces();
+  for (const piece of pieces.values()) {
+    if (piece.color === 'b') {
+      count++;
+    }
+  }
+  remainingTargets.value = count;
+};
+
+const onSoloBoardCreated = (core: BoardCore) => {
+  soloBoardCore.value = core;
+  updateTargetsCount();
+};
+
+const onSoloMove = () => {
+  if (soloBoardCore.value) {
+    soloHistory.value = soloBoardCore.value.getHistory() as string[];
+    updateTargetsCount();
+  }
+};
+
+const selectPiece = (piece: 'knight' | 'rook' | 'bishop' | 'queen' | 'king') => {
+  soloSelectedPiece.value = piece;
+  soloHistory.value = [];
+  setTimeout(updateTargetsCount, 50);
+};
+
+const selectExercise = (type: 'alone' | 'capture') => {
+  soloExercise.value = type;
+  soloHistory.value = [];
+  setTimeout(updateTargetsCount, 50);
+};
+
+const handleSoloReset = () => {
+  if (soloBoardCore.value) {
+    soloBoardCore.value.setDiagram({ fen: getSoloFen() });
+    soloHistory.value = [];
+    setTimeout(updateTargetsCount, 50);
+  }
+};
+
+const handleSoloUndo = () => {
+  if (soloBoardCore.value) {
+    soloBoardCore.value.undoLastMove();
+    soloHistory.value = soloBoardCore.value.getHistory() as string[];
+    updateTargetsCount();
+  }
+};
 
 // User config according to request:
 // - Whites assigned to user (playerColor = 'white')
@@ -145,7 +233,7 @@ const formatMove = (move: string, index: number) => {
         <h1>
           eg-chessboard
           <span class="badge">{{
-            activeTab === 'stockfish' ? 'Stockfish Sandbox' : 'PGN Reader'
+            activeTab === 'stockfish' ? 'Stockfish Sandbox' : activeTab === 'solo' ? 'Solo Sandbox' : 'PGN Reader'
           }}</span>
         </h1>
       </div>
@@ -156,6 +244,13 @@ const formatMove = (move: string, index: number) => {
           @click="activeTab = 'stockfish'"
         >
           🤖 Mode Stockfish
+        </button>
+        <button
+          :class="{ active: activeTab === 'solo' }"
+          class="tab-btn"
+          @click="activeTab = 'solo'"
+        >
+          🐴 Mode Solo (Apprentissage)
         </button>
         <button :class="{ active: activeTab === 'pgn' }" class="tab-btn" @click="activeTab = 'pgn'">
           📖 Mode Lecteur PGN
@@ -267,6 +362,131 @@ const formatMove = (move: string, index: number) => {
           <div v-if="gameHistory.length > 0" class="history-list">
             <span v-for="(move, index) in gameHistory" :key="index" class="history-move">
               {{ formatMove(move, index) }}
+            </span>
+          </div>
+          <span v-else class="history-empty">Aucun coup joué pour le moment.</span>
+        </div>
+      </section>
+    </main>
+
+    <main v-else-if="activeTab === 'solo'" class="app-layout">
+      <!-- Left column: The board -->
+      <section class="board-column">
+        <div class="board-wrapper">
+          <TheChessboard
+            player-color="white"
+            :solo-mode="true"
+            :diagram="soloDiagram"
+            @board-created="onSoloBoardCreated"
+            @move="onSoloMove"
+          />
+        </div>
+      </section>
+
+      <!-- Right column: Controls & Info -->
+      <section class="controls-column">
+        <!-- Live status card -->
+        <div class="glass-card status-card" :class="{ 'success-border': remainingTargets === 0 && soloExercise === 'capture' }">
+          <h2>Statut de l'exercice</h2>
+          <div class="status-indicator">
+            <span class="status-text" v-if="soloExercise === 'alone'">
+              🐴 Déplacez la pièce librement selon ses mouvements légaux !
+            </span>
+            <span class="status-text" v-else-if="remainingTargets > 0">
+              🎯 Capturez tous les pions noirs ! Encore <strong>{{ remainingTargets }}</strong> cible{{ remainingTargets > 1 ? 's' : '' }} à capturer.
+            </span>
+            <span class="status-text success-text" v-else>
+              🎉 Félicitations ! Tous les pions noirs ont été capturés !
+            </span>
+          </div>
+        </div>
+
+        <!-- Piece Selector Card -->
+        <div class="glass-card">
+          <h2>Choisir la pièce à déplacer</h2>
+          <div class="piece-selector-grid">
+            <button
+              :class="{ active: soloSelectedPiece === 'knight' }"
+              class="btn btn-secondary piece-btn"
+              @click="selectPiece('knight')"
+            >
+              🐴 Cavalier
+            </button>
+            <button
+              :class="{ active: soloSelectedPiece === 'rook' }"
+              class="btn btn-secondary piece-btn"
+              @click="selectPiece('rook')"
+            >
+              🏰 Tour
+            </button>
+            <button
+              :class="{ active: soloSelectedPiece === 'bishop' }"
+              class="btn btn-secondary piece-btn"
+              @click="selectPiece('bishop')"
+            >
+              🎯 Fou
+            </button>
+            <button
+              :class="{ active: soloSelectedPiece === 'queen' }"
+              class="btn btn-secondary piece-btn"
+              @click="selectPiece('queen')"
+            >
+              👑 Dame
+            </button>
+            <button
+              :class="{ active: soloSelectedPiece === 'king' }"
+              class="btn btn-secondary piece-btn"
+              @click="selectPiece('king')"
+            >
+              👑 Roi
+            </button>
+          </div>
+        </div>
+
+        <!-- Mode type selector -->
+        <div class="glass-card">
+          <h2>Type d'activité</h2>
+          <div class="action-buttons">
+            <button
+              :class="{ active: soloExercise === 'alone' }"
+              class="btn btn-secondary"
+              @click="selectExercise('alone')"
+            >
+              🗺️ Pièce seule
+            </button>
+            <button
+              :class="{ active: soloExercise === 'capture' }"
+              class="btn btn-secondary"
+              @click="selectExercise('capture')"
+            >
+              ⚔️ Labyrinthe de captures
+            </button>
+          </div>
+        </div>
+
+        <!-- Controls card -->
+        <div class="glass-card action-card">
+          <h2>Actions</h2>
+          <div class="action-buttons">
+            <button class="btn btn-primary" @click="handleSoloReset">
+              🔄 Réinitialiser
+            </button>
+            <button
+              :disabled="soloHistory.length === 0"
+              class="btn btn-secondary"
+              @click="handleSoloUndo"
+            >
+              ↩️ Annuler le coup
+            </button>
+          </div>
+        </div>
+
+        <!-- Game History -->
+        <div class="glass-card history-card">
+          <h2>Historique des coups</h2>
+          <div v-if="soloHistory.length > 0" class="history-list">
+            <span v-for="(move, index) in soloHistory" :key="index" class="history-move">
+              {{ index + 1 }}. {{ move }}
             </span>
           </div>
           <span v-else class="history-empty">Aucun coup joué pour le moment.</span>
@@ -651,5 +871,22 @@ body {
 .board-wrapper .cg-wrap {
   width: 100% !important;
   height: 100% !important;
+}
+
+/* Solo Mode Specific Styles */
+.piece-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+}
+
+.success-border {
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.2) !important;
+}
+
+.success-text {
+  color: var(--success) !important;
+  font-weight: bold;
 }
 </style>
