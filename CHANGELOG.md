@@ -4,6 +4,23 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [1.2.1] - 2026-07-27
+
+### Ajouté
+
+- **Méthode `setPlayerColor` & Réactivité `playerColor`** : Ajout de la méthode publique `core.setPlayerColor(color)` sur `BoardCore` et synchronisation réactive dans les wrappers Vue 3 (`TheChessboard.vue`) et React (`Chessboard.tsx`).
+
+### Modifié
+
+- **Optimisation de `setConfig()`** : Comparaison intelligente de FEN via la méthode interne `isSameFen(fen)`. `setConfig()` n'exécute plus `setPosition()` si la FEN fournie est identique à la position actuelle, ce qui empêche la réinitialisation du plateau et préserve la sélection de case lors d'un déplacement en 2 clics.
+
+### Corrigé
+
+- **Effacement intempestif des formes graphiques (`updateCommentAndShapes`)** : Correction de l'effacement automatique des formes personnalisées lorsque la position FEN n'a aucun commentaire PGN (`!rawComment`). Les formes graphiques (flèches et cercles) posées au 1er clic ou transmises via `boardConfig.drawable.shapes` sont désormais préservées.
+- **Écrasement de la couleur du joueur (`userMovableColor`) dans `updateGameState`** : Mémorisation de la couleur configurée dans `this.userMovableColor` pour éviter que `updateGameState()` n'écrase la couleur autorisée au joueur par le trait courant de `chess.js`.
+
+---
+
 ## [1.2.0] - 2026-07-27
 
 ### Ajouté
