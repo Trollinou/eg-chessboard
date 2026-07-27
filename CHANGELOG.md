@@ -20,6 +20,7 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ### Corrigé
 
+- **Affichage Échiquier en Mode Paysage** : Suppression de la media query `@media (orientation: landscape)` dans `src/style.css` qui imposait à `.main-wrap` une largeur fixe (`90vh` / max `700px`), empêchant l'échiquier de s'adapter à 100% de la largeur du conteneur parent et provoquant un tronquage vertical sur ordinateur et tablette.
 - **Clignotement et Effacement des Formes au Clic** :
   - Protection des formes via le tampon `autoShapes` de Chessground contre les effacements automatiques au clic gauche sur cases vides.
   - Détection matérielle du bouton de souris (`lastMouseButton`) pour filtrer les auto-clears du clic gauche tout en permettant l'effacement immédiat des formes au clic droit.

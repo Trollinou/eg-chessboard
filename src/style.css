@@ -334,10 +334,3 @@ cg-board .king.black {
   filter: saturate(60%);
   transition: 0.25s filter linear;
 }
-@media (orientation: landscape) {
-  .main-wrap {
-    width: 90vh;
-    margin-inline: auto;
-    max-width: 700px;
-  }
-}
