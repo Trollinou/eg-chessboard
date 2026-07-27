@@ -142,10 +142,22 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   }, []);
 
   useEffect(() => {
-    if (coreRef.current && boardConfig) {
-      coreRef.current.setConfig(boardConfig);
+    if (coreRef.current && playerColor) {
+      coreRef.current.setPlayerColor(playerColor);
     }
-  }, [boardConfig]);
+  }, [playerColor]);
+
+  useEffect(() => {
+    if (coreRef.current && boardConfig) {
+      coreRef.current.setConfig({
+        ...boardConfig,
+        movable: {
+          ...boardConfig.movable,
+          color: playerColor || boardConfig.movable?.color,
+        },
+      });
+    }
+  }, [boardConfig, playerColor]);
 
   useEffect(() => {
     if (coreRef.current && stockfishConfig) {

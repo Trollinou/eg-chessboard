@@ -144,12 +144,28 @@ onMounted(() => {
 
   emit('board-created', core.value!);
 
+  // Watch for playerColor changes
+  watch(
+    () => props.playerColor,
+    (newVal) => {
+      if (newVal && core.value) {
+        core.value.setPlayerColor(newVal);
+      }
+    }
+  );
+
   // Watch for configuration changes
   watch(
     () => props.boardConfig,
     (newConfig) => {
       if (newConfig && core.value) {
-        core.value.setConfig(newConfig);
+        core.value.setConfig({
+          ...newConfig,
+          movable: {
+            ...newConfig.movable,
+            color: props.playerColor || newConfig.movable?.color,
+          },
+        });
       }
     },
     { deep: true }

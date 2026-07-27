@@ -216,9 +216,11 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `putPiece(piece, square)`| `piece: Piece, square: Key \| string` | Dépose une pièce sur une case. |
 | `removePiece(square)` | `square: Key \| string` | Supprime la pièce située sur la case. |
 | `closePromotionDialog()`| `none` | Ferme le dialogue de sélection de promotion. |
+| `setPlayerColor(color)` | `color: 'white' \| 'black' \| 'both'` | Modifie dynamiquement la couleur du joueur autorisée aux déplacements. |
 | `setFreeMode(freeMode)` | `freeMode: boolean` | Active/désactive le mode libre. |
 | `setSoloMode(soloMode)` | `soloMode: boolean` | Active/désactive le mode solo. |
 | `setPreserveShapesOnPositionChange(...)` | `preserve: boolean` | Active/désactive la persistance des formes lors des changements de pièces. |
+| `setConfig(config)` | `config: Config` | Applique une nouvelle configuration. Conserve la sélection et les formes si la FEN est inchangée. |
 | `getFinalFenFromPgn(pgn)` | `pgn: string` | Retourne la FEN finale calculée à partir d'une chaîne PGN. |
 | `redraw(clearBounds?)` | `clearBounds = true` | Invalide le cache des coordonnées DOM et ré-exécute un rendu complet. |
 

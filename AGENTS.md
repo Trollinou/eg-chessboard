@@ -112,6 +112,8 @@ Pour restreindre dynamiquement les mouvements de l'utilisateur ou valider ses ac
 
 Pour interroger l'état interne de l'échiquier et gérer le nettoyage de manière uniforme :
 
+- `core.setPlayerColor(color: 'white' | 'black' | 'both'): void` : Définit dynamiquement la couleur du joueur autorisée aux déplacements sans qu'elle ne soit écrasée par le trait courant.
+- `core.setConfig(config: Config, fillDefaults?: boolean): void` : Applique les modifications de configuration sur Chessground sans réinitialiser la FEN ni effacer la sélection si la FEN reste inchangée.
 - `core.getOrientation(): 'white' | 'black'` : Retourne l'orientation actuelle du plateau de jeu.
 - `core.getPlacementFen(): string` : Retourne la FEN de placement actuelle des pièces (sans les autres métadonnées de FEN) extraite directement de Chessground, sans dépendre de la validation de `chess.js` (utile en mode libre ou pour les FENs en cours d'édition).
 - `core.getCurrentComment(): string` : Retourne le commentaire textuel du coup courant.

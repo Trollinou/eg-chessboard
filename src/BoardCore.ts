@@ -61,6 +61,7 @@ export class BoardCore {
   private isProgrammaticShapeUpdate = false;
   private currentPreservedShapes: DrawShape[] = [];
   private lastMouseButton = -1;
+  private userMovableColor: 'white' | 'black' | 'both' | undefined;
 
   constructor(
     boardElement: HTMLElement,
@@ -77,6 +78,7 @@ export class BoardCore {
     this.emitEvent = emitEvent;
     this.initialConfig = initialConfig;
     this.stockfishConfig = stockfishConfig;
+    this.userMovableColor = initialConfig.movable?.color;
     this.game = new Chess();
 
     this.boardElement.addEventListener(
@@ -170,9 +172,14 @@ export class BoardCore {
 
     const isFree = !!this.state.freeMode;
 
+    if (userConfig.movable?.color !== undefined) {
+      this.userMovableColor = userConfig.movable.color;
+    }
+
     const mergedMovable = {
       free: isFree,
-      color: (isFree ? 'both' : this.getTurnColor()) as 'white' | 'black' | 'both',
+      color: (isFree ? 'both' : this.userMovableColor || this.getTurnColor()) as
+        'white' | 'black' | 'both',
       dests: isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.game),
       events: defaultEvents,
       ...(userConfig.movable || {}),
@@ -304,7 +311,7 @@ export class BoardCore {
         animation: { enabled: !isPreserve && !isFree },
         movable: {
           free: isFree,
-          color: isFree ? 'both' : this.getTurnColor(),
+          color: isFree ? 'both' : this.userMovableColor || this.getTurnColor(),
           dests:
             this.customDests ||
             (isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.game)),
@@ -401,11 +408,28 @@ export class BoardCore {
     this.onStateChange();
   }
 
+  setPlayerColor(color: 'white' | 'black' | 'both'): void {
+    this.userMovableColor = color;
+    this.updateGameState({ updateFen: false });
+  }
+
   redraw(clearBounds = true): void {
-    if (clearBounds && (this.board as any)?.state?.dom?.bounds?.clear) {
-      (this.board as any).state.dom.bounds.clear();
+    const boardState = this.board as unknown as {
+      state?: { dom?: { bounds?: { clear?: () => void } } };
+    };
+    if (clearBounds && boardState?.state?.dom?.bounds?.clear) {
+      boardState.state.dom.bounds.clear();
     }
     this.board?.redrawAll();
+  }
+
+  private isSameFen(fen: string): boolean {
+    const currentFen = this.getFen();
+    if (fen === currentFen) return true;
+    const normalize = (f: string) => f.trim().split(/\s+/).join(' ');
+    if (normalize(fen) === normalize(currentFen)) return true;
+    if (!fen.includes(' ') && fen.trim() === this.getPlacementFen()) return true;
+    return false;
   }
 
   setConfig(config: Config, fillDefaults = false): void {
@@ -420,9 +444,15 @@ export class BoardCore {
         : (orig: Key, dest: Key, metadata: MoveMetadata) => this.changeTurn(orig, dest, metadata);
     }
     const { fen, ...other } = finalConfig;
+    if (other.movable?.color !== undefined) {
+      this.userMovableColor = other.movable.color as 'white' | 'black' | 'both';
+    }
     this.board.set(other);
-    if (fen) {
+    if (fen && !this.isSameFen(fen)) {
       this.setPosition(fen);
+    }
+    if (other.drawable?.shapes) {
+      this.applyBoardShapes(other.drawable.shapes);
     }
     this.board.redrawAll();
   }
@@ -690,6 +720,15 @@ export class BoardCore {
       : normalizeFen(this.game.fen()) === targetNorm
         ? this.game.getComment() || ''
         : '';
+
+    if (!rawComment) {
+      this.state.currentComment = '';
+      if (this.isViewingHistory() && !this.state.preserveShapesOnPositionChange) {
+        this.applyBoardShapes([]);
+      }
+      this.onStateChange();
+      return;
+    }
 
     const parsed = this.parseComment(rawComment);
     this.state.currentComment = parsed.text;
