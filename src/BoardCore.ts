@@ -302,7 +302,24 @@ export class BoardCore {
       const savedShapes = this.state.preserveShapesOnPositionChange ? [...currentShapes] : null;
 
       const isFree = !!this.state.freeMode;
+      const isSolo = !!this.state.soloMode;
       const isPreserve = !!this.state.preserveShapesOnPositionChange;
+
+      // Fix mode solo : Réaligner le trait interne si une couleur spécifique est imposée
+      if (
+        isSolo &&
+        this.userMovableColor &&
+        (this.userMovableColor === 'white' || this.userMovableColor === 'black')
+      ) {
+        const requiredTurn = this.userMovableColor === 'white' ? 'w' : 'b';
+        if (this.game.turn() !== requiredTurn) {
+          const currentFen = this.game.fen();
+          const parts = currentFen.split(' ');
+          parts[1] = requiredTurn;
+          const rewrittenFen = parts.join(' ');
+          this.game.load(rewrittenFen, { skipValidation: true });
+        }
+      }
 
       this.board.set({
         ...(updateFen ? { fen: this.game.fen() } : {}),
@@ -314,7 +331,9 @@ export class BoardCore {
           color: isFree ? 'both' : this.userMovableColor || this.getTurnColor(),
           dests:
             this.customDests ||
-            (isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.game)),
+            (isFree || (isSolo && (!this.userMovableColor || this.userMovableColor === 'both'))
+              ? this.getPossibleMovesForBothColors()
+              : possibleMoves(this.game)),
         },
         drawable: {
           eraseOnMovablePieceClick: !isPreserve,

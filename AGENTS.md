@@ -1,6 +1,6 @@
 # Spécification d'Isopérimètre : eg-chessboard
 
-Ce document définit le contrat d'interface, les règles de réactivité et l'architecture de communication pour assurer une portabilité et un comportement strictement identiques (1:1) entre les implémentations React (`Chessboard.tsx`) et Vue 3 (`TheChessboard.vue`), en s'appuyant sur le cœur agnostique `BoardCore.ts`.
+> **ATTENTION AGENT** : L'agent n'est STRICTEMENT PAS HABILITÉ à effectuer des modifications de code directement dans le dépôt `eg-chessboard`. En cas de bug ou dysfonctionnement identifié sur ce module, l'agent doit obligatoirement produire un rapport de bug détaillé (bug report) afin d'en permettre la remontée et la correction.
 
 ## 1. Principes Fondamentaux d'Architecture
 
