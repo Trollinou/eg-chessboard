@@ -8,8 +8,9 @@ export {
 </script>
 
 <script setup lang="ts">
-import { ref, shallowRef, onMounted, reactive, watch } from 'vue';
+import { ref, shallowRef, onMounted, onUnmounted, reactive, watch } from 'vue';
 import type { Config } from '@lichess-org/chessground/config';
+import type { DrawShape } from '@lichess-org/chessground/draw';
 import type { Move } from 'chess.js';
 import {
   BoardCore,
@@ -25,6 +26,8 @@ const props = withDefaults(
     playerColor?: 'white' | 'black' | 'both';
     freeMode?: boolean;
     soloMode?: boolean;
+    fitContainer?: boolean;
+    preserveShapesOnPositionChange?: boolean;
     stockfishConfig?: StockfishConfig;
     diagram?: ChessDiagram;
   }>(),
@@ -32,6 +35,8 @@ const props = withDefaults(
     boardConfig: () => ({}),
     freeMode: false,
     soloMode: false,
+    fitContainer: false,
+    preserveShapesOnPositionChange: false,
     stockfishConfig: () => ({}),
   }
 );
@@ -46,6 +51,7 @@ const emit = defineEmits<{
   promotion: [detail: { from: string; to: string; promotedTo: string }];
   'stockfish-hint': [bestMove: string];
   'square-click': [square: string];
+  'shapes-change': [shapes: DrawShape[]];
 }>();
 
 const boardElement = ref<HTMLElement | null>(null);
@@ -55,6 +61,7 @@ const state = reactive<BoardCoreState>({
   showThreats: false,
   freeMode: props.freeMode,
   soloMode: props.soloMode,
+  preserveShapesOnPositionChange: props.preserveShapesOnPositionChange,
   promotionDialogState: { isEnabled: false },
   historyViewerState: { isEnabled: false },
   currentComment: '',
@@ -82,6 +89,17 @@ watch(
   }
 );
 
+// Watch for preserveShapesOnPositionChange changes
+watch(
+  () => props.preserveShapesOnPositionChange,
+  (newVal) => {
+    state.preserveShapesOnPositionChange = newVal;
+    if (core.value) {
+      core.value.setPreserveShapesOnPositionChange(newVal);
+    }
+  }
+);
+
 onMounted(() => {
   if (!boardElement.value) return;
 
@@ -89,7 +107,7 @@ onMounted(() => {
     boardElement.value,
     state,
     () => {
-      // Triggered when reactive states like promotionDialogState change inside Core
+      // Triggered when reactive states change inside Core
     },
     (event, ...args) => {
       // Emit events to parent Vue component
@@ -109,6 +127,8 @@ onMounted(() => {
         emit('stockfish-hint', args[0] as string);
       } else if (event === 'square-click') {
         emit('square-click', args[0] as string);
+      } else if (event === 'shapes-change') {
+        emit('shapes-change', args[0] as DrawShape[]);
       }
     },
     {
@@ -157,6 +177,16 @@ onMounted(() => {
     { deep: true }
   );
 });
+
+onUnmounted(() => {
+  core.value?.destroy();
+  core.value = null;
+});
+
+defineExpose({
+  core,
+  redraw: (clearBounds = true) => core.value?.redraw(clearBounds),
+});
 </script>
 
 <template>
@@ -165,6 +195,7 @@ onMounted(() => {
     :class="{
       disabledBoard: state.promotionDialogState.isEnabled,
       viewingHistory: state.historyViewerState.isEnabled,
+      'fit-container': props.fitContainer,
     }"
   >
     <div class="main-board">

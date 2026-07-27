@@ -10,6 +10,7 @@ export interface BoardCoreState {
   showThreats: boolean;
   freeMode?: boolean;
   soloMode?: boolean;
+  preserveShapesOnPositionChange?: boolean;
   promotionDialogState: {
     isEnabled: boolean;
     color?: Color;
@@ -32,6 +33,7 @@ export interface StockfishConfig {
   blackElo?: number;
   stockfishMoveTime?: number; // millisecondes
   workerUrl?: string; // URL vers stockfish.js
+  wasmUrl?: string; // URL vers le binaire stockfish.wasm
 }
 
 export interface ChessDiagram {
@@ -56,6 +58,9 @@ export class BoardCore {
   private customDests: Map<Key, Key[]> | null = null;
   private soloHistory: Move[] = [];
   private isDrawingUpdate = false;
+  private isProgrammaticShapeUpdate = false;
+  private currentPreservedShapes: DrawShape[] = [];
+  private lastMouseButton = -1;
 
   constructor(
     boardElement: HTMLElement,
@@ -73,6 +78,22 @@ export class BoardCore {
     this.initialConfig = initialConfig;
     this.stockfishConfig = stockfishConfig;
     this.game = new Chess();
+
+    this.boardElement.addEventListener(
+      'mousedown',
+      (e: MouseEvent) => {
+        this.lastMouseButton = e.button;
+      },
+      { capture: true }
+    );
+
+    this.boardElement.addEventListener(
+      'touchstart',
+      () => {
+        this.lastMouseButton = 0;
+      },
+      { capture: true }
+    );
 
     this.initBoard();
     this.initStockfish();
@@ -194,8 +215,11 @@ export class BoardCore {
       };
     }
 
+    const isPreserve = !!this.state.preserveShapesOnPositionChange;
+
     const mergedDrawable = {
       enabled: true,
+      eraseOnMovablePieceClick: !isPreserve,
       onChange: (shapes: DrawShape[]) => {
         this.handleDrawableChange(shapes);
       },
@@ -267,14 +291,17 @@ export class BoardCore {
 
   private updateGameState({ updateFen = true } = {}): void {
     if (!this.state.historyViewerState.isEnabled) {
-      if (updateFen) {
-        this.board.set({ fen: this.game.fen() });
-      }
+      const currentShapes = this.getShapes();
+      const savedShapes = this.state.preserveShapesOnPositionChange ? [...currentShapes] : null;
 
       const isFree = !!this.state.freeMode;
+      const isPreserve = !!this.state.preserveShapesOnPositionChange;
 
       this.board.set({
+        ...(updateFen ? { fen: this.game.fen() } : {}),
         turnColor: this.getTurnColor(),
+        check: this.game.inCheck() ? this.getTurnColor() : undefined,
+        animation: { enabled: !isPreserve && !isFree },
         movable: {
           free: isFree,
           color: isFree ? 'both' : this.getTurnColor(),
@@ -282,22 +309,25 @@ export class BoardCore {
             this.customDests ||
             (isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.game)),
         },
+        drawable: {
+          eraseOnMovablePieceClick: !isPreserve,
+          ...(savedShapes
+            ? {
+                autoShapes: isPreserve ? savedShapes : [],
+                shapes: savedShapes,
+              }
+            : {}),
+        },
       });
-
-      this.displayInCheck(this.game.inCheck(), this.getTurnColor());
 
       if (this.state.showThreats) {
         this.drawThreats();
-      } else {
+      } else if (!savedShapes) {
         this.updateCommentAndShapes(this.game.fen());
       }
     }
 
     this.emitEvents();
-  }
-
-  private displayInCheck(inCheck: boolean, color: Color): void {
-    this.board.set({ check: inCheck ? color : undefined });
   }
 
   private emitEvents(): void {
@@ -357,6 +387,25 @@ export class BoardCore {
     this.state.soloMode = soloMode;
     this.updateGameState({ updateFen: false });
     this.onStateChange();
+  }
+
+  setPreserveShapesOnPositionChange(preserve: boolean): void {
+    this.state.preserveShapesOnPositionChange = preserve;
+    if (this.board) {
+      this.board.set({
+        drawable: {
+          eraseOnMovablePieceClick: !preserve,
+        },
+      });
+    }
+    this.onStateChange();
+  }
+
+  redraw(clearBounds = true): void {
+    if (clearBounds && (this.board as any)?.state?.dom?.bounds?.clear) {
+      (this.board as any).state.dom.bounds.clear();
+    }
+    this.board?.redrawAll();
   }
 
   setConfig(config: Config, fillDefaults = false): void {
@@ -467,31 +516,114 @@ export class BoardCore {
     this.board.toggleOrientation();
   }
 
+  private applyBoardShapes(shapes: DrawShape[]): void {
+    this.currentPreservedShapes = shapes;
+    this.isProgrammaticShapeUpdate = true;
+    if (this.board) {
+      if (this.state.preserveShapesOnPositionChange) {
+        this.board.set({
+          drawable: {
+            autoShapes: shapes,
+            shapes: shapes,
+          },
+        });
+      } else {
+        this.board.setShapes(shapes);
+      }
+    }
+    requestAnimationFrame(() => {
+      this.isProgrammaticShapeUpdate = false;
+    });
+  }
+
+  private handleDrawableChange(shapes: DrawShape[]): void {
+    if (this.isDrawingUpdate || this.isProgrammaticShapeUpdate) return;
+
+    if (
+      this.state.preserveShapesOnPositionChange &&
+      shapes.length === 0 &&
+      this.lastMouseButton === 0
+    ) {
+      return;
+    }
+
+    this.isDrawingUpdate = true;
+    try {
+      this.currentPreservedShapes = shapes;
+      if (this.state.preserveShapesOnPositionChange && this.board) {
+        this.board.set({
+          drawable: {
+            autoShapes: shapes,
+          },
+        });
+      } else {
+        const ply =
+          this.state.historyViewerState.isEnabled &&
+          this.state.historyViewerState.plyViewing !== undefined
+            ? this.state.historyViewerState.plyViewing
+            : (this.getHistory(true) as Move[]).length;
+
+        this.setCommentAtPly(ply, this.state.currentComment || '', shapes, false);
+      }
+      this.emitEvent('shapes-change', shapes);
+    } finally {
+      this.isDrawingUpdate = false;
+    }
+  }
+
   drawThreats(): void {
     this.state.showThreats = true;
     this.onStateChange();
     const threats = getThreats(this.game.moves({ verbose: true }) as Move[]);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.board.setShapes(threats as any);
+    this.applyBoardShapes(threats as any);
   }
 
   hideMoves(): void {
     this.state.showThreats = false;
     this.onStateChange();
-    this.board.setShapes([]);
+    this.applyBoardShapes([]);
   }
 
-  drawMove(from: Key, to: Key, brush: string): void {
-    this.board.setShapes([{ orig: from, dest: to, brush }]);
+  drawMove(from: Key | string, to: Key | string, brush: string): void {
+    this.applyBoardShapes([{ orig: from as Key, dest: to as Key, brush }]);
   }
 
-  drawCircle(square: Key, brush: string): void {
+  drawCircle(square: Key | string, brush: string): void {
     const currentShapes = this.board.state.drawable.shapes || [];
-    this.board.setShapes([...currentShapes, { orig: square, brush }]);
+    this.applyBoardShapes([...currentShapes, { orig: square as Key, brush }]);
   }
 
-  setShapes(shapes: DrawShape[]): void {
-    this.board.setShapes(shapes);
+  setShapes(shapes: DrawShape[] | unknown[]): void {
+    this.applyBoardShapes(shapes as DrawShape[]);
+  }
+
+  /**
+   * Getter public sécurisé pour l'état global du Core.
+   */
+  public getState(): Readonly<BoardCoreState> {
+    return { ...this.state };
+  }
+
+  /**
+   * Le commentaire PGN nettoyé du coup courant.
+   */
+  public getCurrentComment(): string {
+    return this.state.currentComment || '';
+  }
+
+  /**
+   * L'état de visualisation dans l'historique PGN.
+   */
+  public getHistoryViewerState(): Readonly<BoardCoreState['historyViewerState']> {
+    return { ...this.state.historyViewerState };
+  }
+
+  /**
+   * Indique si l'utilisateur est actuellement en train de naviguer dans l'historique PGN.
+   */
+  public isViewingHistory(): boolean {
+    return !!this.state.historyViewerState.isEnabled;
   }
 
   private parseComment(commentStr: string): { text: string; shapes: DrawShape[] } {
@@ -561,7 +693,9 @@ export class BoardCore {
 
     const parsed = this.parseComment(rawComment);
     this.state.currentComment = parsed.text;
-    this.board.setShapes(parsed.shapes);
+    if (!this.state.preserveShapesOnPositionChange) {
+      this.applyBoardShapes(parsed.shapes);
+    }
     this.onStateChange();
   }
 
@@ -714,11 +848,56 @@ export class BoardCore {
     return this.game.isInsufficientMaterial();
   }
 
-  getSquareColor(square: Key) {
+  /**
+   * Retourne la couleur du joueur actuellement en échec, ou null sinon.
+   */
+  getInCheckColor(): 'white' | 'black' | null {
+    return this.getIsCheck() ? this.getTurnColor() : null;
+  }
+
+  /**
+   * Retourne la raison d'arrêt de la partie sous forme d'un message lisible (ex: "Échec et mat ! Les Blancs ont gagné.").
+   */
+  getGameOverReason(lang: 'fr' | 'en' = 'fr'): string {
+    if (!this.getIsGameOver()) return '';
+    if (this.getIsCheckmate()) {
+      const winner =
+        this.getTurnColor() === 'white'
+          ? lang === 'fr'
+            ? 'Noirs'
+            : 'Black'
+          : lang === 'fr'
+            ? 'Blancs'
+            : 'White';
+      return lang === 'fr'
+        ? `Échec et mat ! Les ${winner} ont gagné.`
+        : `Checkmate! ${winner} won.`;
+    }
+    if (this.getIsStalemate()) return lang === 'fr' ? 'Match nul par Pat.' : 'Draw by stalemate.';
+    if (this.getIsThreefoldRepetition())
+      return lang === 'fr' ? 'Match nul par répétition.' : 'Draw by repetition.';
+    if (this.getIsInsufficientMaterial())
+      return lang === 'fr'
+        ? 'Match nul par matériel insuffisant.'
+        : 'Draw by insufficient material.';
+    return lang === 'fr' ? 'Match nul.' : 'Draw.';
+  }
+
+  /**
+   * Détruit l'instance de BoardCore et libère toutes les ressources (Workers Stockfish, DOM Chessground).
+   */
+  destroy(): void {
+    this.terminateStockfish();
+    if (this.board) {
+      this.board.destroy();
+    }
+  }
+
+  getSquareColor(square: Key | string) {
     return this.game.squareColor(square as Square);
   }
 
-  getSquare(square: Key) {
+  getSquare(square: Key | string) {
     return this.game.get(square as Square);
   }
 
@@ -736,7 +915,7 @@ export class BoardCore {
 
   setDiagram(diagram: ChessDiagram): void {
     this.setPosition(diagram.fen);
-    this.board.setShapes(diagram.shapes || []);
+    this.applyBoardShapes(diagram.shapes || []);
   }
 
   getDiagram(): ChessDiagram {
@@ -747,18 +926,40 @@ export class BoardCore {
   }
 
   getShapes(): DrawShape[] {
-    return this.board.state.drawable.shapes || [];
+    if (this.state.preserveShapesOnPositionChange && this.currentPreservedShapes.length > 0) {
+      return this.currentPreservedShapes;
+    }
+    return (
+      this.board?.state?.drawable?.shapes ||
+      this.board?.state?.drawable?.autoShapes ||
+      this.currentPreservedShapes ||
+      []
+    );
   }
 
-  putPiece(piece: Piece, square: Key): boolean {
-    const res = this.game.put(piece, square as Square);
-    if (res) {
-      this.updateGameState();
+  getCurrentShapes(): DrawShape[] {
+    return this.getShapes();
+  }
+
+  getFinalFenFromPgn(pgn: string): string {
+    const tempGame = new Chess();
+    try {
+      tempGame.loadPgn(pgn);
+      return tempGame.fen();
+    } catch {
+      return this.getFen();
     }
+  }
+
+  putPiece(piece: Piece, square: Key | string): boolean {
+    const sq = square as Square;
+    this.game.remove(sq);
+    const res = this.game.put(piece, sq);
+    this.updateGameState();
     return res;
   }
 
-  removePiece(square: Key): void {
+  removePiece(square: Key | string): void {
     this.game.remove(square as Square);
     this.updateGameState();
   }
@@ -1056,22 +1257,6 @@ export class BoardCore {
     }
   }
 
-  private handleDrawableChange(shapes: DrawShape[]): void {
-    if (this.isDrawingUpdate) return;
-    this.isDrawingUpdate = true;
-    try {
-      const ply =
-        this.state.historyViewerState.isEnabled &&
-        this.state.historyViewerState.plyViewing !== undefined
-          ? this.state.historyViewerState.plyViewing
-          : (this.getHistory(true) as Move[]).length;
-
-      this.setCommentAtPly(ply, this.state.currentComment || '', shapes, false);
-    } finally {
-      this.isDrawingUpdate = false;
-    }
-  }
-
   setCommentAtPly(
     ply: number,
     text: string,
@@ -1080,6 +1265,18 @@ export class BoardCore {
   ): void {
     const history = this.getHistory(true) as Move[];
     if (ply < 0 || ply > history.length) return;
+
+    if (history.length === 0) {
+      const shapesAnnotation = this.shapesToPgnComment(shapes);
+      const combined = `${shapesAnnotation} ${text}`.trim();
+      this.game.setComment(combined);
+      this.state.currentComment = text;
+      if (updateBoardShapes && !this.state.preserveShapesOnPositionChange) {
+        this.applyBoardShapes(shapes);
+      }
+      this.onStateChange();
+      return;
+    }
 
     // Get all comments from the existing game
     const oldComments = this.game.getComments();
@@ -1144,7 +1341,7 @@ export class BoardCore {
     if (isViewingThisPly) {
       this.state.currentComment = text;
       if (updateBoardShapes) {
-        this.board.setShapes(shapes);
+        this.applyBoardShapes(shapes);
       }
       this.onStateChange();
     }

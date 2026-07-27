@@ -4,6 +4,29 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [1.2.0] - 2026-07-27
+
+### Ajouté
+
+- **Prop & Option `preserveShapesOnPositionChange`** : Conserve les formes (flèches et cercles) dessinées lors de la modification des pièces (pose, suppression) en mode éditeur/diagramme.
+- **Rendu Atomique et Invalidation Cache Bounds (`redraw`)** : Ajout de la méthode publique `redraw(clearBounds)` sur `BoardCore`, `TheChessboard.vue` et `Chessboard.tsx` pour réinitialiser le cache DOM de Chessground et relancer un rendu complet.
+- **Calcul de FEN finale PGN (`getFinalFenFromPgn`)** : Méthode utilitaire `getFinalFenFromPgn(pgn: string)` pour obtenir la FEN résultante d'un PGN sans manipuler directement le constructeur interne.
+- **Événement `shapes-change` / `onShapesChange`** : Émis nativement lors des annotations graphiques interactives au clic droit par l'utilisateur.
+- **Mode d'Édition & Diagramme dans la Sandbox** : Onglet dédié dans `sandbox/DevApp.vue` pour tester la création de positions, la pose/suppression de pièces, le traçage de formes et l'export JSON en temps réel.
+
+### Modifié
+
+- **Optimisation et Rendu GPU (`updateGameState`)** : Regroupement atomique des modifications Chessground dans un seul appel `board.set(...)` avec `animation: { enabled: false }` en mode éditeur et promotion de la couche SVG `.cg-shapes` sur un calque GPU dédié (`z-index: 3`, `transform: translateZ(0)`).
+
+### Corrigé
+
+- **Clignotement et Effacement des Formes au Clic** :
+  - Protection des formes via le tampon `autoShapes` de Chessground contre les effacements automatiques au clic gauche sur cases vides.
+  - Détection matérielle du bouton de souris (`lastMouseButton`) pour filtrer les auto-clears du clic gauche tout en permettant l'effacement immédiat des formes au clic droit.
+  - Correction de `putPiece()` en vidant préventivement la case (`remove`) avant l'insertion dans `chess.js` afin d'éviter les rejets sur cases occupées.
+
+---
+
 ## [1.1.4] - 2026-07-17
 
 ### Modifié

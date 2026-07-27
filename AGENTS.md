@@ -8,14 +8,15 @@ Pour éviter les divergences de comportement entre le modèle _pull/immutabilit�
 
 1. **Source de Vérité Unique** : L'état du jeu réside exclusivement dans `BoardCore`. Les frameworks ne font que refléter cet état graphiquement.
 2. **Mutations Interdites depuis la Vue** : Aucun wrapper (React ou Vue) ne doit modifier directement l'objet `state` ou ses sous-propriétés (ex: `state.promotionDialogState`). Toute modification doit passer par une méthode publique de `BoardCore`.
-3. **Flux Unidirectionnel avec Événements** : Le cœur notifie les wrappers de tout changement d'état interne via un mécanisme d'écoute (`onStateChange`). Le wrapper React met alors à jour son `useState`, et le wrapper Vue met à jour sa référence réactive.
-4. **Pas de Fuite d'Abstraction** : L'accès aux propriétés privées par contournement de typage (ex: `coreRef.current['state']`) est strictement interdit.
+3. **Flux Unidirectionnel avec Événements** : Le cœur notifie les wrappers de tout changement d'état interne via un mécanisme d'écoute (`onStateChange`). Le wrapper React met alors à jour son `useState` (via le getter public `core.getState()`), et le wrapper Vue met à jour sa référence réactive.
+4. **Pas de Fuite d'Abstraction** : L'accès aux propriétés privées par contournement de typage (ex: `coreRef.current['state']`) est strictement interdit. Toutes les lectures d'état se font via les getters publics (`getState()`, `getCurrentComment()`, `getHistoryViewerState()`, `isViewingHistory()`, etc.).
 
 ---
 
 ## 2. Contrat d'Interface Public (Props & Typage)
 
-Les types d'entrée proviennent exclusivement de `@lichess-org/chessground` (`Config`), de `chess.js` (`Move`), ou de notre structure commune (`StockfishConfig`).
+Les types d'entrée proviennent exclusivement de `@lichess-org/chessground` (`Config`), de `chess.js` (`Move`), ou de nos structures communes (`StockfishConfig`, `ChessDiagram`).
+Les types `Key` et `DrawShape` sont ré-exportés à la racine du paquet `eg-chessboard`.
 
 ### Valeurs par défaut
 
@@ -32,9 +33,10 @@ Les types d'entrée proviennent exclusivement de `@lichess-org/chessground` (`Co
 | **Couleur Joueur**    | Prop  | `playerColor`     | `playerColor`         | Types littéraux : `'white' \| 'black' \| 'both'`.                                                                                                                                                                                          |
 | **Mode Libre**        | Prop  | `freeMode`        | `freeMode`            | Synchronisé dynamiquement via `useEffect` (React) et `watch` (Vue). L'écouteur `change` de Chessground (configuré dans `events.change`) synchronise automatiquement le jeu (`syncGameFromBoard`) lors de tout drag-and-drop en mode libre. |
 | **Mode Solo**         | Prop  | `soloMode`        | `soloMode`            | Utilisé pour les exercices d'apprentissage (déplacements consécutifs sans alternance de tour).                                                                                                                                             |
-| **Config Stockfish**  | Prop  | `stockfishConfig` | `stockfishConfig`     | Synchronisation dynamique des options du moteur. Si absente ou inactive, aucun Web Worker n'est créé.                                                                                                                                      |
+| **Conteneur Fit**     | Prop  | `fitContainer`    | `fitContainer`        | Applique la classe CSS `.fit-container` au conteneur principal `.main-wrap` pour étendre l'échiquier à 100% de la hauteur/largeur du conteneur parent.                                                                                    |
+| **Config Stockfish**  | Prop  | `stockfishConfig` | `stockfishConfig`     | Synchronisation dynamique des options du moteur (incluant `workerUrl` et `wasmUrl`). Si absente ou inactive, aucun Web Worker n'est créé.                                                                                                 |
 | **Diagramme**         | Prop  | `diagram`         | `diagram`             | Initialisation et mise à jour dynamique de la FEN et des formes (flèches/cercles) via `setDiagram(diagram)`.                                                                                                                               |
-| **Création du Board** | Event | `onBoardCreated`  | `board-created`       | Transmet l'instance de `BoardCore` dès l'initialisation.                                                                                                                                                                                   |     |
+| **Création du Board** | Event | `onBoardCreated`  | `board-created`       | Transmet l'instance de `BoardCore` dès l'initialisation.                                                                                                                                                                                   |
 | **Mouvement**         | Event | `onMove`          | `move`                | Transmet un POJO `Move` (chess.js). Sans objet d'événement natif. Émis uniquement après la mise à jour graphique complète de l'échiquier (permettant un `undoLastMove` immédiat sans désynchronisation visuelle).                          |
 | **Échec**             | Event | `onCheck`         | `check`               | Transmet la couleur en paramètre (`string`).                                                                                                                                                                                               |
 | **Échec & Mat**       | Event | `onCheckmate`     | `checkmate`           | Transmet la couleur en paramètre (`string`).                                                                                                                                                                                               |
@@ -57,19 +59,25 @@ Le risque majeur de désynchronisation de `this.state` dans `BoardCore` sous Rea
    - **React** : `coreRef.current?.closePromotionDialog();`
    - **Vue 3** : `core.closePromotionDialog();`
 3. `BoardCore` met à jour son état interne et déclenche le callback global de changement d'état.
-4. Les wrappers réagissent au changement d'état global pour mettre à jour l'UI.
+4. Les wrappers réagissent au changement d'état global (via `core.getState()`) pour mettre à jour l'UI.
 
 #### Implémentation attendue dans le composant React (`Chessboard.tsx`) :
 
 ```typescript
-// Interdit : Modifier l'état localement sans avertir le Core
-// onPromotionSelected={() => { setState(prev => ({ ...prev, promotionDialogState: { isEnabled: false } })) }}
+// Interdit : Modifier l'état localement ou accéder aux membres privés via des casts
+// setState(prev => ({ ...prev, promotionDialogState: { isEnabled: false } }))
+// const s = core['state'];
 
-// Recommandé : Passer par l'API publique du Core
-onPromotionSelected={(pendingMove) => {
-  coreRef.current?.confirmPromotion(pendingMove);
-  // closePromotionDialog() est géré à l'intérieur de confirmPromotion()
-}}
+// Recommandé : Passer par l'API publique et les getters du Core
+const coreState = core.getState();
+setState({
+  showThreats: coreState.showThreats,
+  freeMode: coreState.freeMode,
+  soloMode: coreState.soloMode,
+  promotionDialogState: { ...coreState.promotionDialogState },
+  historyViewerState: { ...coreState.historyViewerState },
+  currentComment: coreState.currentComment,
+});
 ```
 
 ---
@@ -79,8 +87,8 @@ onPromotionSelected={(pendingMove) => {
 Pour assurer l'uniformité du traitement des exercices et des PGN :
 
 1. **Extraction automatique** : Le traitement des commentaires textuels et des balises propriétaires (`[%cal]` pour les flèches, `[%cpl]` pour les ronds) est opéré exclusivement par `BoardCore` dans `updateCommentAndShapes()`. Les wrappers ne doivent pas faire de parsing de commentaires PGN de leur côté.
-2. **Champ d'état commun** : Le texte de commentaire nettoyé est exposé dans l'état commun sous la clé `currentComment`.
-3. **Méthodes de dessin et d'extraction publiques** : Toute opération de dessin dynamique (ex: `drawMove`, `drawCircle`, `setShapes`) ou d'extraction des formes posées sur l'échiquier (`getShapes(): DrawShape[]`) doit être invoquée via les méthodes publiques de `BoardCore`.
+2. **Champ d'état commun** : Le texte de commentaire nettoyé est exposé dans l'état commun sous la clé `currentComment`, accessible via le getter public `core.getCurrentComment()`.
+3. **Méthodes de dessin et d'extraction publiques** : Toute opération de dessin dynamique (ex: `drawMove`, `drawCircle`, `setShapes`) ou d'extraction des formes posées sur l'échiquier (`getShapes(): DrawShape[]`) doit être invoquée via les méthodes publiques de `BoardCore`. Les paramètres de cases (`from`, `to`, `square`) acceptent de manière permissive le type `Key | string`.
 4. **Enrichissement / Saisie de commentaires** : L'écriture de commentaires et d'annotations graphiques dans le PGN s'effectue uniquement via `core.setComment(text, shapes)` (cible le coup visualisé à l'écran) ou `core.setCommentAtPly(ply, text, shapes)`. Le PGN résultant est récupéré via `core.getPgn()`.
 5. **Tracé interactif en mode historique** : Afin de permettre l'enrichissement graphique du PGN lors de la navigation dans l'historique, le plateau de jeu reste interactif pour le tracé (`viewOnly: false` configuré au niveau de Chessground). Pour empêcher toute modification de la position par l'utilisateur tout en autorisant le dessin de cercles et de flèches avec le clic droit/glisser, les déplacements de pièces sont totalement désactivés via le paramétrage de Chessground (`movable.color: undefined`, `movable.dests: undefined`, `movable.free: false`). Les modifications graphiques opérées par l'utilisateur déclenchent `drawable.onChange` et mettent automatiquement à jour le PGN via `setCommentAtPly` (sans redessiner les formes déjà tracées grâce au paramètre `updateBoardShapes = false`).
 
@@ -100,12 +108,18 @@ Pour restreindre dynamiquement les mouvements de l'utilisateur ou valider ses ac
 
 ---
 
-## 7. Méthodes Utilitaires d'État
+## 7. Méthodes Utilitaires d'État & Lifecycle
 
-Pour interroger l'état interne de l'échiquier de manière uniforme :
+Pour interroger l'état interne de l'échiquier et gérer le nettoyage de manière uniforme :
 
 - `core.getOrientation(): 'white' | 'black'` : Retourne l'orientation actuelle du plateau de jeu.
 - `core.getPlacementFen(): string` : Retourne la FEN de placement actuelle des pièces (sans les autres métadonnées de FEN) extraite directement de Chessground, sans dépendre de la validation de `chess.js` (utile en mode libre ou pour les FENs en cours d'édition).
+- `core.getCurrentComment(): string` : Retourne le commentaire textuel du coup courant.
+- `core.getHistoryViewerState(): Readonly<HistoryViewerState>` : Retourne l'état de visualisation de l'historique.
+- `core.isViewingHistory(): boolean` : Indique si la vue navigue actuellement dans l'historique.
+- `core.getInCheckColor(): 'white' | 'black' | null` : Retourne la couleur du joueur en échec (ou `null`).
+- `core.getGameOverReason(lang?: 'fr' | 'en'): string` : Retourne la raison formatée de fin de partie (*ex: "Échec et mat ! Les Blancs ont gagné."*).
+- `core.destroy(): void` : Libère proprement toutes les sous-ressources (Workers Stockfish, instance DOM Chessground). Appelé automatiquement au démontage des wrappers React (`useEffect` cleanup) et Vue 3 (`onUnmounted`).
 
 ---
 

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import type { Config } from '@lichess-org/chessground/config';
+import type { DrawShape } from '@lichess-org/chessground/draw';
 import type { Move } from 'chess.js';
 import {
   BoardCore,
@@ -15,6 +16,8 @@ export interface ChessboardProps {
   playerColor?: 'white' | 'black' | 'both';
   freeMode?: boolean;
   soloMode?: boolean;
+  fitContainer?: boolean;
+  preserveShapesOnPositionChange?: boolean;
   stockfishConfig?: StockfishConfig;
   diagram?: ChessDiagram;
   onBoardCreated?: (api: BoardCore) => void;
@@ -26,6 +29,7 @@ export interface ChessboardProps {
   onPromotion?: (detail: { from: string; to: string; promotedTo: string }) => void;
   onStockfishHint?: (bestMove: string) => void;
   onSquareClick?: (square: string) => void;
+  onShapesChange?: (shapes: DrawShape[]) => void;
 }
 
 export const Chessboard: React.FC<ChessboardProps> = ({
@@ -33,6 +37,8 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   playerColor,
   freeMode = false,
   soloMode = false,
+  fitContainer = false,
+  preserveShapesOnPositionChange = false,
   stockfishConfig = {},
   diagram,
   onBoardCreated,
@@ -44,6 +50,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   onPromotion,
   onStockfishHint,
   onSquareClick,
+  onShapesChange,
 }) => {
   const boardRef = useRef<HTMLDivElement>(null);
   const coreRef = useRef<BoardCore | null>(null);
@@ -52,6 +59,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     showThreats: false,
     freeMode,
     soloMode,
+    preserveShapesOnPositionChange,
     promotionDialogState: { isEnabled: false },
     historyViewerState: { isEnabled: false },
     currentComment: '',
@@ -74,20 +82,30 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   }, [soloMode]);
 
   useEffect(() => {
+    if (coreRef.current) {
+      coreRef.current.setPreserveShapesOnPositionChange(preserveShapesOnPositionChange);
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setState((prev) => ({ ...prev, preserveShapesOnPositionChange }));
+  }, [preserveShapesOnPositionChange]);
+
+  useEffect(() => {
     if (!boardRef.current) return;
 
     const core = new BoardCore(
       boardRef.current,
       state,
       () => {
-        // Sync React component state with BoardCore state
+        // Sync React component state with BoardCore state via public getter
+        const coreState = core.getState();
         setState({
-          showThreats: core['state'].showThreats,
-          freeMode: core['state'].freeMode,
-          soloMode: core['state'].soloMode,
-          promotionDialogState: { ...core['state'].promotionDialogState },
-          historyViewerState: { ...core['state'].historyViewerState },
-          currentComment: core['state'].currentComment,
+          showThreats: coreState.showThreats,
+          freeMode: coreState.freeMode,
+          soloMode: coreState.soloMode,
+          preserveShapesOnPositionChange: coreState.preserveShapesOnPositionChange,
+          promotionDialogState: { ...coreState.promotionDialogState },
+          historyViewerState: { ...coreState.historyViewerState },
+          currentComment: coreState.currentComment,
         });
       },
       (event, ...args) => {
@@ -100,6 +118,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
           onPromotion?.(args[0] as { from: string; to: string; promotedTo: string });
         else if (event === 'stockfish-hint') onStockfishHint?.(args[0] as string);
         else if (event === 'square-click') onSquareClick?.(args[0] as string);
+        else if (event === 'shapes-change') onShapesChange?.(args[0] as DrawShape[]);
       },
       {
         ...boardConfig,
@@ -116,7 +135,8 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     onBoardCreated?.(core);
 
     return () => {
-      // Clean up logic if necessary
+      core.destroy();
+      coreRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -143,7 +163,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     <section
       className={`main-wrap ${state.promotionDialogState.isEnabled ? 'disabledBoard' : ''} ${
         state.historyViewerState.isEnabled ? 'viewingHistory' : ''
-      }`}
+      } ${fitContainer ? 'fit-container' : ''}`}
     >
       <div className="main-board">
         {state.promotionDialogState.isEnabled && (

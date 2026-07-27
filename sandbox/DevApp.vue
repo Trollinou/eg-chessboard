@@ -2,10 +2,67 @@
 import { ref, reactive, computed } from 'vue';
 import TheChessboard from '../src/vue/TheChessboard.vue';
 import type { Key } from '@lichess-org/chessground/types';
+import type { DrawShape } from '@lichess-org/chessground/draw';
 import type { BoardCore, StockfishConfig } from '../src/BoardCore';
 import PgnApp from './PgnApp.vue';
 
-const activeTab = ref<'stockfish' | 'pgn' | 'solo'>('stockfish');
+const activeTab = ref<'stockfish' | 'pgn' | 'solo' | 'editor'>('stockfish');
+
+// Editor / Diagram Test Mode State
+const editorBoardCore = ref<BoardCore | null>(null);
+const editorPreserveShapes = ref<boolean>(true);
+const editorSelectedPiece = ref<{ type: 'p' | 'n' | 'b' | 'r' | 'q' | 'k'; color: 'w' | 'b' }>({
+  type: 'q',
+  color: 'w',
+});
+const editorMode = ref<'put' | 'remove'>('put');
+const editorFen = ref<string>('');
+const editorShapes = ref<DrawShape[]>([]);
+const editorDiagramJson = ref<string>('');
+
+const syncEditorOutputs = () => {
+  if (editorBoardCore.value) {
+    editorFen.value = editorBoardCore.value.getFen();
+    editorShapes.value = editorBoardCore.value.getShapes();
+    editorDiagramJson.value = JSON.stringify(editorBoardCore.value.getDiagram(), null, 2);
+  }
+};
+
+const onEditorBoardCreated = (core: BoardCore) => {
+  editorBoardCore.value = core;
+  syncEditorOutputs();
+};
+
+const onEditorSquareClick = (square: string) => {
+  if (!editorBoardCore.value) return;
+  if (editorMode.value === 'put') {
+    editorBoardCore.value.putPiece(
+      { type: editorSelectedPiece.value.type, color: editorSelectedPiece.value.color },
+      square
+    );
+  } else {
+    editorBoardCore.value.removePiece(square);
+  }
+  syncEditorOutputs();
+};
+
+const onEditorShapesChange = () => {
+  syncEditorOutputs();
+};
+
+const handleClearShapes = () => {
+  if (editorBoardCore.value) {
+    editorBoardCore.value.setShapes([]);
+    syncEditorOutputs();
+  }
+};
+
+const handleResetEditor = () => {
+  if (editorBoardCore.value) {
+    editorBoardCore.value.resetBoard();
+    syncEditorOutputs();
+  }
+};
 
 const boardCore = ref<BoardCore | null>(null);
 const currentHint = ref<string>('');
@@ -233,7 +290,11 @@ const formatMove = (move: string, index: number) => {
         <h1>
           eg-chessboard
           <span class="badge">{{
-            activeTab === 'stockfish' ? 'Stockfish Sandbox' : activeTab === 'solo' ? 'Solo Sandbox' : 'PGN Reader'
+            activeTab === 'stockfish'
+              ? 'Stockfish Sandbox'
+              : activeTab === 'solo'
+                ? 'Solo Sandbox'
+                : 'PGN Reader'
           }}</span>
         </h1>
       </div>
@@ -251,6 +312,13 @@ const formatMove = (move: string, index: number) => {
           @click="activeTab = 'solo'"
         >
           🐴 Mode Solo (Apprentissage)
+        </button>
+        <button
+          :class="{ active: activeTab === 'editor' }"
+          class="tab-btn"
+          @click="activeTab = 'editor'"
+        >
+          ✏️ Mode Édition & Diagramme
         </button>
         <button :class="{ active: activeTab === 'pgn' }" class="tab-btn" @click="activeTab = 'pgn'">
           📖 Mode Lecteur PGN
@@ -386,16 +454,21 @@ const formatMove = (move: string, index: number) => {
       <!-- Right column: Controls & Info -->
       <section class="controls-column">
         <!-- Live status card -->
-        <div class="glass-card status-card" :class="{ 'success-border': remainingTargets === 0 && soloExercise === 'capture' }">
+        <div
+          class="glass-card status-card"
+          :class="{ 'success-border': remainingTargets === 0 && soloExercise === 'capture' }"
+        >
           <h2>Statut de l'exercice</h2>
           <div class="status-indicator">
-            <span class="status-text" v-if="soloExercise === 'alone'">
+            <span v-if="soloExercise === 'alone'" class="status-text">
               🐴 Déplacez la pièce librement selon ses mouvements légaux !
             </span>
-            <span class="status-text" v-else-if="remainingTargets > 0">
-              🎯 Capturez tous les pions noirs ! Encore <strong>{{ remainingTargets }}</strong> cible{{ remainingTargets > 1 ? 's' : '' }} à capturer.
+            <span v-else-if="remainingTargets > 0" class="status-text">
+              🎯 Capturez tous les pions noirs ! Encore
+              <strong>{{ remainingTargets }}</strong> cible{{ remainingTargets > 1 ? 's' : '' }} à
+              capturer.
             </span>
-            <span class="status-text success-text" v-else>
+            <span v-else class="status-text success-text">
               🎉 Félicitations ! Tous les pions noirs ont été capturés !
             </span>
           </div>
@@ -468,9 +541,7 @@ const formatMove = (move: string, index: number) => {
         <div class="glass-card action-card">
           <h2>Actions</h2>
           <div class="action-buttons">
-            <button class="btn btn-primary" @click="handleSoloReset">
-              🔄 Réinitialiser
-            </button>
+            <button class="btn btn-primary" @click="handleSoloReset">🔄 Réinitialiser</button>
             <button
               :disabled="soloHistory.length === 0"
               class="btn btn-secondary"
@@ -493,6 +564,203 @@ const formatMove = (move: string, index: number) => {
         </div>
       </section>
     </main>
+
+    <main v-else-if="activeTab === 'editor'" class="app-layout">
+      <!-- Left column: The board in free edit mode -->
+      <section class="board-column">
+        <div class="board-wrapper">
+          <TheChessboard
+            :free-mode="true"
+            :preserve-shapes-on-position-change="editorPreserveShapes"
+            @board-created="onEditorBoardCreated"
+            @square-click="onEditorSquareClick"
+            @shapes-change="onEditorShapesChange"
+          />
+        </div>
+      </section>
+
+      <!-- Right column: Controls & Diagram outputs -->
+      <section class="controls-column">
+        <!-- Mode & Shapes preservation card -->
+        <div class="glass-card">
+          <h2>Options d'Édition</h2>
+          <div class="config-grid">
+            <div class="config-item">
+              <span class="config-label">Mode d'action au clic :</span>
+              <div class="action-buttons" style="grid-template-columns: 1fr 1fr; margin-top: 6px">
+                <button
+                  :class="{ active: editorMode === 'put' }"
+                  class="btn btn-secondary"
+                  @click="editorMode = 'put'"
+                >
+                  ➕ Poser pièce
+                </button>
+                <button
+                  :class="{ active: editorMode === 'remove' }"
+                  class="btn btn-secondary"
+                  @click="editorMode = 'remove'"
+                >
+                  ❌ Retirer pièce
+                </button>
+              </div>
+            </div>
+
+            <div class="config-item" style="margin-top: 10px">
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  cursor: pointer;
+                  color: var(--text-primary);
+                "
+              >
+                <input
+                  type="checkbox"
+                  v-model="editorPreserveShapes"
+                  style="width: 18px; height: 18px; accent-color: var(--primary)"
+                />
+                <strong>Conservations des Formes (Flèches/Cercles)</strong>
+              </label>
+              <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px">
+                Quand activé (<code>preserveShapesOnPositionChange = true</code>), la pose ou
+                suppression de pièces ne fait pas disparaître les flèches dessinées !
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Piece Selector Card -->
+        <div v-if="editorMode === 'put'" class="glass-card">
+          <h2>Choisir la pièce à poser</h2>
+          <div style="display: flex; gap: 8px; margin-bottom: 8px">
+            <button
+              :class="{ active: editorSelectedPiece.color === 'w' }"
+              class="btn btn-secondary"
+              @click="editorSelectedPiece.color = 'w'"
+            >
+              ⚪ Blancs
+            </button>
+            <button
+              :class="{ active: editorSelectedPiece.color === 'b' }"
+              class="btn btn-secondary"
+              @click="editorSelectedPiece.color = 'b'"
+            >
+              ⚫ Noirs
+            </button>
+          </div>
+          <div class="piece-selector-grid">
+            <button
+              :class="{ active: editorSelectedPiece.type === 'q' }"
+              class="btn btn-secondary piece-btn"
+              @click="editorSelectedPiece.type = 'q'"
+            >
+              👑 Dame ({{ editorSelectedPiece.color === 'w' ? '♕' : '♛' }})
+            </button>
+            <button
+              :class="{ active: editorSelectedPiece.type === 'r' }"
+              class="btn btn-secondary piece-btn"
+              @click="editorSelectedPiece.type = 'r'"
+            >
+              🏰 Tour ({{ editorSelectedPiece.color === 'w' ? '♖' : '♜' }})
+            </button>
+            <button
+              :class="{ active: editorSelectedPiece.type === 'b' }"
+              class="btn btn-secondary piece-btn"
+              @click="editorSelectedPiece.type = 'b'"
+            >
+              🎯 Fou ({{ editorSelectedPiece.color === 'w' ? '♗' : '♝' }})
+            </button>
+            <button
+              :class="{ active: editorSelectedPiece.type === 'n' }"
+              class="btn btn-secondary piece-btn"
+              @click="editorSelectedPiece.type = 'n'"
+            >
+              🐴 Cavalier ({{ editorSelectedPiece.color === 'w' ? '♘' : '♞' }})
+            </button>
+            <button
+              :class="{ active: editorSelectedPiece.type === 'p' }"
+              class="btn btn-secondary piece-btn"
+              @click="editorSelectedPiece.type = 'p'"
+            >
+              ♙ Pion ({{ editorSelectedPiece.color === 'w' ? '♙' : '♟' }})
+            </button>
+            <button
+              :class="{ active: editorSelectedPiece.type === 'k' }"
+              class="btn btn-secondary piece-btn"
+              @click="editorSelectedPiece.type = 'k'"
+            >
+              ♔ Roi ({{ editorSelectedPiece.color === 'w' ? '♔' : '♚' }})
+            </button>
+          </div>
+        </div>
+
+        <!-- Controls card -->
+        <div class="glass-card action-card">
+          <h2>Actions sur l'échiquier</h2>
+          <div class="action-buttons">
+            <button class="btn btn-secondary" @click="handleClearShapes">🎨 Effacer Formes</button>
+            <button class="btn btn-primary" @click="handleResetEditor">🔄 Reset Position</button>
+          </div>
+          <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 8px">
+            💡 <em>Astuce :</em> Utilisez le clic droit / glisser sur l'échiquier pour dessiner des
+            flèches et des cercles !
+          </p>
+        </div>
+
+        <!-- Diagram Output Card -->
+        <div class="glass-card history-card">
+          <h2>Sorties du Diagramme (FEN & Formes)</h2>
+          <div style="font-size: 0.8rem; display: flex; flex-direction: column; gap: 8px">
+            <div>
+              <strong>FEN :</strong>
+              <code
+                style="
+                  display: block;
+                  background: rgba(0, 0, 0, 0.3);
+                  padding: 6px;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  word-break: break-all;
+                  margin-top: 4px;
+                "
+              >
+                {{ editorFen }}
+              </code>
+            </div>
+            <div>
+              <strong>Formes ({{ editorShapes.length }}) :</strong>
+              <code
+                style="
+                  display: block;
+                  background: rgba(0, 0, 0, 0.3);
+                  padding: 6px;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 4px;
+                "
+              >
+                {{ JSON.stringify(editorShapes) }}
+              </code>
+            </div>
+            <div>
+              <strong>Diagramme Exporté (`getDiagram()`) :</strong>
+              <pre
+                style="
+                  background: rgba(0, 0, 0, 0.3);
+                  padding: 6px;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 4px;
+                  font-size: 0.75rem;
+                "
+                >{{ editorDiagramJson }}</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
     <PgnApp v-else />
   </div>
 </template>

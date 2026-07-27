@@ -19,6 +19,27 @@
   height: 100%;
 }
 
+:root {
+  --eg-chessboard-width: 100%;
+  --eg-chessboard-height: 100%;
+  --eg-chessboard-flex: 1;
+}
+
+.main-wrap.fit-container {
+  width: var(--eg-chessboard-width);
+  height: var(--eg-chessboard-height);
+  flex: var(--eg-chessboard-flex);
+  display: flex;
+  flex-direction: column;
+}
+
+.main-wrap.fit-container .main-board {
+  padding-bottom: 0;
+  height: 100%;
+  width: 100%;
+  flex: 1;
+}
+
 .main-board {
   position: relative;
   display: block;
@@ -142,8 +163,10 @@ cg-board {
 }
 cg-container .cg-shapes {
   opacity: 0.6;
-  z-index: 2;
+  z-index: 3;
   overflow: hidden;
+  transform: translateZ(0);
+  will-change: transform;
 }
 cg-container .cg-custom-svgs {
   z-index: 4;
