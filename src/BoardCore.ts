@@ -82,17 +82,19 @@ export class BoardCore {
     this.game = new Chess();
 
     this.boardElement.addEventListener(
-      'mousedown',
-      (e: MouseEvent) => {
-        this.lastMouseButton = e.button;
+      'touchstart',
+      () => {
+        this.lastMouseButton = 0;
+        this.redraw(true);
       },
       { capture: true }
     );
 
     this.boardElement.addEventListener(
-      'touchstart',
-      () => {
-        this.lastMouseButton = 0;
+      'mousedown',
+      (e: MouseEvent) => {
+        this.lastMouseButton = e.button;
+        this.redraw(true);
       },
       { capture: true }
     );
