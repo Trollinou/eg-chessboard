@@ -1,5 +1,7 @@
-import type { Chess, Move, Piece, Square } from 'chess.js';
+import type { Chess } from 'chessops/chess';
+import { makeSquare } from 'chessops';
 import type { Color, Key } from '@lichess-org/chessground/types';
+import type { Move } from './types';
 
 export interface Threat {
   orig: Key;
@@ -25,30 +27,23 @@ export function shortToLongColor(color: 'w' | 'b'): Color {
   return color === 'w' ? 'white' : 'black';
 }
 
-const fileNames = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-const rankNames = ['1', '2', '3', '4', '5', '6', '7', '8'];
-const SQUARES: Key[] = [];
-for (const rank of rankNames) {
-  for (const file of fileNames) {
-    SQUARES.push((file + rank) as Key);
-  }
-}
-
 export function possibleMoves(game: Chess): Map<Key, Key[]> {
   const dests: Map<Key, Key[]> = new Map();
-  for (const square of SQUARES) {
-    const moves = game.moves({ square: square as Square, verbose: true }) as Move[];
-    if (moves.length) {
-      dests.set(
-        moves[0].from as Key,
-        moves.map((m) => m.to as Key)
-      );
+  for (let s = 0; s < 64; s++) {
+    const squareDests = game.dests(s);
+    if (squareDests.size() > 0) {
+      const orig = makeSquare(s) as Key;
+      const destList: Key[] = [];
+      for (const destSq of squareDests) {
+        destList.push(makeSquare(destSq) as Key);
+      }
+      dests.set(orig, destList);
     }
   }
   return dests;
 }
 
-export function isPromotion(dest: Key, piece: Piece | null | undefined): boolean {
+export function isPromotion(dest: Key, piece: { type: string; color: string } | null | undefined): boolean {
   if (!piece || piece.type !== 'p') {
     return false;
   }

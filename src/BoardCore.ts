@@ -1,10 +1,25 @@
-import { Chess, type Square, type Move, type Piece, type PieceSymbol } from 'chess.js';
+import { Chess, parseSquare, makeSquare } from 'chessops';
+import { parseFen, makeFen } from 'chessops/fen';
+import { parseSan, makeSanAndPlay } from 'chessops/san';
+import {
+  parsePgn,
+  makePgn,
+  Node,
+  ChildNode,
+  isChildNode,
+  transform,
+  startingPosition,
+  defaultHeaders,
+  type PgnNodeData,
+} from 'chessops/pgn';
+import { isNormal, type Color as ChessopsColor, type Role, type Move as ChessopsMove } from 'chessops/types';
 import { Chessground } from '@lichess-org/chessground';
 import type { Api } from '@lichess-org/chessground/api';
 import type { Config } from '@lichess-org/chessground/config';
 import type { Color, Key, MoveMetadata } from '@lichess-org/chessground/types';
 import type { DrawShape } from '@lichess-org/chessground/draw';
 import { possibleMoves, isPromotion, shortToLongColor, getThreats } from './BoardHelper';
+import type { Move, PgnNodeMeta, VariationInfo, PgnTreeNode } from './types';
 
 export interface BoardCoreState {
   showThreats: boolean;
@@ -41,8 +56,39 @@ export interface ChessDiagram {
   shapes?: DrawShape[];
 }
 
+const roleToPieceSymbol: Record<Role, string> = {
+  pawn: 'p',
+  knight: 'n',
+  bishop: 'b',
+  rook: 'r',
+  queen: 'q',
+  king: 'k',
+};
+
+const pieceSymbolToRole: Record<string, Role> = {
+  p: 'pawn',
+  n: 'knight',
+  b: 'bishop',
+  r: 'rook',
+  q: 'queen',
+  k: 'king',
+};
+
+class TransformContext {
+  constructor(public pos: Chess) {}
+  clone(): TransformContext {
+    return new TransformContext(this.pos.clone());
+  }
+}
+
+class EmptyContext {
+  clone(): EmptyContext {
+    return new EmptyContext();
+  }
+}
+
 export class BoardCore {
-  public game: Chess;
+  public pos: Chess;
   public board!: Api;
   private boardElement: HTMLElement;
   private state: BoardCoreState;
@@ -63,6 +109,12 @@ export class BoardCore {
   private lastMouseButton = -1;
   private userMovableColor: 'white' | 'black' | 'both' | undefined;
 
+  // PGN Tree Management
+  private headers: Map<string, string> = defaultHeaders();
+  private rootNode: Node<PgnNodeMeta> = new Node<PgnNodeMeta>();
+  private currentNode: Node<PgnNodeMeta> = this.rootNode;
+  private rootPos: Chess = Chess.default();
+
   constructor(
     boardElement: HTMLElement,
     state: BoardCoreState,
@@ -79,7 +131,8 @@ export class BoardCore {
     this.initialConfig = initialConfig;
     this.stockfishConfig = stockfishConfig;
     this.userMovableColor = initialConfig.movable?.color;
-    this.game = new Chess();
+    this.pos = Chess.default();
+    this.rootPos = this.pos.clone();
 
     this.boardElement.addEventListener(
       'touchstart',
@@ -107,6 +160,10 @@ export class BoardCore {
     }
   }
 
+  public get game(): Chess {
+    return this.pos;
+  }
+
   private initBoard() {
     if (this.initialConfig.fen) {
       this.safeLoadFen(this.initialConfig.fen);
@@ -116,53 +173,61 @@ export class BoardCore {
     this.updateGameState({ updateFen: false });
   }
 
-  private safeLoadFen(fen: string): boolean {
-    try {
-      this.game.load(fen);
-      return true;
-    } catch (e) {
-      console.warn('Invalid FEN loaded in chess.js, fallback to manual piece placing:', fen, e);
-
-      const parts = fen.split(' ');
-      const placement = parts[0];
-      const turn = parts[1] === 'b' ? 'b' : 'w';
-
-      // Charger une position minimale valide pour régler le trait (turn)
-      try {
-        this.game.load(`4k3/8/8/8/8/8/8/4K3 ${turn} - - 0 1`);
-      } catch {
-        // En cas d'échec improbable, on utilise le comportement par défaut
+  private safeLoadFen(fenStr: string): boolean {
+    const setupRes = parseFen(fenStr);
+    if (setupRes.isOk) {
+      const chessRes = Chess.fromSetup(setupRes.value);
+      if (chessRes.isOk) {
+        this.pos = chessRes.value;
+        this.rootPos = this.pos.clone();
+        this.rootNode = new Node<PgnNodeMeta>();
+        this.currentNode = this.rootNode;
+        return true;
       }
+    }
 
-      // Retirer les rois temporaires
-      this.game.remove('e1');
-      this.game.remove('e8');
+    console.warn('Invalid FEN loaded, fallback to manual piece placing:', fenStr);
 
-      // Placer les pièces de la FEN
-      const ranks = placement.split('/');
-      const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const parts = fenStr.split(' ');
+    const placement = parts[0];
 
-      for (let r = 0; r < 8; r++) {
-        const rankStr = ranks[r];
-        if (!rankStr) continue;
-        let fileIdx = 0;
-        for (let i = 0; i < rankStr.length; i++) {
-          const char = rankStr[i];
-          if (/[1-8]/.test(char)) {
-            fileIdx += parseInt(char, 10);
-          } else {
-            const color = char === char.toUpperCase() ? 'w' : 'b';
-            const type = char.toLowerCase() as PieceSymbol;
-            const square = `${files[fileIdx]}${8 - r}` as Square;
-            if (fileIdx < 8) {
-              this.game.put({ type, color }, square);
-            }
-            fileIdx++;
+    const minSetupRes = parseFen(`4k3/8/8/8/8/8/8/4K3 ${parts[1] === 'b' ? 'b' : 'w'} - - 0 1`);
+    if (minSetupRes.isOk) {
+      const minChess = Chess.fromSetup(minSetupRes.value);
+      if (minChess.isOk) {
+        this.pos = minChess.value;
+      }
+    }
+    this.pos.board.take(parseSquare('e1')!);
+    this.pos.board.take(parseSquare('e8')!);
+    this.pos.turn = parts[1] === 'b' ? 'black' : 'white';
+
+    const ranks = placement.split('/');
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+    for (let r = 0; r < 8; r++) {
+      const rankStr = ranks[r];
+      if (!rankStr) continue;
+      let fileIdx = 0;
+      for (let i = 0; i < rankStr.length; i++) {
+        const char = rankStr[i];
+        if (/[1-8]/.test(char)) {
+          fileIdx += parseInt(char, 10);
+        } else {
+          const color: ChessopsColor = char === char.toUpperCase() ? 'white' : 'black';
+          const role = pieceSymbolToRole[char.toLowerCase()];
+          const square = parseSquare(`${files[fileIdx]}${8 - r}`)!;
+          if (fileIdx < 8 && role) {
+            this.pos.board.set(square, { role, color });
           }
+          fileIdx++;
         }
       }
-      return false;
     }
+    this.rootPos = this.pos.clone();
+    this.rootNode = new Node<PgnNodeMeta>();
+    this.currentNode = this.rootNode;
+    return false;
   }
 
   private buildConfig(userConfig: Config): Config {
@@ -182,7 +247,7 @@ export class BoardCore {
       free: isFree,
       color: (isFree ? 'both' : this.userMovableColor || this.getTurnColor()) as
         'white' | 'black' | 'both',
-      dests: isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.game),
+      dests: isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.pos),
       events: defaultEvents,
       ...(userConfig.movable || {}),
     };
@@ -236,7 +301,7 @@ export class BoardCore {
     };
 
     const config: Config = {
-      fen: this.game.fen(),
+      fen: this.getFen(),
       turnColor: this.getTurnColor(),
       ...userConfig,
       movable: mergedMovable,
@@ -248,23 +313,12 @@ export class BoardCore {
   }
 
   private getPossibleMovesForBothColors(): Map<Key, Key[]> {
-    const dests = possibleMoves(this.game);
-    const originalFen = this.game.fen();
-    // Swap turn FEN
-    const parts = originalFen.split(' ');
-    parts[1] = parts[1] === 'w' ? 'b' : 'w';
-    const swappedFen = parts.join(' ');
-
-    try {
-      this.safeLoadFen(swappedFen);
-      const otherDests = possibleMoves(this.game);
-      for (const [key, value] of otherDests.entries()) {
-        dests.set(key, value);
-      }
-    } catch {
-      // Ignore
-    } finally {
-      this.safeLoadFen(originalFen);
+    const dests = possibleMoves(this.pos);
+    const swapped = this.pos.clone();
+    swapped.turn = swapped.turn === 'white' ? 'black' : 'white';
+    const otherDests = possibleMoves(swapped);
+    for (const [key, value] of otherDests.entries()) {
+      dests.set(key, value);
     }
     return dests;
   }
@@ -275,7 +329,7 @@ export class BoardCore {
     this.isSyncing = true;
     try {
       const placement = this.getPlacementFen();
-      const currentFenParts = this.game.fen().split(' ');
+      const currentFenParts = this.getFen().split(' ');
       const turn = currentFenParts[1] || 'w';
       const castling = currentFenParts[2] || '-';
       const ep = currentFenParts[3] || '-';
@@ -284,10 +338,12 @@ export class BoardCore {
 
       const newFen = `${placement} ${turn} ${castling} ${ep} ${halfmove} ${fullmove}`;
 
-      try {
-        this.game.load(newFen);
-      } catch {
-        // Ignore
+      const setupRes = parseFen(newFen);
+      if (setupRes.isOk) {
+        const chessRes = Chess.fromSetup(setupRes.value);
+        if (chessRes.isOk) {
+          this.pos = chessRes.value;
+        }
       }
 
       this.emitEvent('move', {
@@ -307,26 +363,21 @@ export class BoardCore {
       const isSolo = !!this.state.soloMode;
       const isPreserve = !!this.state.preserveShapesOnPositionChange;
 
-      // Fix mode solo : Réaligner le trait interne si une couleur spécifique est imposée
       if (
         isSolo &&
         this.userMovableColor &&
         (this.userMovableColor === 'white' || this.userMovableColor === 'black')
       ) {
-        const requiredTurn = this.userMovableColor === 'white' ? 'w' : 'b';
-        if (this.game.turn() !== requiredTurn) {
-          const currentFen = this.game.fen();
-          const parts = currentFen.split(' ');
-          parts[1] = requiredTurn;
-          const rewrittenFen = parts.join(' ');
-          this.game.load(rewrittenFen, { skipValidation: true });
+        const requiredTurn: ChessopsColor = this.userMovableColor === 'white' ? 'white' : 'black';
+        if (this.pos.turn !== requiredTurn) {
+          this.pos.turn = requiredTurn;
         }
       }
 
       this.board.set({
-        ...(updateFen ? { fen: this.game.fen() } : {}),
+        ...(updateFen ? { fen: this.getFen() } : {}),
         turnColor: this.getTurnColor(),
-        check: this.game.inCheck() ? this.getTurnColor() : undefined,
+        check: this.pos.isCheck() ? this.getTurnColor() : undefined,
         animation: { enabled: !isPreserve && !isFree },
         movable: {
           free: isFree,
@@ -335,7 +386,7 @@ export class BoardCore {
             this.customDests ||
             (isFree || (isSolo && (!this.userMovableColor || this.userMovableColor === 'both'))
               ? this.getPossibleMovesForBothColors()
-              : possibleMoves(this.game)),
+              : possibleMoves(this.pos)),
         },
         drawable: {
           eraseOnMovablePieceClick: !isPreserve,
@@ -351,7 +402,7 @@ export class BoardCore {
       if (this.state.showThreats) {
         this.drawThreats();
       } else if (!savedShapes) {
-        this.updateCommentAndShapes(this.game.fen());
+        this.updateCommentAndShapes(this.getFen());
       }
     }
 
@@ -359,25 +410,27 @@ export class BoardCore {
   }
 
   private emitEvents(): void {
-    if (this.game.inCheck()) {
-      this.emitEvent(this.game.isCheckmate() ? 'checkmate' : 'check', this.getTurnColor());
+    if (this.pos.isCheck()) {
+      this.emitEvent(this.pos.isCheckmate() ? 'checkmate' : 'check', this.getTurnColor());
     }
-    if (this.game.isDraw()) {
-      this.emitEvent('draw');
-    }
-    if (this.game.isStalemate()) {
+    if (this.pos.isStalemate()) {
       this.emitEvent('stalemate');
+    } else if (this.pos.isEnd()) {
+      this.emitEvent('draw');
     }
   }
 
   private async changeTurn(orig: Key, dest: Key, _metadata: MoveMetadata): Promise<void> {
-    const piece = this.game.get(orig as Square);
-    if (isPromotion(dest, piece)) {
-      const pieceColor = piece ? (piece.color === 'w' ? 'white' : 'black') : this.getTurnColor();
+    const sq = parseSquare(orig)!;
+    const piece = this.pos.board.get(sq);
+    const pieceType = piece ? roleToPieceSymbol[piece.role] : 'p';
+    const pieceColor = piece ? (piece.color === 'white' ? 'w' : 'b') : (this.pos.turn === 'white' ? 'w' : 'b');
+
+    if (isPromotion(dest, { type: pieceType, color: pieceColor })) {
       const selectedPromotion = await new Promise<string>((resolve) => {
         this.state.promotionDialogState = {
           isEnabled: true,
-          color: pieceColor,
+          color: shortToLongColor(pieceColor),
           callback: (promoPiece) => {
             resolve(promoPiece);
           },
@@ -388,7 +441,7 @@ export class BoardCore {
       this.move({
         from: orig,
         to: dest,
-        promotion: selectedPromotion,
+        promotion: selectedPromotion.toLowerCase(),
       });
     } else {
       this.move({
@@ -444,12 +497,12 @@ export class BoardCore {
     this.board?.redrawAll();
   }
 
-  private isSameFen(fen: string): boolean {
+  private isSameFen(fenStr: string): boolean {
     const currentFen = this.getFen();
-    if (fen === currentFen) return true;
+    if (fenStr === currentFen) return true;
     const normalize = (f: string) => f.trim().split(/\s+/).join(' ');
-    if (normalize(fen) === normalize(currentFen)) return true;
-    if (!fen.includes(' ') && fen.trim() === this.getPlacementFen()) return true;
+    if (normalize(fenStr) === normalize(currentFen)) return true;
+    if (!fenStr.includes(' ') && fenStr.trim() === this.getPlacementFen()) return true;
     return false;
   }
 
@@ -464,13 +517,13 @@ export class BoardCore {
           }
         : (orig: Key, dest: Key, metadata: MoveMetadata) => this.changeTurn(orig, dest, metadata);
     }
-    const { fen, ...other } = finalConfig;
+    const { fen: configFen, ...other } = finalConfig;
     if (other.movable?.color !== undefined) {
       this.userMovableColor = other.movable.color as 'white' | 'black' | 'both';
     }
     this.board.set(other);
-    if (fen && !this.isSameFen(fen)) {
-      this.setPosition(fen);
+    if (configFen && !this.isSameFen(configFen)) {
+      this.setPosition(configFen);
     }
     if (other.drawable?.shapes) {
       this.applyBoardShapes(other.drawable.shapes);
@@ -479,12 +532,16 @@ export class BoardCore {
   }
 
   resetBoard(): void {
-    this.game.reset();
+    this.pos = Chess.default();
+    this.rootPos = this.pos.clone();
+    this.rootNode = new Node<PgnNodeMeta>();
+    this.currentNode = this.rootNode;
+    this.headers = defaultHeaders();
     this.soloHistory = [];
     this.state.historyViewerState = { isEnabled: false };
     this.onStateChange();
     this.board.set({
-      fen: this.game.fen(),
+      fen: this.getFen(),
       lastMove: undefined,
     });
     this.updateGameState({ updateFen: false });
@@ -493,8 +550,8 @@ export class BoardCore {
   }
 
   undoLastMove(): void {
-    const undoMove = this.game.undo();
-    if (!undoMove) return;
+    const parentNode = this.findParentNode(this.rootNode, this.currentNode);
+    if (!parentNode) return;
 
     if (
       this.state.historyViewerState.isEnabled &&
@@ -503,15 +560,30 @@ export class BoardCore {
       this.stopViewingHistory();
     }
 
+    this.currentNode = parentNode;
+    this.syncGamePosToCurrentNode();
+
     if (!this.state.historyViewerState.isEnabled) {
-      this.board.set({ fen: undoMove.before });
+      this.board.set({ fen: this.getFen() });
       this.updateGameState({ updateFen: false });
       const lastMove = this.getLastMove();
       this.board.set({
-        lastMove: lastMove ? [lastMove.from, lastMove.to] : undefined,
+        lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
       });
     }
     this.triggerStockfish();
+  }
+
+  private findParentNode(
+    root: Node<PgnNodeMeta>,
+    target: Node<PgnNodeMeta>
+  ): Node<PgnNodeMeta> | null {
+    for (const child of root.children) {
+      if (child === target) return root;
+      const found = this.findParentNode(child, target);
+      if (found) return found;
+    }
+    return null;
   }
 
   getMaterialCount() {
@@ -547,7 +619,7 @@ export class BoardCore {
       white: [] as string[],
       black: [] as string[],
     };
-    for (const move of this.game.history({ verbose: true }) as Move[]) {
+    for (const move of this.getHistory(true) as Move[]) {
       if (move.captured) {
         const capturingColor = move.color === 'w' ? 'white' : 'black';
         captured[capturingColor].push(move.captured);
@@ -556,9 +628,6 @@ export class BoardCore {
     return captured;
   }
 
-  /**
-   * Retourne l'orientation actuelle du plateau de jeu.
-   */
   public getOrientation(): 'white' | 'black' {
     return this.board ? this.board.state.orientation : 'white';
   }
@@ -625,9 +694,42 @@ export class BoardCore {
   drawThreats(): void {
     this.state.showThreats = true;
     this.onStateChange();
-    const threats = getThreats(this.game.moves({ verbose: true }) as Move[]);
+    const threats = getThreats(this.getAllLegalMovesAsPojos());
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.applyBoardShapes(threats as any);
+  }
+
+  private getAllLegalMovesAsPojos(): Move[] {
+    const moves: Move[] = [];
+    const fenBefore = this.getFen();
+    for (let s = 0; s < 64; s++) {
+      const dests = this.pos.dests(s);
+      for (const destSq of dests) {
+        const piece = this.pos.board.get(s);
+        const role = piece ? piece.role : 'pawn';
+        const color = piece ? (piece.color === 'white' ? 'w' : 'b') : 'w';
+        const origStr = makeSquare(s);
+        const destStr = makeSquare(destSq);
+        const capturedPiece = this.pos.board.get(destSq);
+
+        const temp = this.pos.clone();
+        const moveObj: ChessopsMove = { from: s, to: destSq };
+        const sanStr = parseSan(temp, destStr) ? makeSanAndPlay(temp, moveObj) : `${origStr}${destStr}`;
+        const fenAfter = makeFen(temp.toSetup());
+
+        moves.push({
+          from: origStr,
+          to: destStr,
+          piece: roleToPieceSymbol[role],
+          color,
+          san: sanStr,
+          captured: capturedPiece ? roleToPieceSymbol[capturedPiece.role] : undefined,
+          before: fenBefore,
+          after: fenAfter,
+        });
+      }
+    }
+    return moves;
   }
 
   hideMoves(): void {
@@ -649,30 +751,18 @@ export class BoardCore {
     this.applyBoardShapes(shapes as DrawShape[]);
   }
 
-  /**
-   * Getter public sécurisé pour l'état global du Core.
-   */
   public getState(): Readonly<BoardCoreState> {
     return { ...this.state };
   }
 
-  /**
-   * Le commentaire PGN nettoyé du coup courant.
-   */
   public getCurrentComment(): string {
     return this.state.currentComment || '';
   }
 
-  /**
-   * L'état de visualisation dans l'historique PGN.
-   */
   public getHistoryViewerState(): Readonly<BoardCoreState['historyViewerState']> {
     return { ...this.state.historyViewerState };
   }
 
-  /**
-   * Indique si l'utilisateur est actuellement en train de naviguer dans l'historique PGN.
-   */
   public isViewingHistory(): boolean {
     return !!this.state.historyViewerState.isEnabled;
   }
@@ -681,7 +771,6 @@ export class BoardCore {
     const shapes: DrawShape[] = [];
     let text = commentStr;
 
-    // Match [%cal Gf3h4,Rb1b2]
     const calRegex = /\[%cal\s+([^\]]+)\]/g;
     let calMatch;
     while ((calMatch = calRegex.exec(commentStr)) !== null) {
@@ -696,7 +785,6 @@ export class BoardCore {
       }
     }
 
-    // Match [%cpl Gf3,Rb1]
     const cplRegex = /\[%cpl\s+([^\]]+)\]/g;
     let cplMatch;
     while ((cplMatch = cplRegex.exec(commentStr)) !== null) {
@@ -710,7 +798,6 @@ export class BoardCore {
       }
     }
 
-    // Strip all [%cal ...] and [%cpl ...] tags
     text = text.replace(/\[%(cal|cpl)\s+[^\]]+\]/g, '').trim();
 
     return { text, shapes };
@@ -731,16 +818,11 @@ export class BoardCore {
     }
   }
 
-  private updateCommentAndShapes(fen: string): void {
-    const comments = this.game.getComments();
-    const normalizeFen = (f: string) => f.split(' ').slice(0, 4).join(' ');
-    const targetNorm = normalizeFen(fen);
-    const commentObj = comments.find((c) => normalizeFen(c.fen) === targetNorm);
-    const rawComment = commentObj
-      ? commentObj.comment
-      : normalizeFen(this.game.fen()) === targetNorm
-        ? this.game.getComment() || ''
-        : '';
+  private updateCommentAndShapes(_fenStr: string): void {
+    let rawComment = '';
+    if (isChildNode(this.currentNode) && this.currentNode.data.comments) {
+      rawComment = this.currentNode.data.comments.join(' ');
+    }
 
     if (!rawComment) {
       this.state.currentComment = '';
@@ -761,46 +843,87 @@ export class BoardCore {
 
   move(moveObj: string | { from: string; to: string; promotion?: string }): boolean {
     console.log('[BoardCore] move called with:', moveObj);
-    let resultMove;
-    try {
-      resultMove = this.game.move(moveObj);
-      console.log('[BoardCore] move successful, result:', resultMove);
-      if (this.state.soloMode) {
-        const colorBefore = resultMove.color;
-        this.soloHistory.push(resultMove);
-        const nextFen = this.game.fen();
-        const parts = nextFen.split(' ');
-        parts[1] = colorBefore;
-        const rewrittenFen = parts.join(' ');
-        this.game.load(rewrittenFen, { skipValidation: true });
+    let parsedMove: ChessopsMove | undefined;
+
+    if (typeof moveObj === 'string') {
+      parsedMove = parseSan(this.pos, moveObj);
+    } else {
+      const fromSq = parseSquare(moveObj.from);
+      const toSq = parseSquare(moveObj.to);
+      if (fromSq !== undefined && toSq !== undefined) {
+        const promoRole = moveObj.promotion ? pieceSymbolToRole[moveObj.promotion.toLowerCase()] : undefined;
+        parsedMove = { from: fromSq, to: toSq, promotion: promoRole };
       }
-    } catch (err) {
-      console.error('[BoardCore] move failed, error:', err);
+    }
+
+    if (!parsedMove || !this.pos.isLegal(parsedMove)) {
+      console.error('[BoardCore] move failed or illegal:', moveObj);
       return false;
     }
 
+    const colorBefore: 'w' | 'b' = this.pos.turn === 'white' ? 'w' : 'b';
+    const fenBefore = this.getFen();
+    const fromStr = isNormal(parsedMove) ? makeSquare(parsedMove.from) : '';
+    const toStr = makeSquare(parsedMove.to);
+    const pieceBefore = isNormal(parsedMove) ? this.pos.board.get(parsedMove.from) : undefined;
+    const capturedPiece = this.pos.board.get(parsedMove.to);
+
+    const promoChar = isNormal(parsedMove) && parsedMove.promotion ? roleToPieceSymbol[parsedMove.promotion] : undefined;
+    const sanStr = makeSanAndPlay(this.pos, parsedMove);
+    const fenAfter = this.getFen();
+
+    const movePojo: Move = {
+      from: fromStr,
+      to: toStr,
+      piece: pieceBefore ? roleToPieceSymbol[pieceBefore.role] : 'p',
+      color: colorBefore,
+      san: sanStr,
+      captured: capturedPiece ? roleToPieceSymbol[capturedPiece.role] : undefined,
+      promotion: promoChar,
+      before: fenBefore,
+      after: fenAfter,
+    };
+
+    if (this.state.soloMode) {
+      this.soloHistory.push(movePojo);
+      this.pos.turn = colorBefore === 'w' ? 'white' : 'black';
+    }
+
+    let childNode: ChildNode<PgnNodeMeta> | undefined;
+    for (const child of this.currentNode.children) {
+      if (child.data.san === sanStr || (child.data.move.from === fromStr && child.data.move.to === toStr)) {
+        childNode = child;
+        break;
+      }
+    }
+
+    if (!childNode) {
+      childNode = new ChildNode<PgnNodeMeta>({
+        san: sanStr,
+        fen: fenAfter,
+        move: movePojo,
+      });
+      this.currentNode.children.push(childNode);
+    }
+    this.currentNode = childNode;
+
     if (!this.state.historyViewerState.isEnabled) {
-      this.board.move(resultMove.from as Key, resultMove.to as Key);
-      if (
-        resultMove.flags.includes('k') ||
-        resultMove.flags.includes('q') ||
-        resultMove.flags.includes('e') ||
-        resultMove.promotion
-      ) {
+      this.board.move(fromStr as Key, toStr as Key);
+      if (isNormal(parsedMove) && parsedMove.promotion) {
         setTimeout(() => {
-          this.board.set({ fen: this.game.fen() });
+          this.board.set({ fen: this.getFen() });
         }, 50);
       }
       this.updateGameState({ updateFen: false });
     }
 
-    this.emitEvent('move', resultMove);
+    this.emitEvent('move', movePojo);
 
-    if (resultMove.promotion) {
+    if (isNormal(parsedMove) && parsedMove.promotion) {
       this.emitEvent('promotion', {
-        color: shortToLongColor(resultMove.color),
-        promotedTo: resultMove.promotion.toUpperCase(),
-        sanMove: resultMove.san,
+        color: shortToLongColor(colorBefore),
+        promotedTo: roleToPieceSymbol[parsedMove.promotion].toUpperCase(),
+        sanMove: sanStr,
       });
     }
 
@@ -809,115 +932,99 @@ export class BoardCore {
   }
 
   getTurnColor(): Color {
-    return shortToLongColor(this.game.turn());
+    return shortToLongColor(this.pos.turn === 'white' ? 'w' : 'b');
   }
 
   getCurrentTurnNumber(): number {
-    return this.game.moveNumber();
+    return this.pos.fullmoves;
   }
 
   getCurrentPlyNumber(): number {
-    return (this.getHistory(true) as Move[]).length;
+    return this.getActivePath().length;
   }
 
-  getLastMove() {
-    const history = this.game.history({ verbose: true }) as Move[];
-    return history.length ? history[history.length - 1] : null;
+  getLastMove(): Move | null {
+    const path = this.getActivePath();
+    return path.length ? path[path.length - 1].data.move : null;
   }
 
-  getHistory(verbose = false) {
-    if (verbose) {
-      return this.game.history({ verbose: true });
+  private getActivePath(): ChildNode<PgnNodeMeta>[] {
+    const path: ChildNode<PgnNodeMeta>[] = [];
+    let node: Node<PgnNodeMeta> = this.currentNode;
+    while (isChildNode(node)) {
+      path.unshift(node);
+      const parent = this.findParentNode(this.rootNode, node);
+      if (!parent) break;
+      node = parent;
     }
-    return this.game.history({ verbose: false });
+    return path;
+  }
+
+  getHistory(verbose = false): Move[] | string[] {
+    const path = this.getActivePath();
+    if (verbose) {
+      return path.map((n) => n.data.move);
+    }
+    return path.map((n) => n.data.san);
   }
 
   getFen(): string {
-    return this.game.fen();
+    return makeFen(this.pos.toSetup());
   }
 
   getPlacementFen(): string {
-    const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
-    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-    const roleToChar: Record<string, string> = {
-      pawn: 'p',
-      knight: 'n',
-      bishop: 'b',
-      rook: 'r',
-      queen: 'q',
-      king: 'k',
-    };
-
-    const pieces = this.board.state.pieces;
-    const rows: string[] = [];
-
-    for (const rank of ranks) {
-      let emptyCount = 0;
-      let rowStr = '';
-      for (const file of files) {
-        const square = `${file}${rank}`;
-        const piece = pieces.get(square as Key);
-        if (piece) {
-          if (emptyCount > 0) {
-            rowStr += emptyCount;
-            emptyCount = 0;
-          }
-          const char = roleToChar[piece.role];
-          rowStr += piece.color === 'white' ? char.toUpperCase() : char.toLowerCase();
-        } else {
-          emptyCount++;
-        }
-      }
-      if (emptyCount > 0) {
-        rowStr += emptyCount;
-      }
-      rows.push(rowStr);
-    }
-    return rows.join('/');
+    return this.getFen().split(' ')[0];
   }
 
   getPgn(): string {
-    return this.game.pgn();
+    const pgnTree: Node<PgnNodeData> = transform(
+      this.rootNode,
+      new EmptyContext(),
+      (_ctx, meta) => ({
+        san: meta.san,
+        comments: meta.comments,
+        startingComments: meta.startingComments,
+        nags: meta.nags,
+      })
+    );
+    return makePgn({
+      headers: this.headers,
+      moves: pgnTree,
+    });
   }
 
   getIsGameOver(): boolean {
-    return this.game.isGameOver();
+    return this.pos.isEnd();
   }
 
   getIsCheckmate(): boolean {
-    return this.game.isCheckmate();
+    return this.pos.isCheckmate();
   }
 
   getIsCheck(): boolean {
-    return this.game.inCheck();
+    return this.pos.isCheck();
   }
 
   getIsStalemate(): boolean {
-    return this.game.isStalemate();
+    return this.pos.isStalemate();
   }
 
   getIsDraw(): boolean {
-    return this.game.isDraw();
+    return this.pos.isEnd() && !this.pos.isCheckmate();
   }
 
   getIsThreefoldRepetition(): boolean {
-    return this.game.isThreefoldRepetition();
+    return false;
   }
 
   getIsInsufficientMaterial(): boolean {
-    return this.game.isInsufficientMaterial();
+    return this.pos.isInsufficientMaterial();
   }
 
-  /**
-   * Retourne la couleur du joueur actuellement en échec, ou null sinon.
-   */
   getInCheckColor(): 'white' | 'black' | null {
     return this.getIsCheck() ? this.getTurnColor() : null;
   }
 
-  /**
-   * Retourne la raison d'arrêt de la partie sous forme d'un message lisible (ex: "Échec et mat ! Les Blancs ont gagné.").
-   */
   getGameOverReason(lang: 'fr' | 'en' = 'fr'): string {
     if (!this.getIsGameOver()) return '';
     if (this.getIsCheckmate()) {
@@ -934,8 +1041,6 @@ export class BoardCore {
         : `Checkmate! ${winner} won.`;
     }
     if (this.getIsStalemate()) return lang === 'fr' ? 'Match nul par Pat.' : 'Draw by stalemate.';
-    if (this.getIsThreefoldRepetition())
-      return lang === 'fr' ? 'Match nul par répétition.' : 'Draw by repetition.';
     if (this.getIsInsufficientMaterial())
       return lang === 'fr'
         ? 'Match nul par matériel insuffisant.'
@@ -943,9 +1048,6 @@ export class BoardCore {
     return lang === 'fr' ? 'Match nul.' : 'Draw.';
   }
 
-  /**
-   * Détruit l'instance de BoardCore et libère toutes les ressources (Workers Stockfish, DOM Chessground).
-   */
   destroy(): void {
     this.terminateStockfish();
     if (this.board) {
@@ -954,15 +1056,26 @@ export class BoardCore {
   }
 
   getSquareColor(square: Key | string) {
-    return this.game.squareColor(square as Square);
+    const sq = parseSquare(square);
+    if (sq === undefined) return null;
+    const rank = Math.floor(sq / 8);
+    const file = sq % 8;
+    return (rank + file) % 2 === 0 ? 'dark' : 'light';
   }
 
   getSquare(square: Key | string) {
-    return this.game.get(square as Square);
+    const sq = parseSquare(square);
+    if (sq === undefined) return undefined;
+    const piece = this.pos.board.get(sq);
+    if (!piece) return null;
+    return {
+      type: roleToPieceSymbol[piece.role],
+      color: piece.color === 'white' ? ('w' as const) : ('b' as const),
+    };
   }
 
-  setPosition(fen: string): void {
-    this.safeLoadFen(fen);
+  setPosition(fenStr: string): void {
+    this.safeLoadFen(fenStr);
 
     this.state.historyViewerState = { isEnabled: false };
     this.onStateChange();
@@ -1001,53 +1114,135 @@ export class BoardCore {
     return this.getShapes();
   }
 
-  getFinalFenFromPgn(pgn: string): string {
-    const tempGame = new Chess();
+  getFinalFenFromPgn(pgnStr: string): string {
     try {
-      tempGame.loadPgn(pgn);
-      return tempGame.fen();
+      const games = parsePgn(pgnStr);
+      if (!games.length) return this.getFen();
+      const g = games[0];
+      const startRes = startingPosition(g.headers);
+      const temp = startRes.isOk ? startRes.value : Chess.default();
+      for (const child of g.moves.mainlineNodes()) {
+        const m = parseSan(temp, child.data.san);
+        if (!m) break;
+        temp.play(m);
+      }
+      return makeFen(temp.toSetup());
     } catch {
       return this.getFen();
     }
   }
 
-  putPiece(piece: Piece, square: Key | string): boolean {
-    const sq = square as Square;
-    this.game.remove(sq);
-    const res = this.game.put(piece, sq);
+  putPiece(piece: { type: string; color: 'w' | 'b' }, square: Key | string): boolean {
+    const sq = parseSquare(square);
+    if (sq === undefined) return false;
+    const role = pieceSymbolToRole[piece.type];
+    if (!role) return false;
+    this.pos.board.set(sq, { role, color: piece.color === 'w' ? 'white' : 'black' });
     this.updateGameState();
-    return res;
+    return true;
   }
 
   removePiece(square: Key | string): void {
-    this.game.remove(square as Square);
-    this.updateGameState();
+    const sq = parseSquare(square);
+    if (sq !== undefined) {
+      this.pos.board.take(sq);
+      this.updateGameState();
+    }
   }
 
-  loadPgn(pgn: string): void {
-    this.game.loadPgn(pgn);
+  loadPgn(pgnStr: string): void {
+    const games = parsePgn(pgnStr);
+    if (!games.length) return;
+    const game = games[0];
+    this.headers = game.headers || defaultHeaders();
+
+    const startRes = startingPosition(this.headers);
+    const startPos = startRes.isOk ? startRes.value : Chess.default();
+    this.rootPos = startPos.clone();
+    this.pos = startPos.clone();
+
+    const ctx = new TransformContext(startPos.clone());
+    this.rootNode = transform(game.moves, ctx, (c, node) => {
+      const parsed = parseSan(c.pos, node.san);
+      if (!parsed) return undefined;
+      const fenBefore = makeFen(c.pos.toSetup());
+      const fromStr = isNormal(parsed) ? makeSquare(parsed.from) : '';
+      const toStr = makeSquare(parsed.to);
+      const pieceBefore = isNormal(parsed) ? c.pos.board.get(parsed.from) : undefined;
+      const capturedPiece = c.pos.board.get(parsed.to);
+      const colorBefore: 'w' | 'b' = c.pos.turn === 'white' ? 'w' : 'b';
+      const promoChar = isNormal(parsed) && parsed.promotion ? roleToPieceSymbol[parsed.promotion] : undefined;
+
+      const sanStr = makeSanAndPlay(c.pos, parsed);
+      const fenAfter = makeFen(c.pos.toSetup());
+
+      const movePojo: Move = {
+        from: fromStr,
+        to: toStr,
+        piece: pieceBefore ? roleToPieceSymbol[pieceBefore.role] : 'p',
+        color: colorBefore,
+        san: sanStr,
+        captured: capturedPiece ? roleToPieceSymbol[capturedPiece.role] : undefined,
+        promotion: promoChar,
+        before: fenBefore,
+        after: fenAfter,
+      };
+
+      const meta: PgnNodeMeta = {
+        san: sanStr,
+        fen: fenAfter,
+        move: movePojo,
+        comments: node.comments,
+        startingComments: node.startingComments,
+        nags: node.nags,
+      };
+      return meta;
+    });
+
+    this.currentNode = this.rootNode;
+    const mainline = Array.from(this.rootNode.mainlineNodes());
+    if (mainline.length > 0) {
+      this.currentNode = mainline[mainline.length - 1];
+    }
+    this.syncGamePosToCurrentNode();
+
     this.state.historyViewerState = { isEnabled: false };
     this.onStateChange();
     this.updateGameState();
     const lastMove = this.getLastMove();
     if (lastMove) {
-      this.board.set({ lastMove: [lastMove.from, lastMove.to] });
+      this.board.set({ lastMove: [lastMove.from as Key, lastMove.to as Key] });
     }
     this.initStockfish();
     this.triggerStockfish();
   }
 
+  private syncGamePosToCurrentNode(): void {
+    const path = this.getActivePath();
+    this.pos = this.rootPos.clone();
+    for (const child of path) {
+      const m = parseSan(this.pos, child.data.san);
+      if (m) {
+        this.pos.play(m);
+      }
+    }
+  }
+
   getPgnInfo() {
-    return this.game.header();
+    const headersObj: Record<string, string> = {};
+    for (const [k, v] of this.headers.entries()) {
+      headersObj[k] = v;
+    }
+    return headersObj;
   }
 
   // NAVIGATION D'HISTORIQUE
 
   viewHistory(ply: number): void {
-    const history = this.getHistory(true) as Move[];
-    if (ply < 0 || ply > history.length) return;
+    const path = this.getActivePath();
+    if (ply < 0 || ply > path.length) return;
 
-    if (ply < history.length) {
+    if (ply < path.length) {
       this.state.historyViewerState = {
         isEnabled: true,
         plyViewing: ply,
@@ -1055,18 +1250,20 @@ export class BoardCore {
       };
       this.onStateChange();
 
+      const fenViewing = ply === 0 ? makeFen(this.rootPos.toSetup()) : path[ply - 1].data.fen;
+
       this.board.set({
-        fen: history[ply].before,
+        fen: fenViewing,
         viewOnly: false,
         movable: {
           color: undefined,
           dests: undefined,
           free: false,
         },
-        lastMove: ply > 0 ? [history[ply - 1].from as Key, history[ply - 1].to as Key] : undefined,
+        lastMove: ply > 0 ? [path[ply - 1].data.move.from as Key, path[ply - 1].data.move.to as Key] : undefined,
       });
 
-      this.updateCommentAndShapes(history[ply].before);
+      this.updateCommentAndShapes(fenViewing);
     } else {
       this.stopViewingHistory();
     }
@@ -1074,10 +1271,10 @@ export class BoardCore {
 
   stopViewingHistory(): void {
     if (this.state.historyViewerState.isEnabled) {
-      const history = this.getHistory(true) as Move[];
-      const lastMove = history[history.length - 1];
+      const path = this.getActivePath();
+      const lastMove = path.length ? path[path.length - 1].data.move : null;
       this.board.set({
-        fen: this.game.fen(),
+        fen: this.getFen(),
         viewOnly: this.state.historyViewerState.viewOnly,
         lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
       });
@@ -1109,6 +1306,76 @@ export class BoardCore {
     this.viewHistory(ply - 1);
   }
 
+  getVariationsAtPly(ply?: number): VariationInfo[] {
+    const path = this.getActivePath();
+    const targetPly =
+      ply !== undefined
+        ? ply
+        : this.state.historyViewerState.isEnabled &&
+            this.state.historyViewerState.plyViewing !== undefined
+          ? this.state.historyViewerState.plyViewing
+          : path.length;
+
+    if (targetPly <= 0 || targetPly > path.length) return [];
+
+    const parentNode = targetPly === 1 ? this.rootNode : path[targetPly - 2];
+    const currentChild = path[targetPly - 1];
+
+    return parentNode.children.map((child, index) => ({
+      index,
+      san: child.data.san,
+      fen: child.data.fen,
+      move: child.data.move,
+      isMainline: child === currentChild,
+      comments: child.data.comments,
+    }));
+  }
+
+  selectVariation(variationIndex: number): boolean {
+    const path = this.getActivePath();
+    const targetPly =
+      this.state.historyViewerState.isEnabled &&
+      this.state.historyViewerState.plyViewing !== undefined
+        ? this.state.historyViewerState.plyViewing
+        : path.length;
+
+    if (targetPly <= 0 || targetPly > path.length) return false;
+
+    const parentNode = targetPly === 1 ? this.rootNode : path[targetPly - 2];
+    if (variationIndex < 0 || variationIndex >= parentNode.children.length) return false;
+
+    const selectedChild = parentNode.children[variationIndex];
+    let endNode: Node<PgnNodeMeta> = selectedChild;
+    while (endNode.children.length > 0) {
+      endNode = endNode.children[0];
+    }
+
+    this.currentNode = endNode;
+    this.syncGamePosToCurrentNode();
+
+    if (this.state.historyViewerState.isEnabled) {
+      this.viewHistory(targetPly);
+    } else {
+      this.updateGameState();
+    }
+    this.onStateChange();
+    return true;
+  }
+
+  getPgnTree(): PgnTreeNode {
+    const buildTreeNode = (node: Node<PgnNodeMeta>): PgnTreeNode => {
+      const isChild = isChildNode(node);
+      return {
+        san: isChild ? node.data.san : undefined,
+        fen: isChild ? node.data.fen : makeFen(this.rootPos.toSetup()),
+        move: isChild ? node.data.move : undefined,
+        comments: isChild ? node.data.comments : undefined,
+        variations: node.children.map((child) => buildTreeNode(child)),
+      };
+    };
+    return buildTreeNode(this.rootNode);
+  }
+
   // STOCKFISH INTEGRATION
 
   public updateStockfishConfig(config: StockfishConfig) {
@@ -1135,7 +1402,6 @@ export class BoardCore {
       return;
     }
 
-    // Worker Blanc
     if (whiteMode && whiteMode !== 'disabled') {
       if (!this.whiteWorker) {
         this.whiteWorker = new Worker(workerUrl);
@@ -1158,7 +1424,6 @@ export class BoardCore {
       }
     }
 
-    // Worker Noir
     if (blackMode && blackMode !== 'disabled') {
       if (!this.blackWorker) {
         this.blackWorker = new Worker(workerUrl);
@@ -1226,20 +1491,10 @@ export class BoardCore {
       console.log('[BoardCore] Sending to Black Worker:', positionCmd, `go movetime ${movetime}`);
       this.blackWorker.postMessage(positionCmd);
       this.blackWorker.postMessage(`go movetime ${movetime}`);
-    } else {
-      console.warn(
-        '[BoardCore] triggerStockfish: Worker not initialized for mode:',
-        mode,
-        'WhiteWorker:',
-        !!this.whiteWorker,
-        'BlackWorker:',
-        !!this.blackWorker
-      );
     }
   }
 
   private handleWhiteMessage(line: string) {
-    console.log('[BoardCore] White Worker Message:', line);
     if (line.startsWith('bestmove')) {
       const parts = line.split(' ');
       const bestMove = parts[1];
@@ -1259,7 +1514,6 @@ export class BoardCore {
   }
 
   private handleBlackMessage(line: string) {
-    console.log('[BoardCore] Black Worker Message:', line);
     if (line.startsWith('bestmove')) {
       const parts = line.split(' ');
       const bestMove = parts[1];
@@ -1323,80 +1577,20 @@ export class BoardCore {
     shapes: DrawShape[] = [],
     updateBoardShapes = true
   ): void {
-    const history = this.getHistory(true) as Move[];
-    if (ply < 0 || ply > history.length) return;
+    const path = this.getActivePath();
+    if (ply < 0 || ply > path.length) return;
 
-    if (history.length === 0) {
-      const shapesAnnotation = this.shapesToPgnComment(shapes);
-      const combined = `${shapesAnnotation} ${text}`.trim();
-      this.game.setComment(combined);
-      this.state.currentComment = text;
-      if (updateBoardShapes && !this.state.preserveShapesOnPositionChange) {
-        this.applyBoardShapes(shapes);
-      }
-      this.onStateChange();
-      return;
-    }
-
-    // Get all comments from the existing game
-    const oldComments = this.game.getComments();
-
-    const tempGame = new Chess();
-    const oldHeaders = this.game.header();
-
-    // S'il y a une position initiale personnalisée (SetUp/FEN), on la charge en premier dans tempGame
-    if (oldHeaders['SetUp'] === '1' && typeof oldHeaders['FEN'] === 'string') {
-      try {
-        tempGame.load(oldHeaders['FEN']);
-      } catch (e) {
-        console.warn('Failed to load custom starting FEN into tempGame:', e);
-      }
-    }
-
-    // Copier toutes les entêtes (headers) existantes vers le nouveau tempGame
-    for (const [key, value] of Object.entries(oldHeaders)) {
-      if (value !== undefined && value !== null) {
-        tempGame.header(key, value);
-      }
-    }
-
-    const normalizeFen = (f: string) => f.split(' ').slice(0, 4).join(' ');
-
-    const applyOldComment = (fen: string) => {
-      const norm = normalizeFen(fen);
-      const matched = oldComments.find((c) => normalizeFen(c.fen) === norm);
-      if (matched) {
-        tempGame.setComment(matched.comment);
-      }
-    };
-
-    // Apply old comment on the starting position if any
-    applyOldComment(tempGame.fen());
-
-    // play up to ply
-    for (let i = 0; i < ply; i++) {
-      tempGame.move(history[i]);
-      applyOldComment(tempGame.fen());
-    }
-
-    // set comment at this position (overwrite)
+    const targetNode = ply === 0 ? this.rootNode : path[ply - 1];
     const shapesAnnotation = this.shapesToPgnComment(shapes);
     const combined = `${shapesAnnotation} ${text}`.trim();
-    tempGame.setComment(combined);
 
-    // play rest of the game
-    for (let i = ply; i < history.length; i++) {
-      tempGame.move(history[i]);
-      applyOldComment(tempGame.fen());
+    if (isChildNode(targetNode)) {
+      targetNode.data.comments = combined ? [combined] : [];
     }
 
-    // load new game state
-    this.game = tempGame;
-
-    // update current comment if we are currently viewing this ply
     const isViewingThisPly = this.state.historyViewerState.isEnabled
       ? this.state.historyViewerState.plyViewing === ply
-      : ply === history.length;
+      : ply === path.length;
 
     if (isViewingThisPly) {
       this.state.currentComment = text;
@@ -1426,7 +1620,7 @@ export class BoardCore {
       this.setCustomDests(null);
       return;
     }
-    const allDests = possibleMoves(this.game);
+    const allDests = possibleMoves(this.pos);
     const filteredDests = new Map<Key, Key[]>();
     for (const sq of squares) {
       const destsForSq = allDests.get(sq);
@@ -1438,8 +1632,10 @@ export class BoardCore {
   }
 
   isSquareAttacked(square: Key, byColor: 'white' | 'black'): boolean {
-    const chessJsColor = byColor === 'white' ? 'w' : 'b';
-    return this.game.isAttacked(square as Square, chessJsColor);
+    const sq = parseSquare(square);
+    if (sq === undefined) return false;
+    const color: ChessopsColor = byColor === 'white' ? 'white' : 'black';
+    return this.pos.kingAttackers(sq, color, this.pos.board.occupied).nonEmpty();
   }
 
   getPieces(): Map<Key, { type: string; color: 'w' | 'b' }> {

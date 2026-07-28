@@ -5,13 +5,14 @@ export {
   type StockfishConfig,
   type ChessDiagram,
 } from '../BoardCore';
+export type { Move } from '../types';
 </script>
 
 <script setup lang="ts">
 import { ref, shallowRef, onMounted, onUnmounted, reactive, watch } from 'vue';
 import type { Config } from '@lichess-org/chessground/config';
 import type { DrawShape } from '@lichess-org/chessground/draw';
-import type { Move } from 'chess.js';
+import type { Move } from '../types';
 import {
   BoardCore,
   type BoardCoreState,
