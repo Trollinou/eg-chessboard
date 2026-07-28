@@ -119,6 +119,7 @@ export class BoardCore {
   private currentPreservedShapes: DrawShape[] = [];
   private lastMouseButton = -1;
   private userMovableColor: 'white' | 'black' | 'both' | undefined;
+  private cachedFen: string | null = null;
 
   // PGN Tree Management
   private headers: Map<string, string> = defaultHeaders();
@@ -185,6 +186,7 @@ export class BoardCore {
   }
 
   private safeLoadFen(fenStr: string): boolean {
+    this.cachedFen = null;
     const setupRes = parseFen(fenStr);
     if (setupRes.isOk) {
       const chessRes = Chess.fromSetup(setupRes.value);
@@ -354,6 +356,7 @@ export class BoardCore {
         const chessRes = Chess.fromSetup(setupRes.value);
         if (chessRes.isOk) {
           this.pos = chessRes.value;
+          this.cachedFen = null;
         }
       }
 
@@ -550,6 +553,7 @@ export class BoardCore {
 
   resetBoard(): void {
     this.pos = Chess.default();
+    this.cachedFen = null;
     this.rootPos = this.pos.clone();
     this.rootNode = new Node<PgnNodeMeta>();
     this.currentNode = this.rootNode;
@@ -719,21 +723,19 @@ export class BoardCore {
   private getAllLegalMovesAsPojos(): Move[] {
     const moves: Move[] = [];
     const fenBefore = this.getFen();
-    for (let s = 0; s < 64; s++) {
-      const dests = this.pos.dests(s);
+    const ctx = this.pos.ctx();
+    for (const [from, dests] of this.pos.allDests(ctx)) {
       for (const destSq of dests) {
-        const piece = this.pos.board.get(s);
+        const piece = this.pos.board.get(from);
         const role = piece ? piece.role : 'pawn';
         const color = piece ? (piece.color === 'white' ? 'w' : 'b') : 'w';
-        const origStr = makeSquare(s);
+        const origStr = makeSquare(from);
         const destStr = makeSquare(destSq);
         const capturedPiece = this.pos.board.get(destSq);
 
         const temp = this.pos.clone();
-        const moveObj: ChessopsMove = { from: s, to: destSq };
-        const sanStr = parseSan(temp, destStr)
-          ? makeSanAndPlay(temp, moveObj)
-          : `${origStr}${destStr}`;
+        const moveObj: ChessopsMove = { from, to: destSq };
+        const sanStr = makeSanAndPlay(temp, moveObj);
         const fenAfter = makeFen(temp.toSetup());
 
         moves.push({
@@ -894,6 +896,7 @@ export class BoardCore {
         ? roleToPieceSymbol[parsedMove.promotion]
         : undefined;
     const sanStr = makeSanAndPlay(this.pos, parsedMove);
+    this.cachedFen = null;
     const fenAfter = this.getFen();
 
     const movePojo: Move = {
@@ -996,7 +999,10 @@ export class BoardCore {
   }
 
   getFen(): string {
-    return makeFen(this.pos.toSetup());
+    if (!this.cachedFen) {
+      this.cachedFen = makeFen(this.pos.toSetup());
+    }
+    return this.cachedFen;
   }
 
   getPlacementFen(): string {
@@ -1234,6 +1240,7 @@ export class BoardCore {
   private syncGamePosToCurrentNode(): void {
     const path = this.getActivePath();
     this.pos = this.rootPos.clone();
+    this.cachedFen = null;
     for (const child of path) {
       const m = parseSan(this.pos, child.data.san);
       if (m) {

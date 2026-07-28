@@ -1,5 +1,5 @@
-import { castlingSide, Chess } from 'chessops/chess';
-import { makeSquare } from 'chessops';
+import { Chess } from 'chessops/chess';
+import { chessgroundDests } from 'chessops/compat';
 import { parsePgn, startingPosition } from 'chessops/pgn';
 import { parseSan } from 'chessops/san';
 import { makeFen } from 'chessops/fen';
@@ -31,36 +31,7 @@ export function shortToLongColor(color: 'w' | 'b'): Color {
 }
 
 export function possibleMoves(game: Chess): Map<Key, Key[]> {
-  const dests: Map<Key, Key[]> = new Map();
-  for (let s = 0; s < 64; s++) {
-    const squareDests = game.dests(s);
-    if (squareDests.size() > 0) {
-      const orig = makeSquare(s) as Key;
-      const destList: Key[] = [];
-      for (const destSq of squareDests) {
-        const side = castlingSide(game, { from: s, to: destSq });
-        if (side === 'h') {
-          const stdSquare = (
-            orig === 'e1' ? 'g1' : orig === 'e8' ? 'g8' : makeSquare(destSq)
-          ) as Key;
-          if (!destList.includes(stdSquare)) destList.push(stdSquare);
-          const rookSquare = makeSquare(destSq) as Key;
-          if (!destList.includes(rookSquare)) destList.push(rookSquare);
-        } else if (side === 'a') {
-          const stdSquare = (
-            orig === 'e1' ? 'c1' : orig === 'e8' ? 'c8' : makeSquare(destSq)
-          ) as Key;
-          if (!destList.includes(stdSquare)) destList.push(stdSquare);
-          const rookSquare = makeSquare(destSq) as Key;
-          if (!destList.includes(rookSquare)) destList.push(rookSquare);
-        } else {
-          destList.push(makeSquare(destSq) as Key);
-        }
-      }
-      dests.set(orig, destList);
-    }
-  }
-  return dests;
+  return chessgroundDests(game) as Map<Key, Key[]>;
 }
 
 export function isPromotion(
