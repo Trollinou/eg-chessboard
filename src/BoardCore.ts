@@ -731,7 +731,11 @@ export class BoardCore {
         const color = piece ? (piece.color === 'white' ? 'w' : 'b') : 'w';
         const origStr = makeSquare(from);
         const destStr = makeSquare(destSq);
-        const capturedPiece = this.pos.board.get(destSq);
+        let capturedPiece = this.pos.board.get(destSq);
+        const isEnPassant = piece?.role === 'pawn' && origStr[0] !== destStr[0] && !capturedPiece;
+        if (isEnPassant) {
+          capturedPiece = { role: 'pawn', color: color === 'w' ? 'black' : 'white' };
+        }
 
         const temp = this.pos.clone();
         const moveObj: ChessopsMove = { from, to: destSq };
@@ -889,7 +893,16 @@ export class BoardCore {
     const fromStr = isNormal(parsedMove) ? makeSquare(parsedMove.from) : '';
     const toStr = makeSquare(parsedMove.to);
     const pieceBefore = isNormal(parsedMove) ? this.pos.board.get(parsedMove.from) : undefined;
-    const capturedPiece = this.pos.board.get(parsedMove.to);
+    let capturedPiece = this.pos.board.get(parsedMove.to);
+    const isEnPassant =
+      isNormal(parsedMove) &&
+      pieceBefore?.role === 'pawn' &&
+      fromStr[0] !== toStr[0] &&
+      !capturedPiece;
+
+    if (isEnPassant) {
+      capturedPiece = { role: 'pawn', color: colorBefore === 'w' ? 'black' : 'white' };
+    }
 
     const promoChar =
       isNormal(parsedMove) && parsedMove.promotion
@@ -944,7 +957,7 @@ export class BoardCore {
           this.board.set({ fen: this.getFen() });
         }, 50);
       }
-      this.updateGameState({ updateFen: false });
+      this.updateGameState({ updateFen: true });
     }
 
     this.emitEvent('move', movePojo);
@@ -1188,8 +1201,17 @@ export class BoardCore {
       const fromStr = isNormal(parsed) ? makeSquare(parsed.from) : '';
       const toStr = makeSquare(parsed.to);
       const pieceBefore = isNormal(parsed) ? c.pos.board.get(parsed.from) : undefined;
-      const capturedPiece = c.pos.board.get(parsed.to);
       const colorBefore: 'w' | 'b' = c.pos.turn === 'white' ? 'w' : 'b';
+      let capturedPiece = c.pos.board.get(parsed.to);
+      const isEnPassant =
+        isNormal(parsed) &&
+        pieceBefore?.role === 'pawn' &&
+        fromStr[0] !== toStr[0] &&
+        !capturedPiece;
+
+      if (isEnPassant) {
+        capturedPiece = { role: 'pawn', color: colorBefore === 'w' ? 'black' : 'white' };
+      }
       const promoChar =
         isNormal(parsed) && parsed.promotion ? roleToPieceSymbol[parsed.promotion] : undefined;
 
