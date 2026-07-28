@@ -1,4 +1,5 @@
 import type { Chess } from 'chessops/chess';
+import { castlingSide } from 'chessops/chess';
 import { makeSquare } from 'chessops';
 import type { Color, Key } from '@lichess-org/chessground/types';
 import type { Move } from './types';
@@ -35,7 +36,20 @@ export function possibleMoves(game: Chess): Map<Key, Key[]> {
       const orig = makeSquare(s) as Key;
       const destList: Key[] = [];
       for (const destSq of squareDests) {
-        destList.push(makeSquare(destSq) as Key);
+        const side = castlingSide(game, { from: s, to: destSq });
+        if (side === 'h') {
+          const stdSquare = (orig === 'e1' ? 'g1' : orig === 'e8' ? 'g8' : makeSquare(destSq)) as Key;
+          if (!destList.includes(stdSquare)) destList.push(stdSquare);
+          const rookSquare = makeSquare(destSq) as Key;
+          if (!destList.includes(rookSquare)) destList.push(rookSquare);
+        } else if (side === 'a') {
+          const stdSquare = (orig === 'e1' ? 'c1' : orig === 'e8' ? 'c8' : makeSquare(destSq)) as Key;
+          if (!destList.includes(stdSquare)) destList.push(stdSquare);
+          const rookSquare = makeSquare(destSq) as Key;
+          if (!destList.includes(rookSquare)) destList.push(rookSquare);
+        } else {
+          destList.push(makeSquare(destSq) as Key);
+        }
       }
       dests.set(orig, destList);
     }
