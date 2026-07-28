@@ -1,6 +1,8 @@
-import type { Chess } from 'chessops/chess';
-import { castlingSide } from 'chessops/chess';
+import { castlingSide, Chess } from 'chessops/chess';
 import { makeSquare } from 'chessops';
+import { parsePgn, startingPosition } from 'chessops/pgn';
+import { parseSan } from 'chessops/san';
+import { makeFen } from 'chessops/fen';
 import type { Color, Key } from '@lichess-org/chessground/types';
 import type { Move } from './types';
 
@@ -38,12 +40,16 @@ export function possibleMoves(game: Chess): Map<Key, Key[]> {
       for (const destSq of squareDests) {
         const side = castlingSide(game, { from: s, to: destSq });
         if (side === 'h') {
-          const stdSquare = (orig === 'e1' ? 'g1' : orig === 'e8' ? 'g8' : makeSquare(destSq)) as Key;
+          const stdSquare = (
+            orig === 'e1' ? 'g1' : orig === 'e8' ? 'g8' : makeSquare(destSq)
+          ) as Key;
           if (!destList.includes(stdSquare)) destList.push(stdSquare);
           const rookSquare = makeSquare(destSq) as Key;
           if (!destList.includes(rookSquare)) destList.push(rookSquare);
         } else if (side === 'a') {
-          const stdSquare = (orig === 'e1' ? 'c1' : orig === 'e8' ? 'c8' : makeSquare(destSq)) as Key;
+          const stdSquare = (
+            orig === 'e1' ? 'c1' : orig === 'e8' ? 'c8' : makeSquare(destSq)
+          ) as Key;
           if (!destList.includes(stdSquare)) destList.push(stdSquare);
           const rookSquare = makeSquare(destSq) as Key;
           if (!destList.includes(rookSquare)) destList.push(rookSquare);
@@ -57,9 +63,34 @@ export function possibleMoves(game: Chess): Map<Key, Key[]> {
   return dests;
 }
 
-export function isPromotion(dest: Key, piece: { type: string; color: string } | null | undefined): boolean {
+export function isPromotion(
+  dest: Key,
+  piece: { type: string; color: string } | null | undefined
+): boolean {
   if (!piece || piece.type !== 'p') {
     return false;
   }
   return (piece.color === 'w' && dest[1] === '8') || (piece.color === 'b' && dest[1] === '1');
+}
+
+export function getFinalFenFromPgn(
+  pgnStr: string,
+  fallbackFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+): string {
+  if (!pgnStr || !pgnStr.trim()) return fallbackFen;
+  try {
+    const games = parsePgn(pgnStr);
+    if (!games.length) return fallbackFen;
+    const g = games[0];
+    const startRes = startingPosition(g.headers);
+    const temp = startRes.isOk ? startRes.value : Chess.default();
+    for (const child of g.moves.mainlineNodes()) {
+      const m = parseSan(temp, child.data.san);
+      if (!m) break;
+      temp.play(m);
+    }
+    return makeFen(temp.toSetup());
+  } catch {
+    return fallbackFen;
+  }
 }

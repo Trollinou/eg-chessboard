@@ -12,13 +12,24 @@ import {
   defaultHeaders,
   type PgnNodeData,
 } from 'chessops/pgn';
-import { isNormal, type Color as ChessopsColor, type Role, type Move as ChessopsMove } from 'chessops/types';
+import {
+  isNormal,
+  type Color as ChessopsColor,
+  type Role,
+  type Move as ChessopsMove,
+} from 'chessops/types';
 import { Chessground } from '@lichess-org/chessground';
 import type { Api } from '@lichess-org/chessground/api';
 import type { Config } from '@lichess-org/chessground/config';
 import type { Color, Key, MoveMetadata } from '@lichess-org/chessground/types';
 import type { DrawShape } from '@lichess-org/chessground/draw';
-import { possibleMoves, isPromotion, shortToLongColor, getThreats } from './BoardHelper';
+import {
+  possibleMoves,
+  isPromotion,
+  shortToLongColor,
+  getThreats,
+  getFinalFenFromPgn,
+} from './BoardHelper';
 import type { Move, PgnNodeMeta, VariationInfo, PgnTreeNode } from './types';
 
 export interface BoardCoreState {
@@ -424,7 +435,13 @@ export class BoardCore {
     const sq = parseSquare(orig)!;
     const piece = this.pos.board.get(sq);
     const pieceType = piece ? roleToPieceSymbol[piece.role] : 'p';
-    const pieceColor = piece ? (piece.color === 'white' ? 'w' : 'b') : (this.pos.turn === 'white' ? 'w' : 'b');
+    const pieceColor = piece
+      ? piece.color === 'white'
+        ? 'w'
+        : 'b'
+      : this.pos.turn === 'white'
+        ? 'w'
+        : 'b';
 
     if (isPromotion(dest, { type: pieceType, color: pieceColor })) {
       const selectedPromotion = await new Promise<string>((resolve) => {
@@ -714,7 +731,9 @@ export class BoardCore {
 
         const temp = this.pos.clone();
         const moveObj: ChessopsMove = { from: s, to: destSq };
-        const sanStr = parseSan(temp, destStr) ? makeSanAndPlay(temp, moveObj) : `${origStr}${destStr}`;
+        const sanStr = parseSan(temp, destStr)
+          ? makeSanAndPlay(temp, moveObj)
+          : `${origStr}${destStr}`;
         const fenAfter = makeFen(temp.toSetup());
 
         moves.push({
@@ -851,7 +870,9 @@ export class BoardCore {
       const fromSq = parseSquare(moveObj.from);
       const toSq = parseSquare(moveObj.to);
       if (fromSq !== undefined && toSq !== undefined) {
-        const promoRole = moveObj.promotion ? pieceSymbolToRole[moveObj.promotion.toLowerCase()] : undefined;
+        const promoRole = moveObj.promotion
+          ? pieceSymbolToRole[moveObj.promotion.toLowerCase()]
+          : undefined;
         parsedMove = { from: fromSq, to: toSq, promotion: promoRole };
       }
     }
@@ -868,7 +889,10 @@ export class BoardCore {
     const pieceBefore = isNormal(parsedMove) ? this.pos.board.get(parsedMove.from) : undefined;
     const capturedPiece = this.pos.board.get(parsedMove.to);
 
-    const promoChar = isNormal(parsedMove) && parsedMove.promotion ? roleToPieceSymbol[parsedMove.promotion] : undefined;
+    const promoChar =
+      isNormal(parsedMove) && parsedMove.promotion
+        ? roleToPieceSymbol[parsedMove.promotion]
+        : undefined;
     const sanStr = makeSanAndPlay(this.pos, parsedMove);
     const fenAfter = this.getFen();
 
@@ -891,7 +915,10 @@ export class BoardCore {
 
     let childNode: ChildNode<PgnNodeMeta> | undefined;
     for (const child of this.currentNode.children) {
-      if (child.data.san === sanStr || (child.data.move.from === fromStr && child.data.move.to === toStr)) {
+      if (
+        child.data.san === sanStr ||
+        (child.data.move.from === fromStr && child.data.move.to === toStr)
+      ) {
         childNode = child;
         break;
       }
@@ -1115,21 +1142,7 @@ export class BoardCore {
   }
 
   getFinalFenFromPgn(pgnStr: string): string {
-    try {
-      const games = parsePgn(pgnStr);
-      if (!games.length) return this.getFen();
-      const g = games[0];
-      const startRes = startingPosition(g.headers);
-      const temp = startRes.isOk ? startRes.value : Chess.default();
-      for (const child of g.moves.mainlineNodes()) {
-        const m = parseSan(temp, child.data.san);
-        if (!m) break;
-        temp.play(m);
-      }
-      return makeFen(temp.toSetup());
-    } catch {
-      return this.getFen();
-    }
+    return getFinalFenFromPgn(pgnStr, this.getFen());
   }
 
   putPiece(piece: { type: string; color: 'w' | 'b' }, square: Key | string): boolean {
@@ -1171,7 +1184,8 @@ export class BoardCore {
       const pieceBefore = isNormal(parsed) ? c.pos.board.get(parsed.from) : undefined;
       const capturedPiece = c.pos.board.get(parsed.to);
       const colorBefore: 'w' | 'b' = c.pos.turn === 'white' ? 'w' : 'b';
-      const promoChar = isNormal(parsed) && parsed.promotion ? roleToPieceSymbol[parsed.promotion] : undefined;
+      const promoChar =
+        isNormal(parsed) && parsed.promotion ? roleToPieceSymbol[parsed.promotion] : undefined;
 
       const sanStr = makeSanAndPlay(c.pos, parsed);
       const fenAfter = makeFen(c.pos.toSetup());
@@ -1260,7 +1274,10 @@ export class BoardCore {
           dests: undefined,
           free: false,
         },
-        lastMove: ply > 0 ? [path[ply - 1].data.move.from as Key, path[ply - 1].data.move.to as Key] : undefined,
+        lastMove:
+          ply > 0
+            ? [path[ply - 1].data.move.from as Key, path[ply - 1].data.move.to as Key]
+            : undefined,
       });
 
       this.updateCommentAndShapes(fenViewing);

@@ -14,5 +14,6 @@ export {
   isPromotion,
   shortToLongColor,
   getThreats,
+  getFinalFenFromPgn,
   type Threat,
 } from './BoardHelper';

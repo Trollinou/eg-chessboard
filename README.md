@@ -2,7 +2,7 @@
 
 `eg-chessboard` est une bibliothèque de composant d'échiquier modulaire, découplée et isopérimétrique (parité 1:1), conçue pour être utilisée de manière transparente dans des applications **Vue 3** (Vite) et **React** (WordPress Gutenberg Blocks).
 
-Elle s'appuie sur **[@lichess-org/chessground](https://github.com/lichess-org/chessground)** (v10) pour l'interface utilisateur interactive ultra-rapide, **[chess.js](https://github.com/jhlywa/chess.js)** (v1.4.0) pour la validation des règles et la logique échiquéenne, et intègre **[Stockfish](https://github.com/official-stockfish/Stockfish)** (via Web Workers / WASM) pour les suggestions de coups et le jeu contre l'ordinateur.
+Elle s'appuie sur **[@lichess-org/chessground](https://github.com/lichess-org/chessground)** (v10) pour l'interface utilisateur interactive ultra-rapide, **[chessops](https://github.com/niklasf/chessops)** (v0.15+) pour la validation des règles, la gestion des positions et l'analyse d'arbres PGN avec sous-variantes, et intègre **[Stockfish](https://github.com/official-stockfish/Stockfish)** (via Web Workers / WASM) pour les suggestions de coups et le jeu contre l'ordinateur.
 
 ---
 
@@ -10,7 +10,7 @@ Elle s'appuie sur **[@lichess-org/chessground](https://github.com/lichess-org/ch
 
 La bibliothèque est construite selon le principe de **source de vérité unique** :
 
-- **`BoardCore` (TS pur)** : Moteur logique agnostique gérant la partie, l'historique, le matériel, le PGN/FEN, la navigation et la synchronisation avec l'API Chessground.
+- **`BoardCore` (TS pur)** : Moteur logique agnostique gérant la partie, l'historique, le matériel, le PGN/FEN, la navigation dans les arbres de sous-variantes et la synchronisation avec l'API Chessground.
 - **Wrapper Vue 3 (`TheChessboard.vue`)** : Composant Vue 3 réactif prêt à l'emploi.
 - **Wrapper React (`Chessboard.tsx`)** : Composant React (Gutenberg) réactif prêt à l'emploi.
 - **CSS unifié** : Styles de base Chessground accompagnés des pièces au format SVG vectoriel base64.
@@ -60,7 +60,7 @@ npm run format:check
 
 ```vue
 <script setup lang="ts">
-import TheChessboard, { type BoardCore, type StockfishConfig } from 'eg-chessboard/vue';
+import TheChessboard, { type BoardCore, type StockfishConfig, type Move } from 'eg-chessboard/vue';
 import 'eg-chessboard/style.css';
 
 const stockfishConfig: StockfishConfig = {
@@ -76,7 +76,7 @@ function handleBoardCreated(boardApi: BoardCore) {
   console.log('FEN initiale :', boardApi.getFen());
 }
 
-function handleMove(move: any) {
+function handleMove(move: Move) {
   console.log('Coup joué :', move.san);
 }
 
@@ -103,7 +103,7 @@ function handleStockfishHint(bestMove: string) {
 
 ```tsx
 import React from 'react';
-import { Chessboard, type BoardCore, type StockfishConfig } from 'eg-chessboard/react';
+import { Chessboard, type BoardCore, type StockfishConfig, type Move } from 'eg-chessboard/react';
 import 'eg-chessboard/style.css';
 
 export const MyChessComponent: React.FC = () => {
@@ -125,7 +125,7 @@ export const MyChessComponent: React.FC = () => {
         fitContainer
         stockfishConfig={stockfishConfig}
         onBoardCreated={handleBoardCreated}
-        onMove={(move) => console.log('Coup joué :', move.san)}
+        onMove={(move: Move) => console.log('Coup joué :', move.san)}
         onStockfishHint={(bestMove) => console.log('Suggestion :', bestMove)}
       />
     </div>
@@ -137,7 +137,7 @@ export const MyChessComponent: React.FC = () => {
 
 ## 🎛️ Propriétés des Composants (Props)
 
-Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une matrice d'interfaces strictement identique :
+Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une matrice d'interfaces strictly identique :
 
 | Prop | Type | Par défaut | Description |
 | :--- | :--- | :--- | :--- |
@@ -169,7 +169,7 @@ Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une
 
 ---
 
-## 📚 Reference de l'API `BoardCore` (`boardApi`)
+## 📚 Référence de l'API `BoardCore` (`boardApi`)
 
 L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-created` / `onBoardCreated`. Elle constitue l'unique interface d'interaction programmatique avec l'échiquier.
 
@@ -179,7 +179,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | :--- | :--- | :--- |
 | `getFen()` | `string` | FEN complète validée de la position courante. |
 | `getPlacementFen()` | `string` | FEN de placement uniquement (sans trait ni roque), extraite directement de Chessground (utile pour le mode libre ou FENs en cours d'édition). |
-| `getPgn()` | `string` | Chaîne PGN complète de la partie avec entêtes et annotations. |
+| `getPgn()` | `string` | Chaîne PGN complète de la partie avec entêtes, annotations et toutes les sous-variantes entre parenthèses `(...)`. |
 | `getTurnColor()` | `'white' \| 'black'` | Couleur du joueur dont c'est le tour. |
 | `getOrientation()` | `'white' \| 'black'` | Orientation actuelle du plateau de jeu. |
 | `getIsGameOver()` | `boolean` | Indique si la partie est terminée. |
@@ -198,20 +198,20 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `getCapturedPieces()` | `{ white: string[], black: string[] }` | Liste des pièces capturées par chaque couleur. |
 | `getMaterialCount()` | `{ white: number, black: number, diff: number }` | Décompte du matériel et différentiel. |
 | `getPieces()` | `Map<Key, { type: string, color: 'w' \| 'b' }>` | Liste de toutes les pièces présentes sur l'échiquier. |
-| `getHistory(verbose?)` | `Move[] \| string[]` | Historique complet des coups joués. |
-| `getLastMove()` | `Move \| null` | Dernier coup joué. |
+| `getHistory(verbose?)` | `Move[] \| string[]` | Historique des coups joués le long de la ligne active. |
+| `getLastMove()` | `Move \| null` | Dernier coup joué sur la ligne active. |
 
 ### 2. Actions & Modifications de Plateau
 
 | Méthode | Arguments | Description |
 | :--- | :--- | :--- |
-| `move(moveObj)` | `string \| { from: string, to: string, promotion?: string }` | Joue un coup programmatiquement (ex: `'e4'` ou `{ from: 'e2', to: 'e4' }`). |
+| `move(moveObj)` | `string \| { from: string, to: string, promotion?: string }` | Joue un coup programmatiquement (ex: `'e4'` ou `{ from: 'e2', to: 'e4' }`). Crée une nouvelle variante si le coup diffère de la ligne existante. |
 | `setPosition(fen)` | `fen: string` | Charge une FEN. Tolère les FENs incomplètes sans crash. |
 | `setDiagram(diagram)` | `diagram: ChessDiagram` | Charge une position FEN et ses formes (flèches/cercles). |
 | `getDiagram()` | `none` | Retourne l'objet `{ fen, shapes }` représentant la position et les dessins actuels. |
-| `loadPgn(pgn)` | `pgn: string` | Charge une partie PGN complète. |
+| `loadPgn(pgn)` | `pgn: string` | Charge une partie PGN complète avec toutes ses sous-variantes. |
 | `resetBoard()` | `none` | Réinitialise l'échiquier à la position de départ standard. |
-| `undoLastMove()` | `none` | Annule le dernier coup joué. |
+| `undoLastMove()` | `none` | Annule le dernier coup joué et remonte au nœud parent dans l'arbre PGN. |
 | `toggleOrientation()` | `none` | Inverse l'orientation du plateau (Blancs / Noirs). |
 | `putPiece(piece, square)`| `piece: Piece, square: Key \| string` | Dépose une pièce sur une case. |
 | `removePiece(square)` | `square: Key \| string` | Supprime la pièce située sur la case. |
@@ -224,15 +224,18 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `getFinalFenFromPgn(pgn)` | `pgn: string` | Retourne la FEN finale calculée à partir d'une chaîne PGN. |
 | `redraw(clearBounds?)` | `clearBounds = true` | Invalide le cache des coordonnées DOM et ré-exécute un rendu complet. |
 
-### 3. Navigation d'Historique PGN
+### 3. Navigation dans l'Historique & Gestion des Variantes PGN
 
 | Méthode | Arguments | Description |
 | :--- | :--- | :--- |
-| `viewHistory(ply)` | `ply: number` | Navigue vers un demi-coup précis de l'historique PGN. |
+| `viewHistory(ply)` | `ply: number` | Navigue vers un demi-coup précis le long de la branche active. |
 | `stopViewingHistory()`| `none` | Revient au coup de jeu actif. |
 | `viewStart()` | `none` | Navigue au tout début de la partie (ply 0). |
 | `viewNext()` | `none` | Navigue au coup suivant. |
 | `viewPrevious()` | `none` | Navigue au coup précédent. |
+| `getVariationsAtPly(ply?)` | `ply?: number` | Retourne la liste des sous-variantes alternatives (`VariationInfo[]`) disponibles à ce demi-coup. |
+| `selectVariation(index)`| `variationIndex: number` | Bascule le plateau et la ligne active vers la sous-variante indiquée par son index. |
+| `getPgnTree()` | `none` | Retourne l'arborescence PGN complète sous forme d'un arbre `PgnTreeNode`. |
 
 ### 4. Annotations Graphiques & Commentaires PGN
 
@@ -275,9 +278,41 @@ import type {
   BoardCoreState, 
   StockfishConfig, 
   ChessDiagram, 
+  Move,
+  VariationInfo,
+  PgnTreeNode,
   Key, 
   DrawShape 
 } from 'eg-chessboard';
+```
+
+### `Move`
+
+```typescript
+export interface Move {
+  from: string;        // Case de départ (ex: 'e2')
+  to: string;          // Case d'arrivée (ex: 'e4')
+  piece: string;       // Symbole de la pièce ('p', 'n', 'b', 'r', 'q', 'k')
+  color: 'w' | 'b';    // Couleur du joueur
+  san: string;         // Notation SAN (ex: 'Nf3', 'O-O', 'exd5')
+  captured?: string;   // Pièce capturée si applicable
+  promotion?: string;  // Pièce de promotion si applicable
+  before: string;      // FEN avant le coup
+  after: string;       // FEN après le coup
+}
+```
+
+### `VariationInfo`
+
+```typescript
+export interface VariationInfo {
+  index: number;       // Index de la variante
+  san: string;         // Coup SAN de début de variante
+  fen: string;         // FEN résultante
+  move: Move;          // Objet Mouvement associé
+  isMainline: boolean; // Indique si cette variante est la ligne actuellement suivie
+  comments?: string[]; // Commentaires associés
+}
 ```
 
 ### `StockfishConfig`
@@ -348,4 +383,4 @@ Exemple d'intégration dans une disposition Flexbox ou Grid responsive :
 
 ## 📄 Licence
 
-MIT License - Crédits à [Lichess / Chessground](https://github.com/lichess-org/chessground) et [Chess.js](https://github.com/jhlywa/chess.js).
+MIT License - Crédits à [Lichess / Chessground](https://github.com/lichess-org/chessground) et [Lichess / Chessops](https://github.com/niklasf/chessops).
