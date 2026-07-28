@@ -123,6 +123,7 @@ Pour interroger l'état interne de l'échiquier et gérer le nettoyage de maniè
 - `core.isViewingHistory(): boolean` : Indique si la vue navigue actuellement dans l'historique.
 - `core.getInCheckColor(): 'white' | 'black' | null` : Retourne la couleur du joueur en échec (ou `null`).
 - `core.getGameOverReason(lang?: 'fr' | 'en'): string` : Retourne la raison formatée de fin de partie (*ex: "Échec et mat ! Les Blancs ont gagné."*).
+- `getFinalFenFromPgn(pgnStr: string, fallbackFen?: string): string` : Fonction utilitaire autonome (exportée depuis `BoardHelper` et à la racine d'`eg-chessboard`) qui calcule la FEN finale en rejouant la variante principale du PGN via `chessops`. Permet aux applications hôtes (ex: plugin ROI) de déterminer la position finale d'un PGN sans manipuler directement l'API de `chessops`.
 - `core.destroy(): void` : Libère proprement toutes les sous-ressources (Workers Stockfish, instance DOM Chessground). Appelé automatiquement au démontage des wrappers React (`useEffect` cleanup) et Vue 3 (`onUnmounted`).
 
 ---

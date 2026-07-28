@@ -268,6 +268,21 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 
 ---
 
+### 7. Fonctions Utilitaires Autonomes (Helper Functions)
+
+Ces fonctions d'aide sont directement exportées à la racine de la bibliothèque (`eg-chessboard`, `eg-chessboard/vue`, `eg-chessboard/react`) et n'exigent pas d'instancier un échiquier :
+
+| Fonction | Arguments | Type de retour | Description |
+| :--- | :--- | :--- | :--- |
+| `getFinalFenFromPgn(pgn, fallbackFen?)` | `pgn: string, fallbackFen?: string` | `string` | Déroule la variante principale d'une chaîne PGN via `chessops` et retourne la FEN finale calculée. Renvoie `fallbackFen` (position initiale par défaut) si le PGN est invalide ou vide. |
+| `possibleMoves(game)` | `game: Chess` | `Map<Key, Key[]>` | Calcule la carte des coups légaux pour Chessground. |
+| `getThreats(moves)` | `moves: Move[]` | `Threat[]` | Génère la liste des attaques et menaces visuelles. |
+| `isPromotion(dest, piece)` | `dest: Key, piece: Piece` | `boolean` | Indique si le déplacement spécifié correspond à une promotion de pion. |
+| `shortToLongColor(color)` | `color: 'w' \| 'b'` | `'white' \| 'black'` | Convertit la notation courte de couleur vers la notation longue. |
+
+
+---
+
 ## ⚙️ Interfaces et Typage TypeScript
 
 Les types suivants sont ré-exportés directement depuis le point d'entrée principal (`eg-chessboard`, `eg-chessboard/vue`, `eg-chessboard/react`) :
@@ -284,6 +299,7 @@ import type {
   Key, 
   DrawShape 
 } from 'eg-chessboard';
+import { getFinalFenFromPgn } from 'eg-chessboard';
 ```
 
 ### `Move`
