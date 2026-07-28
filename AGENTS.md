@@ -1,7 +1,5 @@
 # Spécification d'Isopérimètre : eg-chessboard
 
-> **ATTENTION AGENT** : L'agent n'est STRICTEMENT PAS HABILITÉ à effectuer des modifications de code directement dans le dépôt `eg-chessboard`. En cas de bug ou dysfonctionnement identifié sur ce module, l'agent doit obligatoirement produire un rapport de bug détaillé (bug report) afin d'en permettre la remontée et la correction.
-
 ## 1. Principes Fondamentaux d'Architecture
 
 Pour éviter les divergences de comportement entre le modèle _pull/immutabilité_ de React et le modèle _push/Proxy_ de Vue 3 :
