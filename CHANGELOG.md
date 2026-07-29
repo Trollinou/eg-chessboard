@@ -4,6 +4,16 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [1.2.2] - 2026-07-29
+
+### Corrigé
+
+- **Mode Libre (`freeMode`) & Réinitialisation des pièces déplacées hors-tour** :
+  - Adaptation dynamique du trait (`this.pos.turn`) à la couleur de la pièce déplacée dans `move()` lorsque `this.state.freeMode` est actif, permettant l'enchaînement de coups consécutifs de même couleur sans erreur de validation.
+  - Extraction de la FEN de placement directement depuis `this.board.state.pieces` (Chessground) dans `getPlacementFen()`, empêchant la réinitialisation visuelle des pièces hors-tour lors des coups suivants.
+
+---
+
 ## [1.2.1] - 2026-07-27
 
 ### Ajouté

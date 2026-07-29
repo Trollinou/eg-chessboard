@@ -85,6 +85,44 @@ const pieceSymbolToRole: Record<string, Role> = {
   k: 'king',
 };
 
+function boardPiecesToPlacementFen(
+  pieces: Map<Key, { role: Role; color: Color }>
+): string {
+  const roleToChar: Record<string, string> = {
+    pawn: 'p',
+    knight: 'n',
+    bishop: 'b',
+    rook: 'r',
+    queen: 'q',
+    king: 'k',
+  };
+  const ranks: string[] = [];
+  for (let rank = 8; rank >= 1; rank--) {
+    let rankStr = '';
+    let emptyCount = 0;
+    for (let fileIdx = 0; fileIdx < 8; fileIdx++) {
+      const file = String.fromCharCode(97 + fileIdx);
+      const square = `${file}${rank}` as Key;
+      const piece = pieces.get(square);
+      if (piece) {
+        if (emptyCount > 0) {
+          rankStr += emptyCount.toString();
+          emptyCount = 0;
+        }
+        const char = roleToChar[piece.role] || 'p';
+        rankStr += piece.color === 'white' ? char.toUpperCase() : char;
+      } else {
+        emptyCount++;
+      }
+    }
+    if (emptyCount > 0) {
+      rankStr += emptyCount.toString();
+    }
+    ranks.push(rankStr);
+  }
+  return ranks.join('/');
+}
+
 class TransformContext {
   constructor(public pos: Chess) {}
   clone(): TransformContext {
@@ -388,11 +426,14 @@ export class BoardCore {
         }
       }
 
+      const lastMove = this.getLastMove();
+
       this.board.set({
         ...(updateFen ? { fen: this.getFen() } : {}),
         turnColor: this.getTurnColor(),
         check: this.pos.isCheck() ? this.getTurnColor() : undefined,
         animation: { enabled: !isPreserve && !isFree },
+        lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
         movable: {
           free: isFree,
           color: isFree ? 'both' : this.userMovableColor || this.getTurnColor(),
@@ -870,16 +911,49 @@ export class BoardCore {
     console.log('[BoardCore] move called with:', moveObj);
     let parsedMove: ChessopsMove | undefined;
 
-    if (typeof moveObj === 'string') {
-      parsedMove = parseSan(this.pos, moveObj);
+    if (this.state.freeMode) {
+      if (typeof moveObj === 'string') {
+        const posWhite = this.pos.clone();
+        posWhite.turn = 'white';
+        const moveWhite = parseSan(posWhite, moveObj);
+        if (moveWhite && posWhite.isLegal(moveWhite)) {
+          this.pos.turn = 'white';
+          parsedMove = moveWhite;
+        } else {
+          const posBlack = this.pos.clone();
+          posBlack.turn = 'black';
+          const moveBlack = parseSan(posBlack, moveObj);
+          if (moveBlack && posBlack.isLegal(moveBlack)) {
+            this.pos.turn = 'black';
+            parsedMove = moveBlack;
+          }
+        }
+      } else {
+        const fromSq = parseSquare(moveObj.from);
+        const toSq = parseSquare(moveObj.to);
+        if (fromSq !== undefined && toSq !== undefined) {
+          const promoRole = moveObj.promotion
+            ? pieceSymbolToRole[moveObj.promotion.toLowerCase()]
+            : undefined;
+          parsedMove = { from: fromSq, to: toSq, promotion: promoRole };
+          const piece = this.pos.board.get(fromSq);
+          if (piece) {
+            this.pos.turn = piece.color;
+          }
+        }
+      }
     } else {
-      const fromSq = parseSquare(moveObj.from);
-      const toSq = parseSquare(moveObj.to);
-      if (fromSq !== undefined && toSq !== undefined) {
-        const promoRole = moveObj.promotion
-          ? pieceSymbolToRole[moveObj.promotion.toLowerCase()]
-          : undefined;
-        parsedMove = { from: fromSq, to: toSq, promotion: promoRole };
+      if (typeof moveObj === 'string') {
+        parsedMove = parseSan(this.pos, moveObj);
+      } else {
+        const fromSq = parseSquare(moveObj.from);
+        const toSq = parseSquare(moveObj.to);
+        if (fromSq !== undefined && toSq !== undefined) {
+          const promoRole = moveObj.promotion
+            ? pieceSymbolToRole[moveObj.promotion.toLowerCase()]
+            : undefined;
+          parsedMove = { from: fromSq, to: toSq, promotion: promoRole };
+        }
       }
     }
 
@@ -1019,6 +1093,9 @@ export class BoardCore {
   }
 
   getPlacementFen(): string {
+    if (this.board?.state?.pieces) {
+      return boardPiecesToPlacementFen(this.board.state.pieces);
+    }
     return this.getFen().split(' ')[0];
   }
 
