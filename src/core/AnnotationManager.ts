@@ -68,7 +68,11 @@ export class AnnotationManager {
     preserveShapes: boolean
   ): void {
     const currentShapes = board?.state?.drawable?.shapes || [];
-    this.applyBoardShapes([...currentShapes, { orig: square as Key, brush }], board, preserveShapes);
+    this.applyBoardShapes(
+      [...currentShapes, { orig: square as Key, brush }],
+      board,
+      preserveShapes
+    );
   }
 
   public parseComment(commentStr: string): { text: string; shapes: DrawShape[] } {

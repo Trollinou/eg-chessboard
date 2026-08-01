@@ -4,6 +4,35 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [1.3.0] - 2026-08-01
+
+### Ajouté
+
+- **Migration de `chess.js` vers `chessops` & Support des sous-variantes PGN** :
+  - Remplacement complet de `chess.js` par la bibliothèque hautement performante `chessops` (v0.15.1).
+  - Gestion native de l'arborescence PGN (`PgnTreeNode`), des commentaires textuels et des balises graphiques `[%cal]` / `[%cpl]`.
+  - Nouvelles méthodes API publiques sur `BoardCore` pour explorer et manipuler les sous-variantes PGN : `getVariationsAtPly()`, `selectVariation()`, `getPgnTree()`.
+  - Fonction utilitaire exportée `getFinalFenFromPgn(pgn, fallbackFen)` pour obtenir la FEN finale d'un PGN sans manipuler l'API `chessops`.
+
+### Refactorisation
+
+- **Décomposition de `BoardCore` en sub-managers (`src/core/`)** :
+  - Restructuration modulaire sous `src/core/` en 6 gestionnaires dédiés : `DomHandler`, `StockfishManager`, `ExerciseManager`, `AnnotationManager`, `PgnTreeManager` et `HistoryViewerManager`.
+  - `BoardCore` agit comme Façade conservant l'API publique inchangée.
+
+### Modifié & Optimisé
+
+- **Performance & Calcul des coups** :
+  - Intégration directe de `chessgroundDests` et mise en cache des calculs FEN pour accélérer les déplacements et le tracé.
+  - Normalisation des cases de destination du roque pour Chessground (support des formats `e1g1` et `e1h1`).
+
+### Corrigé
+
+- **Mode Libre (`freeMode`)** : Correction du réalignement du trait dynamique empêchant la réinitialisation des pièces hors-tour lors de coups consécutifs de même couleur.
+- **Prise en passant (`en-passant`)** : Synchronisation précise de la FEN et détection exacte des pièces capturées lors des coups en passant.
+
+---
+
 ## [1.2.2] - 2026-07-29
 
 ### Corrigé

@@ -2,7 +2,12 @@ import { Chess, parseSquare, makeSquare } from 'chessops';
 import { parseFen, makeFen } from 'chessops/fen';
 import { parseSan, makeSanAndPlay } from 'chessops/san';
 import { isChildNode, ChildNode } from 'chessops/pgn';
-import { isNormal, type Color as ChessopsColor, type Role, type Move as ChessopsMove } from 'chessops/types';
+import {
+  isNormal,
+  type Color as ChessopsColor,
+  type Role,
+  type Move as ChessopsMove,
+} from 'chessops/types';
 import { Chessground } from '@lichess-org/chessground';
 import type { Api } from '@lichess-org/chessground/api';
 import type { Config } from '@lichess-org/chessground/config';
@@ -259,9 +264,7 @@ export class BoardCore {
     const mergedMovable = {
       free: isFree,
       color: (isFree ? 'both' : this.userMovableColor || this.getTurnColor()) as
-        | 'white'
-        | 'black'
-        | 'both',
+        'white' | 'black' | 'both',
       dests: isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.pos),
       events: defaultEvents,
       ...(userConfig.movable || {}),
@@ -473,10 +476,7 @@ export class BoardCore {
   }
 
   private handleDrawableChange(shapes: DrawShape[]): void {
-    if (
-      this.annotationManager.isDrawingUpdate ||
-      this.annotationManager.isProgrammaticShapeUpdate
-    )
+    if (this.annotationManager.isDrawingUpdate || this.annotationManager.isProgrammaticShapeUpdate)
       return;
 
     this.annotationManager.isDrawingUpdate = true;
@@ -983,10 +983,7 @@ export class BoardCore {
   }
 
   public getHistory(verbose = false): Move[] | string[] {
-    return this.historyViewerManager.getHistory(
-      this.pgnTreeManager.getActivePath(),
-      verbose
-    );
+    return this.historyViewerManager.getHistory(this.pgnTreeManager.getActivePath(), verbose);
   }
 
   public getFen(): string {
