@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import TheChessboard from '../src/vue/TheChessboard.vue';
 import type { BoardCore } from '../src/BoardCore';
+import type { VariationInfo } from '../src/types';
 
 const boardCore = ref<BoardCore | null>(null);
 const pgnText = ref<string>(
@@ -26,6 +27,7 @@ const currentComment = ref<string>('');
 const isHistoryEnabled = ref<boolean>(false);
 const plyViewing = ref<number>(0);
 const totalPlies = ref<number>(0);
+const variations = ref<VariationInfo[]>([]);
 
 function onBoardCreated(core: BoardCore) {
   boardCore.value = core;
@@ -47,19 +49,40 @@ function handleLoadPgn() {
   }
 }
 
+function loadVariantPgn() {
+  pgnText.value =
+    `[Event "Exemple avec Variantes PGN"]\n` +
+    `[Site "Lichess"]\n` +
+    `[Date "2026.07.28"]\n` +
+    `[White "Joueur A"]\n` +
+    `[Black "Joueur B"]\n` +
+    `[Result "*"]\n\n` +
+    `1. e4 e5 (1... c5 { [%cal Gc5d4] La défense sicilienne. } 2. Nf3 d6 3. d4 cxd4 4. Nxd4) ` +
+    `2. Nf3 Nc6 (2... Nf6 { [%cal Gf6e4] La défense Petroff. } 3. Nxe5 d6) ` +
+    `3. Bc4 Bc5 { [%cpl Bc5] L'ouverture italienne classique. } *`;
+  handleLoadPgn();
+}
+
 function syncState() {
   const core = boardCore.value;
   if (!core) return;
 
   // Sync comment
-  currentComment.value = core['state'].currentComment || '';
+  currentComment.value = core.getCurrentComment();
 
   // Sync history state
-  const historyState = core['state'].historyViewerState;
+  const historyState = core.getHistoryViewerState();
   isHistoryEnabled.value = !!historyState.isEnabled;
   plyViewing.value =
-    historyState.plyViewing !== undefined ? historyState.plyViewing : core.getHistory().length;
-  totalPlies.value = core.getHistory().length;
+    historyState.plyViewing !== undefined ? historyState.plyViewing : core.getCurrentPlyNumber();
+  totalPlies.value = core.getCurrentPlyNumber();
+  variations.value = core.getVariationsAtPly();
+}
+
+function selectVar(idx: number) {
+  if (boardCore.value?.selectVariation(idx)) {
+    syncState();
+  }
 }
 
 // Navigation methods
@@ -116,6 +139,7 @@ function goLive() {
           ></textarea>
           <div class="button-row">
             <button class="primary-btn" @click="handleLoadPgn">Charger le PGN</button>
+            <button class="secondary-btn" @click="loadVariantPgn">Exemple avec Variantes</button>
           </div>
           <p v-if="loadError" class="error-msg">{{ loadError }}</p>
         </div>
@@ -128,6 +152,21 @@ function goLive() {
             <p v-else class="no-comment">
               Aucune explication ou commentaire disponible pour cette position.
             </p>
+          </div>
+        </div>
+
+        <!-- Section Variantes (si plusieurs sous-lignes existent) -->
+        <div v-if="variations.length > 1" class="glass-card variations-card">
+          <h2>🌿 Variantes alternatives à ce coup</h2>
+          <div class="variations-buttons">
+            <button
+              v-for="v in variations"
+              :key="v.index"
+              :class="['var-btn', { active: v.isMainline }]"
+              @click="selectVar(v.index)"
+            >
+              {{ v.san }} <span v-if="v.isMainline">(Active)</span>
+            </button>
           </div>
         </div>
 
@@ -286,5 +325,33 @@ function goLive() {
 .help-card li {
   margin-bottom: 6px;
   font-size: 0.9rem;
+}
+
+.variations-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.var-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.var-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.var-btn.active {
+  background: #3b82f6;
+  border-color: #60a5fa;
+  font-weight: bold;
 }
 </style>

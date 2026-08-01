@@ -1,14 +1,14 @@
 import React, { useRef, useEffect, useState } from 'react';
 import type { Config } from '@lichess-org/chessground/config';
 import type { DrawShape } from '@lichess-org/chessground/draw';
-import type { Move } from 'chess.js';
+import type { Move } from '../types';
 import {
   BoardCore,
   type BoardCoreState,
   type StockfishConfig,
   type ChessDiagram,
 } from '../BoardCore';
-export { BoardCore, type BoardCoreState, type StockfishConfig, type ChessDiagram };
+export { BoardCore, type BoardCoreState, type StockfishConfig, type ChessDiagram, type Move };
 import { PromotionDialog } from './components/PromotionDialog';
 
 export interface ChessboardProps {

@@ -1,5 +1,10 @@
-import type { Chess, Move, Piece, Square } from 'chess.js';
+import { Chess } from 'chessops/chess';
+import { chessgroundDests } from 'chessops/compat';
+import { parsePgn, startingPosition } from 'chessops/pgn';
+import { parseSan } from 'chessops/san';
+import { makeFen } from 'chessops/fen';
 import type { Color, Key } from '@lichess-org/chessground/types';
+import type { Move } from './types';
 
 export interface Threat {
   orig: Key;
@@ -25,32 +30,38 @@ export function shortToLongColor(color: 'w' | 'b'): Color {
   return color === 'w' ? 'white' : 'black';
 }
 
-const fileNames = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-const rankNames = ['1', '2', '3', '4', '5', '6', '7', '8'];
-const SQUARES: Key[] = [];
-for (const rank of rankNames) {
-  for (const file of fileNames) {
-    SQUARES.push((file + rank) as Key);
-  }
-}
-
 export function possibleMoves(game: Chess): Map<Key, Key[]> {
-  const dests: Map<Key, Key[]> = new Map();
-  for (const square of SQUARES) {
-    const moves = game.moves({ square: square as Square, verbose: true }) as Move[];
-    if (moves.length) {
-      dests.set(
-        moves[0].from as Key,
-        moves.map((m) => m.to as Key)
-      );
-    }
-  }
-  return dests;
+  return chessgroundDests(game) as Map<Key, Key[]>;
 }
 
-export function isPromotion(dest: Key, piece: Piece | null | undefined): boolean {
+export function isPromotion(
+  dest: Key,
+  piece: { type: string; color: string } | null | undefined
+): boolean {
   if (!piece || piece.type !== 'p') {
     return false;
   }
   return (piece.color === 'w' && dest[1] === '8') || (piece.color === 'b' && dest[1] === '1');
+}
+
+export function getFinalFenFromPgn(
+  pgnStr: string,
+  fallbackFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+): string {
+  if (!pgnStr || !pgnStr.trim()) return fallbackFen;
+  try {
+    const games = parsePgn(pgnStr);
+    if (!games.length) return fallbackFen;
+    const g = games[0];
+    const startRes = startingPosition(g.headers);
+    const temp = startRes.isOk ? startRes.value : Chess.default();
+    for (const child of g.moves.mainlineNodes()) {
+      const m = parseSan(temp, child.data.san);
+      if (!m) break;
+      temp.play(m);
+    }
+    return makeFen(temp.toSetup());
+  } catch {
+    return fallbackFen;
+  }
 }

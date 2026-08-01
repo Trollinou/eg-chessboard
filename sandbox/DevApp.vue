@@ -168,13 +168,30 @@ const handleSoloUndo = () => {
 // - whiteWorker in 'hint' mode
 // - blackWorker in 'elo' mode with elo = 1400
 // - blackWorker reflection time = 1500ms
-const stockfishConfig = reactive<StockfishConfig>({
+const isStockfishDisabled = ref<boolean>(false);
+
+const playerColor = computed<'white' | 'black' | 'both'>(() =>
+  isStockfishDisabled.value ? 'both' : 'white'
+);
+
+const baseStockfishConfig = reactive<StockfishConfig>({
   workerUrl: '/stockfish.js',
   whiteMode: 'hint',
   whiteElo: 1500, // Hint mode uses full strength anyway
   blackMode: 'elo',
   blackElo: 1400,
   stockfishMoveTime: 1500,
+});
+
+const stockfishConfig = computed<StockfishConfig>(() => {
+  if (isStockfishDisabled.value) {
+    return {
+      workerUrl: '/stockfish.js',
+      whiteMode: 'disabled',
+      blackMode: 'disabled',
+    };
+  }
+  return baseStockfishConfig;
 });
 
 const onBoardCreated = (core: BoardCore) => {
@@ -213,7 +230,9 @@ const syncState = () => {
     gameStatus.value =
       currentTurn.value === 'white'
         ? 'À vous de jouer ! (Blancs)'
-        : 'Stockfish réfléchit... (Noirs)';
+        : isStockfishDisabled.value
+          ? 'À vous de jouer ! (Noirs)'
+          : 'Stockfish réfléchit... (Noirs)';
   }
 };
 
@@ -331,7 +350,7 @@ const formatMove = (move: string, index: number) => {
       <section class="board-column">
         <div class="board-wrapper">
           <TheChessboard
-            player-color="white"
+            :player-color="playerColor"
             :stockfish-config="stockfishConfig"
             @board-created="onBoardCreated"
             @move="onMove"
@@ -356,7 +375,7 @@ const formatMove = (move: string, index: number) => {
         </div>
 
         <!-- Hint Card -->
-        <div class="glass-card hint-card">
+        <div v-if="!isStockfishDisabled" class="glass-card hint-card">
           <h2>Suggestion d'aide (Mode Hint)</h2>
           <p class="description">
             Le <strong>whiteWorker</strong> analyse la position et propose le meilleur coup pour
@@ -377,20 +396,22 @@ const formatMove = (move: string, index: number) => {
           <h2>Configuration de la partie</h2>
           <div class="config-grid">
             <div class="config-item">
-              <span class="config-label">Joueur Blanc (Vous) :</span>
-              <span class="config-value white-text">Humain + Hint</span>
+              <span class="config-label">Mode :</span>
+              <span class="config-value">{{
+                isStockfishDisabled ? '👥 2 Joueurs (Manuel)' : '🤖 vs Stockfish IA'
+              }}</span>
             </div>
             <div class="config-item">
-              <span class="config-label">Joueur Noir (Stockfish) :</span>
-              <span class="config-value black-text">ELO {{ stockfishConfig.blackElo }}</span>
+              <span class="config-label">Joueur Blanc :</span>
+              <span class="config-value white-text">{{
+                isStockfishDisabled ? 'Humain' : 'Humain + Hint'
+              }}</span>
             </div>
             <div class="config-item">
-              <span class="config-label">Temps de réflexion :</span>
-              <span class="config-value">{{ stockfishConfig.stockfishMoveTime }} ms</span>
-            </div>
-            <div class="config-item">
-              <span class="config-label">Moteur (Blancs) :</span>
-              <span class="config-value">Hint Actif</span>
+              <span class="config-label">Joueur Noir :</span>
+              <span class="config-value black-text">{{
+                isStockfishDisabled ? 'Humain' : `Stockfish (ELO ${baseStockfishConfig.blackElo})`
+              }}</span>
             </div>
           </div>
         </div>
@@ -401,6 +422,18 @@ const formatMove = (move: string, index: number) => {
           <div class="action-buttons">
             <button id="btn-new" class="btn btn-primary" @click="handleNewGame">
               🔄 Nouvelle Partie
+            </button>
+            <button
+              id="btn-toggle-stockfish"
+              :class="{ active: isStockfishDisabled }"
+              class="btn btn-secondary"
+              @click="isStockfishDisabled = !isStockfishDisabled"
+            >
+              {{
+                isStockfishDisabled
+                  ? '🤖 Activer Stockfish (IA)'
+                  : '👥 Débrayer Stockfish (2 Joueurs)'
+              }}
             </button>
             <button
               id="btn-undo"
@@ -616,8 +649,8 @@ const formatMove = (move: string, index: number) => {
                 "
               >
                 <input
-                  type="checkbox"
                   v-model="editorPreserveShapes"
+                  type="checkbox"
                   style="width: 18px; height: 18px; accent-color: var(--primary)"
                 />
                 <strong>Conservations des Formes (Flèches/Cercles)</strong>

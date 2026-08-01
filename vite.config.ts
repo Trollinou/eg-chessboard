@@ -44,7 +44,7 @@ export default defineConfig(({ command }) => {
         formats: ['es'],
       },
       rollupOptions: {
-        external: ['vue', 'react', 'react-dom', 'react/jsx-runtime', 'chess.js', '@lichess-org/chessground'],
+        external: ['vue', 'react', 'react-dom', 'react/jsx-runtime', 'chessops', '@lichess-org/chessground'],
         output: {
           entryFileNames: '[name].js',
           chunkFileNames: 'chunks/[name]-[hash].js',
@@ -53,7 +53,7 @@ export default defineConfig(({ command }) => {
             vue: 'Vue',
             react: 'React',
             'react-dom': 'ReactDOM',
-            'chess.js': 'Chess',
+            chessops: 'chessops',
             '@lichess-org/chessground': 'Chessground',
           },
         },
