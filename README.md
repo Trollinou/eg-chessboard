@@ -10,7 +10,13 @@ Elle s'appuie sur **[@lichess-org/chessground](https://github.com/lichess-org/ch
 
 La bibliothèque est construite selon le principe de **source de vérité unique** :
 
-- **`BoardCore` (TS pur)** : Moteur logique agnostique gérant la partie, l'historique, le matériel, le PGN/FEN, la navigation dans les arbres de sous-variantes et la synchronisation avec l'API Chessground.
+- **`BoardCore` (TS pur - Façade d'Orchestration)** : Moteur logique agnostique qui orchestre l'état et offre l'interface unifiée avec les wrappers. Il s'appuie sur des sous-modules spécialisés sous `src/core/` :
+  - **`DomHandler`** : Événements pointer/mouse/touch et calcul dynamique des cases.
+  - **`StockfishManager`** : Gestion du cycle de vie et communications avec les Web Workers Stockfish (UCI).
+  - **`ExerciseManager`** : Restrictions de mouvements (`restrictMovesToPieces`), détection d'attaques et historique solo.
+  - **`AnnotationManager`** : Parsing des annotations PGN (`[%cal]`, `[%cpl]`) et gestion des formes graphiques (flèches/cercles).
+  - **`PgnTreeManager`** : Arbre PGN (`Node<PgnNodeMeta>`), gestion des sous-variantes et parsing SAN.
+  - **`HistoryViewerManager`** : Navigation pas-à-pas dans l'historique des demi-coups.
 - **Wrapper Vue 3 (`TheChessboard.vue`)** : Composant Vue 3 réactif prêt à l'emploi.
 - **Wrapper React (`Chessboard.tsx`)** : Composant React (Gutenberg) réactif prêt à l'emploi.
 - **CSS unifié** : Styles de base Chessground accompagnés des pièces au format SVG vectoriel base64.

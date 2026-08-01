@@ -649,8 +649,8 @@ const formatMove = (move: string, index: number) => {
                 "
               >
                 <input
-                  type="checkbox"
                   v-model="editorPreserveShapes"
+                  type="checkbox"
                   style="width: 18px; height: 18px; accent-color: var(--primary)"
                 />
                 <strong>Conservations des Formes (Flèches/Cercles)</strong>
