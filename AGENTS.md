@@ -7,7 +7,14 @@ Pour éviter les divergences de comportement entre le modèle _pull/immutabilit�
 1. **Source de Vérité Unique** : L'état du jeu réside exclusivement dans `BoardCore`. Les frameworks ne font que refléter cet état graphiquement.
 2. **Mutations Interdites depuis la Vue** : Aucun wrapper (React ou Vue) ne doit modifier directement l'objet `state` ou ses sous-propriétés (ex: `state.promotionDialogState`). Toute modification doit passer par une méthode publique de `BoardCore`.
 3. **Flux Unidirectionnel avec Événements** : Le cœur notifie les wrappers de tout changement d'état interne via un mécanisme d'écoute (`onStateChange`). Le wrapper React met alors à jour son `useState` (via le getter public `core.getState()`), et le wrapper Vue met à jour sa référence réactive.
-4. **Pas de Fuite d'Abstraction** : L'accès aux propriétés privées par contournement de typage (ex: `coreRef.current['state']`) est strictement interdit. Toutes les lectures d'état se font via les getters publics (`getState()`, `getCurrentComment()`, `getHistoryViewerState()`, `isViewingHistory()`, etc.).
+4. **Pas de Fuite d'Abstraction** : L'accès aux propriétés privées par contournement de typage (ex: `coreRef.current['state']`) est strictly interdit. Toutes les lectures d'état se font via les getters publics (`getState()`, `getCurrentComment()`, `getHistoryViewerState()`, `isViewingHistory()`, etc.).
+5. **Décomposition Modulaire sous `src/core/`** : `BoardCore` agit comme une **Façade** conservant l'API publique inchangée et déléguant les traitements internes à ses sub-managers dédiés :
+   - `DomHandler` : Gestion des événements DOM (pointer/mouse/touch) et calcul des cases.
+   - `StockfishManager` : Cycle de vie et messages des Web Workers Stockfish.
+   - `ExerciseManager` : Restrictions de coups, attaques et mode solo.
+   - `AnnotationManager` : Formes dessinées, menaces et balises PGN `[%cal]`/`[%cpl]`.
+   - `PgnTreeManager` : Arbre PGN, nœuds de sous-variantes et parsing.
+   - `HistoryViewerManager` : Navigation et états d'affichage de l'historique.
 
 ---
 

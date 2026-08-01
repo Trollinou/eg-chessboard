@@ -1,28 +1,14 @@
 import { Chess, parseSquare, makeSquare } from 'chessops';
 import { parseFen, makeFen } from 'chessops/fen';
 import { parseSan, makeSanAndPlay } from 'chessops/san';
-import {
-  parsePgn,
-  makePgn,
-  Node,
-  ChildNode,
-  isChildNode,
-  transform,
-  startingPosition,
-  defaultHeaders,
-  type PgnNodeData,
-} from 'chessops/pgn';
-import {
-  isNormal,
-  type Color as ChessopsColor,
-  type Role,
-  type Move as ChessopsMove,
-} from 'chessops/types';
+import { isChildNode, ChildNode } from 'chessops/pgn';
+import { isNormal, type Color as ChessopsColor, type Role, type Move as ChessopsMove } from 'chessops/types';
 import { Chessground } from '@lichess-org/chessground';
 import type { Api } from '@lichess-org/chessground/api';
 import type { Config } from '@lichess-org/chessground/config';
 import type { Color, Key, MoveMetadata } from '@lichess-org/chessground/types';
 import type { DrawShape } from '@lichess-org/chessground/draw';
+
 import {
   possibleMoves,
   isPromotion,
@@ -31,6 +17,13 @@ import {
   getFinalFenFromPgn,
 } from './BoardHelper';
 import type { Move, PgnNodeMeta, VariationInfo, PgnTreeNode } from './types';
+
+import { DomHandler } from './core/DomHandler';
+import { StockfishManager, type StockfishConfig } from './core/StockfishManager';
+import { ExerciseManager } from './core/ExerciseManager';
+import { AnnotationManager } from './core/AnnotationManager';
+import { HistoryViewerManager } from './core/HistoryViewerManager';
+import { PgnTreeManager } from './core/PgnTreeManager';
 
 export interface BoardCoreState {
   showThreats: boolean;
@@ -50,17 +43,7 @@ export interface BoardCoreState {
   currentComment?: string;
 }
 
-export type StockfishMode = 'disabled' | 'hint' | 'elo';
-
-export interface StockfishConfig {
-  whiteMode?: StockfishMode;
-  whiteElo?: number;
-  blackMode?: StockfishMode;
-  blackElo?: number;
-  stockfishMoveTime?: number; // millisecondes
-  workerUrl?: string; // URL vers stockfish.js
-  wasmUrl?: string; // URL vers le binaire stockfish.wasm
-}
+export type { StockfishConfig, StockfishMode } from './core/StockfishManager';
 
 export interface ChessDiagram {
   fen: string;
@@ -85,9 +68,7 @@ const pieceSymbolToRole: Record<string, Role> = {
   k: 'king',
 };
 
-function boardPiecesToPlacementFen(
-  pieces: Map<Key, { role: Role; color: Color }>
-): string {
+function boardPiecesToPlacementFen(pieces: Map<Key, { role: Role; color: Color }>): string {
   const roleToChar: Record<string, string> = {
     pawn: 'p',
     knight: 'n',
@@ -123,47 +104,25 @@ function boardPiecesToPlacementFen(
   return ranks.join('/');
 }
 
-class TransformContext {
-  constructor(public pos: Chess) {}
-  clone(): TransformContext {
-    return new TransformContext(this.pos.clone());
-  }
-}
-
-class EmptyContext {
-  clone(): EmptyContext {
-    return new EmptyContext();
-  }
-}
-
 export class BoardCore {
   public pos: Chess;
   public board!: Api;
-  private boardElement: HTMLElement;
+
   private state: BoardCoreState;
   private onStateChange: () => void;
   private emitEvent: (event: string, ...args: unknown[]) => void;
   private initialConfig: Config;
-
-  // Stockfish Workers
-  private whiteWorker: Worker | null = null;
-  private blackWorker: Worker | null = null;
-  private stockfishConfig: StockfishConfig = {};
-  public lastSuggestedMove = '';
-  private customDests: Map<Key, Key[]> | null = null;
-  private soloHistory: Move[] = [];
-  private isDrawingUpdate = false;
-  private isProgrammaticShapeUpdate = false;
-  private currentPreservedShapes: DrawShape[] = [];
-  private lastMouseButton = -1;
   private userMovableColor: 'white' | 'black' | 'both' | undefined;
   private cachedFen: string | null = null;
+  private isSyncing = false;
 
-  // PGN Tree Management
-  private headers: Map<string, string> = defaultHeaders();
-  private rootNode: Node<PgnNodeMeta> = new Node<PgnNodeMeta>();
-  private currentNode: Node<PgnNodeMeta> = this.rootNode;
-  private rootPos: Chess = Chess.default();
+  // Sub-managers
+  private domHandler: DomHandler;
+  private stockfishManager: StockfishManager;
+  private exerciseManager: ExerciseManager;
+  private annotationManager: AnnotationManager;
+  private historyViewerManager: HistoryViewerManager;
+  private pgnTreeManager: PgnTreeManager;
 
   constructor(
     boardElement: HTMLElement,
@@ -174,32 +133,31 @@ export class BoardCore {
     stockfishConfig: StockfishConfig = {},
     diagram?: ChessDiagram
   ) {
-    this.boardElement = boardElement;
     this.state = state;
     this.onStateChange = onStateChange;
     this.emitEvent = emitEvent;
     this.initialConfig = initialConfig;
-    this.stockfishConfig = stockfishConfig;
     this.userMovableColor = initialConfig.movable?.color;
     this.pos = Chess.default();
-    this.rootPos = this.pos.clone();
 
-    this.boardElement.addEventListener(
-      'touchstart',
-      () => {
-        this.lastMouseButton = 0;
-        this.redraw(true);
-      },
-      { capture: true }
+    // Sub-managers initialization
+    this.domHandler = new DomHandler(boardElement);
+    this.exerciseManager = new ExerciseManager();
+    this.annotationManager = new AnnotationManager();
+    this.historyViewerManager = new HistoryViewerManager();
+    this.pgnTreeManager = new PgnTreeManager();
+    this.pgnTreeManager.setRootPos(this.pos);
+
+    this.stockfishManager = new StockfishManager(
+      stockfishConfig,
+      (bestMove) => this.emitEvent('stockfish-hint', bestMove),
+      (move) => this.move(move)
     );
 
-    this.boardElement.addEventListener(
-      'mousedown',
-      (e: MouseEvent) => {
-        this.lastMouseButton = e.button;
-        this.redraw(true);
-      },
-      { capture: true }
+    this.domHandler.bindClickAndBoundsListeners(
+      (sq) => this.emitEvent('square-click', sq),
+      () => this.clearDomBounds(),
+      () => this.getOrientation()
     );
 
     this.initBoard();
@@ -214,12 +172,20 @@ export class BoardCore {
     return this.pos;
   }
 
+  public get lastSuggestedMove(): string {
+    return this.stockfishManager.lastSuggestedMove;
+  }
+
+  public set lastSuggestedMove(move: string) {
+    this.stockfishManager.lastSuggestedMove = move;
+  }
+
   private initBoard() {
     if (this.initialConfig.fen) {
       this.safeLoadFen(this.initialConfig.fen);
     }
     const config = this.buildConfig(this.initialConfig);
-    this.board = Chessground(this.boardElement, config);
+    this.board = Chessground(this.domHandler['boardElement'], config);
     this.updateGameState({ updateFen: false });
   }
 
@@ -230,9 +196,7 @@ export class BoardCore {
       const chessRes = Chess.fromSetup(setupRes.value);
       if (chessRes.isOk) {
         this.pos = chessRes.value;
-        this.rootPos = this.pos.clone();
-        this.rootNode = new Node<PgnNodeMeta>();
-        this.currentNode = this.rootNode;
+        this.pgnTreeManager.resetTree(this.pos);
         return true;
       }
     }
@@ -275,9 +239,7 @@ export class BoardCore {
         }
       }
     }
-    this.rootPos = this.pos.clone();
-    this.rootNode = new Node<PgnNodeMeta>();
-    this.currentNode = this.rootNode;
+    this.pgnTreeManager.resetTree(this.pos);
     return false;
   }
 
@@ -297,7 +259,9 @@ export class BoardCore {
     const mergedMovable = {
       free: isFree,
       color: (isFree ? 'both' : this.userMovableColor || this.getTurnColor()) as
-        'white' | 'black' | 'both',
+        | 'white'
+        | 'black'
+        | 'both',
       dests: isFree ? this.getPossibleMovesForBothColors() : possibleMoves(this.pos),
       events: defaultEvents,
       ...(userConfig.movable || {}),
@@ -316,16 +280,13 @@ export class BoardCore {
           this.syncGameFromBoard();
         }
       },
-      select: (key: Key) => {
-        this.emitEvent('square-click', key);
-      },
+      select: () => {},
       ...(userConfig.events || {}),
     };
 
     const userSelect = userConfig.events?.select;
     if (userSelect) {
       mergedEvents.select = (key: Key) => {
-        this.emitEvent('square-click', key);
         userSelect(key);
       };
     }
@@ -374,7 +335,6 @@ export class BoardCore {
     return dests;
   }
 
-  private isSyncing = false;
   private syncGameFromBoard(): void {
     if (this.isSyncing) return;
     this.isSyncing = true;
@@ -407,7 +367,7 @@ export class BoardCore {
   }
 
   private updateGameState({ updateFen = true } = {}): void {
-    if (!this.state.historyViewerState.isEnabled) {
+    if (!this.historyViewerManager.isViewingHistory()) {
       const currentShapes = this.getShapes();
       const savedShapes = this.state.preserveShapesOnPositionChange ? [...currentShapes] : null;
 
@@ -438,7 +398,7 @@ export class BoardCore {
           free: isFree,
           color: isFree ? 'both' : this.userMovableColor || this.getTurnColor(),
           dests:
-            this.customDests ||
+            this.exerciseManager.getCustomDests() ||
             (isFree || (isSolo && (!this.userMovableColor || this.userMovableColor === 'both'))
               ? this.getPossibleMovesForBothColors()
               : possibleMoves(this.pos)),
@@ -447,7 +407,7 @@ export class BoardCore {
           eraseOnMovablePieceClick: !isPreserve,
           ...(savedShapes
             ? {
-                autoShapes: isPreserve ? savedShapes : [],
+                autoShapes: [],
                 shapes: savedShapes,
               }
             : {}),
@@ -512,26 +472,96 @@ export class BoardCore {
     }
   }
 
-  // PUBLIC API
+  private handleDrawableChange(shapes: DrawShape[]): void {
+    if (
+      this.annotationManager.isDrawingUpdate ||
+      this.annotationManager.isProgrammaticShapeUpdate
+    )
+      return;
 
-  closePromotionDialog(): void {
+    this.annotationManager.isDrawingUpdate = true;
+    try {
+      this.annotationManager.setPreservedShapes(shapes);
+      if (this.state.preserveShapesOnPositionChange && this.board) {
+        // User shapes maintained by Chessground
+      } else {
+        const historyViewerState = this.historyViewerManager.getState();
+        const ply =
+          historyViewerState.isEnabled && historyViewerState.plyViewing !== undefined
+            ? historyViewerState.plyViewing
+            : (this.getHistory(true) as Move[]).length;
+
+        this.setCommentAtPly(ply, this.state.currentComment || '', shapes, false);
+      }
+      this.emitEvent('shapes-change', shapes);
+    } finally {
+      this.annotationManager.isDrawingUpdate = false;
+    }
+  }
+
+  private updateCommentAndShapes(_fenStr: string): void {
+    const currentNode = this.pgnTreeManager.getCurrentNode();
+    let rawComment = '';
+    if (isChildNode(currentNode) && currentNode.data.comments) {
+      rawComment = currentNode.data.comments.join(' ');
+    }
+
+    if (!rawComment) {
+      this.state.currentComment = '';
+      if (this.isViewingHistory() && !this.state.preserveShapesOnPositionChange) {
+        this.annotationManager.applyBoardShapes([], this.board, false);
+      }
+      this.onStateChange();
+      return;
+    }
+
+    const parsed = this.annotationManager.parseComment(rawComment);
+    this.state.currentComment = parsed.text;
+    if (!this.state.preserveShapesOnPositionChange) {
+      this.annotationManager.applyBoardShapes(parsed.shapes, this.board, false);
+    }
+    this.onStateChange();
+  }
+
+  private initStockfish(): void {
+    this.stockfishManager.initStockfish(!!this.state.freeMode);
+  }
+
+  private triggerStockfish(): void {
+    this.stockfishManager.triggerStockfish(
+      !!this.state.freeMode,
+      this.getIsGameOver(),
+      this.getTurnColor(),
+      () => this.getEnginePositionCommand()
+    );
+  }
+
+  private getEnginePositionCommand(): string {
+    const history = this.getHistory(true) as Move[];
+    const movesStr = history.map((m) => m.from + m.to + (m.promotion || '')).join(' ');
+    return movesStr ? `position startpos moves ${movesStr}` : 'position startpos';
+  }
+
+  // PUBLIC API CONTRACT
+
+  public closePromotionDialog(): void {
     this.state.promotionDialogState = { isEnabled: false };
     this.onStateChange();
   }
 
-  setFreeMode(freeMode: boolean): void {
+  public setFreeMode(freeMode: boolean): void {
     this.state.freeMode = freeMode;
     this.updateGameState({ updateFen: false });
     this.onStateChange();
   }
 
-  setSoloMode(soloMode: boolean): void {
+  public setSoloMode(soloMode: boolean): void {
     this.state.soloMode = soloMode;
     this.updateGameState({ updateFen: false });
     this.onStateChange();
   }
 
-  setPreserveShapesOnPositionChange(preserve: boolean): void {
+  public setPreserveShapesOnPositionChange(preserve: boolean): void {
     this.state.preserveShapesOnPositionChange = preserve;
     if (this.board) {
       this.board.set({
@@ -543,19 +573,24 @@ export class BoardCore {
     this.onStateChange();
   }
 
-  setPlayerColor(color: 'white' | 'black' | 'both'): void {
+  public setPlayerColor(color: 'white' | 'black' | 'both'): void {
     this.userMovableColor = color;
     this.updateGameState({ updateFen: false });
   }
 
-  redraw(clearBounds = true): void {
-    const boardState = this.board as unknown as {
-      state?: { dom?: { bounds?: { clear?: () => void } } };
-    };
-    if (clearBounds && boardState?.state?.dom?.bounds?.clear) {
-      boardState.state.dom.bounds.clear();
+  public clearDomBounds(): void {
+    this.domHandler.clearDomBounds(this.board);
+  }
+
+  public redraw(clearBounds = true): void {
+    if (clearBounds) {
+      this.clearDomBounds();
     }
     this.board?.redrawAll();
+  }
+
+  public getSquareFromEvent(e: MouseEvent | TouchEvent): Key | null {
+    return this.domHandler.getSquareFromEvent(e, this.getOrientation());
   }
 
   private isSameFen(fenStr: string): boolean {
@@ -567,7 +602,7 @@ export class BoardCore {
     return false;
   }
 
-  setConfig(config: Config, fillDefaults = false): void {
+  public setConfig(config: Config, fillDefaults = false): void {
     const finalConfig = fillDefaults ? this.buildConfig(config) : config;
     if (finalConfig.movable?.events && 'after' in finalConfig.movable.events) {
       const origAfter = finalConfig.movable.events.after;
@@ -587,20 +622,21 @@ export class BoardCore {
       this.setPosition(configFen);
     }
     if (other.drawable?.shapes) {
-      this.applyBoardShapes(other.drawable.shapes);
+      this.annotationManager.applyBoardShapes(
+        other.drawable.shapes,
+        this.board,
+        !!this.state.preserveShapesOnPositionChange
+      );
     }
     this.board.redrawAll();
   }
 
-  resetBoard(): void {
+  public resetBoard(): void {
     this.pos = Chess.default();
     this.cachedFen = null;
-    this.rootPos = this.pos.clone();
-    this.rootNode = new Node<PgnNodeMeta>();
-    this.currentNode = this.rootNode;
-    this.headers = defaultHeaders();
-    this.soloHistory = [];
-    this.state.historyViewerState = { isEnabled: false };
+    this.pgnTreeManager.resetTree(this.pos);
+    this.exerciseManager.resetSoloHistory();
+    this.historyViewerManager.resetState();
     this.onStateChange();
     this.board.set({
       fen: this.getFen(),
@@ -611,21 +647,23 @@ export class BoardCore {
     this.triggerStockfish();
   }
 
-  undoLastMove(): void {
-    const parentNode = this.findParentNode(this.rootNode, this.currentNode);
+  public undoLastMove(): void {
+    const parentNode = this.pgnTreeManager.findParentNode(
+      this.pgnTreeManager.getRootNode(),
+      this.pgnTreeManager.getCurrentNode()
+    );
     if (!parentNode) return;
 
-    if (
-      this.state.historyViewerState.isEnabled &&
-      this.state.historyViewerState.plyViewing === this.getCurrentPlyNumber()
-    ) {
+    const historyState = this.historyViewerManager.getState();
+    if (historyState.isEnabled && historyState.plyViewing === this.getCurrentPlyNumber()) {
       this.stopViewingHistory();
     }
 
-    this.currentNode = parentNode;
-    this.syncGamePosToCurrentNode();
+    this.pgnTreeManager.setCurrentNode(parentNode);
+    this.pos = this.pgnTreeManager.syncGamePosToCurrentNode();
+    this.cachedFen = null;
 
-    if (!this.state.historyViewerState.isEnabled) {
+    if (!this.historyViewerManager.isViewingHistory()) {
       this.board.set({ fen: this.getFen() });
       this.updateGameState({ updateFen: false });
       const lastMove = this.getLastMove();
@@ -636,19 +674,7 @@ export class BoardCore {
     this.triggerStockfish();
   }
 
-  private findParentNode(
-    root: Node<PgnNodeMeta>,
-    target: Node<PgnNodeMeta>
-  ): Node<PgnNodeMeta> | null {
-    for (const child of root.children) {
-      if (child === target) return root;
-      const found = this.findParentNode(child, target);
-      if (found) return found;
-    }
-    return null;
-  }
-
-  getMaterialCount() {
+  public getMaterialCount() {
     const pieces = this.board.state.pieces;
     const piecesValues: Record<string, number> = {
       pawn: 1,
@@ -676,7 +702,7 @@ export class BoardCore {
     return materialCount;
   }
 
-  getCapturedPieces() {
+  public getCapturedPieces() {
     const captured = {
       white: [] as string[],
       black: [] as string[],
@@ -694,71 +720,19 @@ export class BoardCore {
     return this.board ? this.board.state.orientation : 'white';
   }
 
-  toggleOrientation(): void {
+  public toggleOrientation(): void {
     this.board.toggleOrientation();
   }
 
-  private applyBoardShapes(shapes: DrawShape[]): void {
-    this.currentPreservedShapes = shapes;
-    this.isProgrammaticShapeUpdate = true;
-    if (this.board) {
-      if (this.state.preserveShapesOnPositionChange) {
-        this.board.set({
-          drawable: {
-            autoShapes: shapes,
-            shapes: shapes,
-          },
-        });
-      } else {
-        this.board.setShapes(shapes);
-      }
-    }
-    requestAnimationFrame(() => {
-      this.isProgrammaticShapeUpdate = false;
-    });
-  }
-
-  private handleDrawableChange(shapes: DrawShape[]): void {
-    if (this.isDrawingUpdate || this.isProgrammaticShapeUpdate) return;
-
-    if (
-      this.state.preserveShapesOnPositionChange &&
-      shapes.length === 0 &&
-      this.lastMouseButton === 0
-    ) {
-      return;
-    }
-
-    this.isDrawingUpdate = true;
-    try {
-      this.currentPreservedShapes = shapes;
-      if (this.state.preserveShapesOnPositionChange && this.board) {
-        this.board.set({
-          drawable: {
-            autoShapes: shapes,
-          },
-        });
-      } else {
-        const ply =
-          this.state.historyViewerState.isEnabled &&
-          this.state.historyViewerState.plyViewing !== undefined
-            ? this.state.historyViewerState.plyViewing
-            : (this.getHistory(true) as Move[]).length;
-
-        this.setCommentAtPly(ply, this.state.currentComment || '', shapes, false);
-      }
-      this.emitEvent('shapes-change', shapes);
-    } finally {
-      this.isDrawingUpdate = false;
-    }
-  }
-
-  drawThreats(): void {
+  public drawThreats(): void {
     this.state.showThreats = true;
     this.onStateChange();
     const threats = getThreats(this.getAllLegalMovesAsPojos());
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.applyBoardShapes(threats as any);
+    this.annotationManager.applyBoardShapes(
+      threats as unknown as DrawShape[],
+      this.board,
+      !!this.state.preserveShapesOnPositionChange
+    );
   }
 
   private getAllLegalMovesAsPojos(): Move[] {
@@ -798,27 +772,48 @@ export class BoardCore {
     return moves;
   }
 
-  hideMoves(): void {
+  public hideMoves(): void {
     this.state.showThreats = false;
     this.onStateChange();
-    this.applyBoardShapes([]);
+    this.annotationManager.applyBoardShapes(
+      [],
+      this.board,
+      !!this.state.preserveShapesOnPositionChange
+    );
   }
 
-  drawMove(from: Key | string, to: Key | string, brush: string): void {
-    this.applyBoardShapes([{ orig: from as Key, dest: to as Key, brush }]);
+  public drawMove(from: Key | string, to: Key | string, brush: string): void {
+    this.annotationManager.drawMove(
+      from,
+      to,
+      brush,
+      this.board,
+      !!this.state.preserveShapesOnPositionChange
+    );
   }
 
-  drawCircle(square: Key | string, brush: string): void {
-    const currentShapes = this.board.state.drawable.shapes || [];
-    this.applyBoardShapes([...currentShapes, { orig: square as Key, brush }]);
+  public drawCircle(square: Key | string, brush: string): void {
+    this.annotationManager.drawCircle(
+      square,
+      brush,
+      this.board,
+      !!this.state.preserveShapesOnPositionChange
+    );
   }
 
-  setShapes(shapes: DrawShape[] | unknown[]): void {
-    this.applyBoardShapes(shapes as DrawShape[]);
+  public setShapes(shapes: DrawShape[] | unknown[]): void {
+    this.annotationManager.applyBoardShapes(
+      shapes as DrawShape[],
+      this.board,
+      !!this.state.preserveShapesOnPositionChange
+    );
   }
 
   public getState(): Readonly<BoardCoreState> {
-    return { ...this.state };
+    return {
+      ...this.state,
+      historyViewerState: this.historyViewerManager.getState(),
+    };
   }
 
   public getCurrentComment(): string {
@@ -826,88 +821,14 @@ export class BoardCore {
   }
 
   public getHistoryViewerState(): Readonly<BoardCoreState['historyViewerState']> {
-    return { ...this.state.historyViewerState };
+    return this.historyViewerManager.getState();
   }
 
   public isViewingHistory(): boolean {
-    return !!this.state.historyViewerState.isEnabled;
+    return this.historyViewerManager.isViewingHistory();
   }
 
-  private parseComment(commentStr: string): { text: string; shapes: DrawShape[] } {
-    const shapes: DrawShape[] = [];
-    let text = commentStr;
-
-    const calRegex = /\[%cal\s+([^\]]+)\]/g;
-    let calMatch;
-    while ((calMatch = calRegex.exec(commentStr)) !== null) {
-      const list = calMatch[1].split(',');
-      for (const item of list) {
-        if (item.length >= 5) {
-          const brush = this.getBrushName(item[0].toLowerCase());
-          const orig = item.substring(1, 3) as Key;
-          const dest = item.substring(3, 5) as Key;
-          shapes.push({ orig, dest, brush });
-        }
-      }
-    }
-
-    const cplRegex = /\[%cpl\s+([^\]]+)\]/g;
-    let cplMatch;
-    while ((cplMatch = cplRegex.exec(commentStr)) !== null) {
-      const list = cplMatch[1].split(',');
-      for (const item of list) {
-        if (item.length >= 3) {
-          const brush = this.getBrushName(item[0].toLowerCase());
-          const orig = item.substring(1, 3) as Key;
-          shapes.push({ orig, brush });
-        }
-      }
-    }
-
-    text = text.replace(/\[%(cal|cpl)\s+[^\]]+\]/g, '').trim();
-
-    return { text, shapes };
-  }
-
-  private getBrushName(char: string): string {
-    switch (char) {
-      case 'g':
-        return 'green';
-      case 'r':
-        return 'red';
-      case 'b':
-        return 'blue';
-      case 'y':
-        return 'yellow';
-      default:
-        return 'green';
-    }
-  }
-
-  private updateCommentAndShapes(_fenStr: string): void {
-    let rawComment = '';
-    if (isChildNode(this.currentNode) && this.currentNode.data.comments) {
-      rawComment = this.currentNode.data.comments.join(' ');
-    }
-
-    if (!rawComment) {
-      this.state.currentComment = '';
-      if (this.isViewingHistory() && !this.state.preserveShapesOnPositionChange) {
-        this.applyBoardShapes([]);
-      }
-      this.onStateChange();
-      return;
-    }
-
-    const parsed = this.parseComment(rawComment);
-    this.state.currentComment = parsed.text;
-    if (!this.state.preserveShapesOnPositionChange) {
-      this.applyBoardShapes(parsed.shapes);
-    }
-    this.onStateChange();
-  }
-
-  move(moveObj: string | { from: string; to: string; promotion?: string }): boolean {
+  public move(moveObj: string | { from: string; to: string; promotion?: string }): boolean {
     console.log('[BoardCore] move called with:', moveObj);
     let parsedMove: ChessopsMove | undefined;
 
@@ -999,20 +920,17 @@ export class BoardCore {
     };
 
     if (this.state.soloMode) {
-      this.soloHistory.push(movePojo);
+      this.exerciseManager.addSoloMove(movePojo);
       this.pos.turn = colorBefore === 'w' ? 'white' : 'black';
+      this.cachedFen = null;
     }
 
-    let childNode: ChildNode<PgnNodeMeta> | undefined;
-    for (const child of this.currentNode.children) {
-      if (
+    const currentNode = this.pgnTreeManager.getCurrentNode();
+    let childNode = currentNode.children.find(
+      (child) =>
         child.data.san === sanStr ||
         (child.data.move.from === fromStr && child.data.move.to === toStr)
-      ) {
-        childNode = child;
-        break;
-      }
-    }
+    );
 
     if (!childNode) {
       childNode = new ChildNode<PgnNodeMeta>({
@@ -1020,11 +938,11 @@ export class BoardCore {
         fen: fenAfter,
         move: movePojo,
       });
-      this.currentNode.children.push(childNode);
+      currentNode.children.push(childNode!);
     }
-    this.currentNode = childNode;
+    this.pgnTreeManager.setCurrentNode(childNode!);
 
-    if (!this.state.historyViewerState.isEnabled) {
+    if (!this.historyViewerManager.isViewingHistory()) {
       this.board.move(fromStr as Key, toStr as Key);
       if (isNormal(parsedMove) && parsedMove.promotion) {
         setTimeout(() => {
@@ -1048,107 +966,80 @@ export class BoardCore {
     return true;
   }
 
-  getTurnColor(): Color {
+  public getTurnColor(): Color {
     return shortToLongColor(this.pos.turn === 'white' ? 'w' : 'b');
   }
 
-  getCurrentTurnNumber(): number {
+  public getCurrentTurnNumber(): number {
     return this.pos.fullmoves;
   }
 
-  getCurrentPlyNumber(): number {
-    return this.getActivePath().length;
+  public getCurrentPlyNumber(): number {
+    return this.pgnTreeManager.getActivePath().length;
   }
 
-  getLastMove(): Move | null {
-    const path = this.getActivePath();
-    return path.length ? path[path.length - 1].data.move : null;
+  public getLastMove(): Move | null {
+    return this.historyViewerManager.getLastMove(this.pgnTreeManager.getActivePath());
   }
 
-  private getActivePath(): ChildNode<PgnNodeMeta>[] {
-    const path: ChildNode<PgnNodeMeta>[] = [];
-    let node: Node<PgnNodeMeta> = this.currentNode;
-    while (isChildNode(node)) {
-      path.unshift(node);
-      const parent = this.findParentNode(this.rootNode, node);
-      if (!parent) break;
-      node = parent;
-    }
-    return path;
+  public getHistory(verbose = false): Move[] | string[] {
+    return this.historyViewerManager.getHistory(
+      this.pgnTreeManager.getActivePath(),
+      verbose
+    );
   }
 
-  getHistory(verbose = false): Move[] | string[] {
-    const path = this.getActivePath();
-    if (verbose) {
-      return path.map((n) => n.data.move);
-    }
-    return path.map((n) => n.data.san);
-  }
-
-  getFen(): string {
+  public getFen(): string {
     if (!this.cachedFen) {
       this.cachedFen = makeFen(this.pos.toSetup());
     }
     return this.cachedFen;
   }
 
-  getPlacementFen(): string {
+  public getPlacementFen(): string {
     if (this.board?.state?.pieces) {
       return boardPiecesToPlacementFen(this.board.state.pieces);
     }
     return this.getFen().split(' ')[0];
   }
 
-  getPgn(): string {
-    const pgnTree: Node<PgnNodeData> = transform(
-      this.rootNode,
-      new EmptyContext(),
-      (_ctx, meta) => ({
-        san: meta.san,
-        comments: meta.comments,
-        startingComments: meta.startingComments,
-        nags: meta.nags,
-      })
-    );
-    return makePgn({
-      headers: this.headers,
-      moves: pgnTree,
-    });
+  public getPgn(): string {
+    return this.pgnTreeManager.getPgn();
   }
 
-  getIsGameOver(): boolean {
+  public getIsGameOver(): boolean {
     return this.pos.isEnd();
   }
 
-  getIsCheckmate(): boolean {
+  public getIsCheckmate(): boolean {
     return this.pos.isCheckmate();
   }
 
-  getIsCheck(): boolean {
+  public getIsCheck(): boolean {
     return this.pos.isCheck();
   }
 
-  getIsStalemate(): boolean {
+  public getIsStalemate(): boolean {
     return this.pos.isStalemate();
   }
 
-  getIsDraw(): boolean {
+  public getIsDraw(): boolean {
     return this.pos.isEnd() && !this.pos.isCheckmate();
   }
 
-  getIsThreefoldRepetition(): boolean {
+  public getIsThreefoldRepetition(): boolean {
     return false;
   }
 
-  getIsInsufficientMaterial(): boolean {
+  public getIsInsufficientMaterial(): boolean {
     return this.pos.isInsufficientMaterial();
   }
 
-  getInCheckColor(): 'white' | 'black' | null {
+  public getInCheckColor(): 'white' | 'black' | null {
     return this.getIsCheck() ? this.getTurnColor() : null;
   }
 
-  getGameOverReason(lang: 'fr' | 'en' = 'fr'): string {
+  public getGameOverReason(lang: 'fr' | 'en' = 'fr'): string {
     if (!this.getIsGameOver()) return '';
     if (this.getIsCheckmate()) {
       const winner =
@@ -1171,14 +1062,15 @@ export class BoardCore {
     return lang === 'fr' ? 'Match nul.' : 'Draw.';
   }
 
-  destroy(): void {
-    this.terminateStockfish();
+  public destroy(): void {
+    this.stockfishManager.terminateStockfish();
     if (this.board) {
       this.board.destroy();
     }
+    this.domHandler.destroy();
   }
 
-  getSquareColor(square: Key | string) {
+  public getSquareColor(square: Key | string) {
     const sq = parseSquare(square);
     if (sq === undefined) return null;
     const rank = Math.floor(sq / 8);
@@ -1186,7 +1078,7 @@ export class BoardCore {
     return (rank + file) % 2 === 0 ? 'dark' : 'light';
   }
 
-  getSquare(square: Key | string) {
+  public getSquare(square: Key | string) {
     const sq = parseSquare(square);
     if (sq === undefined) return undefined;
     const piece = this.pos.board.get(sq);
@@ -1197,135 +1089,70 @@ export class BoardCore {
     };
   }
 
-  setPosition(fenStr: string): void {
+  public setPosition(fenStr: string): void {
     this.safeLoadFen(fenStr);
-
-    this.state.historyViewerState = { isEnabled: false };
+    this.historyViewerManager.resetState();
     this.onStateChange();
-
     this.updateGameState();
-
     this.initStockfish();
     this.triggerStockfish();
   }
 
-  setDiagram(diagram: ChessDiagram): void {
+  public setDiagram(diagram: ChessDiagram): void {
     this.setPosition(diagram.fen);
-    this.applyBoardShapes(diagram.shapes || []);
+    this.annotationManager.applyBoardShapes(
+      diagram.shapes || [],
+      this.board,
+      !!this.state.preserveShapesOnPositionChange
+    );
   }
 
-  getDiagram(): ChessDiagram {
+  public getDiagram(): ChessDiagram {
     return {
       fen: this.getFen(),
       shapes: this.getShapes(),
     };
   }
 
-  getShapes(): DrawShape[] {
-    if (this.state.preserveShapesOnPositionChange && this.currentPreservedShapes.length > 0) {
-      return this.currentPreservedShapes;
-    }
-    return (
-      this.board?.state?.drawable?.shapes ||
-      this.board?.state?.drawable?.autoShapes ||
-      this.currentPreservedShapes ||
-      []
+  public getShapes(): DrawShape[] {
+    return this.annotationManager.getShapes(
+      this.board,
+      !!this.state.preserveShapesOnPositionChange
     );
   }
 
-  getCurrentShapes(): DrawShape[] {
+  public getCurrentShapes(): DrawShape[] {
     return this.getShapes();
   }
 
-  getFinalFenFromPgn(pgnStr: string): string {
+  public getFinalFenFromPgn(pgnStr: string): string {
     return getFinalFenFromPgn(pgnStr, this.getFen());
   }
 
-  putPiece(piece: { type: string; color: 'w' | 'b' }, square: Key | string): boolean {
+  public putPiece(piece: { type: string; color: 'w' | 'b' }, square: Key | string): boolean {
     const sq = parseSquare(square);
     if (sq === undefined) return false;
     const role = pieceSymbolToRole[piece.type];
     if (!role) return false;
     this.pos.board.set(sq, { role, color: piece.color === 'w' ? 'white' : 'black' });
+    this.cachedFen = null;
     this.updateGameState();
     return true;
   }
 
-  removePiece(square: Key | string): void {
+  public removePiece(square: Key | string): void {
     const sq = parseSquare(square);
     if (sq !== undefined) {
       this.pos.board.take(sq);
+      this.cachedFen = null;
       this.updateGameState();
     }
   }
 
-  loadPgn(pgnStr: string): void {
-    const games = parsePgn(pgnStr);
-    if (!games.length) return;
-    const game = games[0];
-    this.headers = game.headers || defaultHeaders();
-
-    const startRes = startingPosition(this.headers);
-    const startPos = startRes.isOk ? startRes.value : Chess.default();
-    this.rootPos = startPos.clone();
-    this.pos = startPos.clone();
-
-    const ctx = new TransformContext(startPos.clone());
-    this.rootNode = transform(game.moves, ctx, (c, node) => {
-      const parsed = parseSan(c.pos, node.san);
-      if (!parsed) return undefined;
-      const fenBefore = makeFen(c.pos.toSetup());
-      const fromStr = isNormal(parsed) ? makeSquare(parsed.from) : '';
-      const toStr = makeSquare(parsed.to);
-      const pieceBefore = isNormal(parsed) ? c.pos.board.get(parsed.from) : undefined;
-      const colorBefore: 'w' | 'b' = c.pos.turn === 'white' ? 'w' : 'b';
-      let capturedPiece = c.pos.board.get(parsed.to);
-      const isEnPassant =
-        isNormal(parsed) &&
-        pieceBefore?.role === 'pawn' &&
-        fromStr[0] !== toStr[0] &&
-        !capturedPiece;
-
-      if (isEnPassant) {
-        capturedPiece = { role: 'pawn', color: colorBefore === 'w' ? 'black' : 'white' };
-      }
-      const promoChar =
-        isNormal(parsed) && parsed.promotion ? roleToPieceSymbol[parsed.promotion] : undefined;
-
-      const sanStr = makeSanAndPlay(c.pos, parsed);
-      const fenAfter = makeFen(c.pos.toSetup());
-
-      const movePojo: Move = {
-        from: fromStr,
-        to: toStr,
-        piece: pieceBefore ? roleToPieceSymbol[pieceBefore.role] : 'p',
-        color: colorBefore,
-        san: sanStr,
-        captured: capturedPiece ? roleToPieceSymbol[capturedPiece.role] : undefined,
-        promotion: promoChar,
-        before: fenBefore,
-        after: fenAfter,
-      };
-
-      const meta: PgnNodeMeta = {
-        san: sanStr,
-        fen: fenAfter,
-        move: movePojo,
-        comments: node.comments,
-        startingComments: node.startingComments,
-        nags: node.nags,
-      };
-      return meta;
-    });
-
-    this.currentNode = this.rootNode;
-    const mainline = Array.from(this.rootNode.mainlineNodes());
-    if (mainline.length > 0) {
-      this.currentNode = mainline[mainline.length - 1];
-    }
-    this.syncGamePosToCurrentNode();
-
-    this.state.historyViewerState = { isEnabled: false };
+  public loadPgn(pgnStr: string): void {
+    this.pos = this.pgnTreeManager.loadPgn(pgnStr);
+    this.cachedFen = null;
+    this.historyViewerManager.resetState();
     this.onStateChange();
     this.updateGameState();
     const lastMove = this.getLastMove();
@@ -1336,147 +1163,85 @@ export class BoardCore {
     this.triggerStockfish();
   }
 
-  private syncGamePosToCurrentNode(): void {
-    const path = this.getActivePath();
-    this.pos = this.rootPos.clone();
-    this.cachedFen = null;
-    for (const child of path) {
-      const m = parseSan(this.pos, child.data.san);
-      if (m) {
-        this.pos.play(m);
+  public getPgnInfo() {
+    return this.pgnTreeManager.getPgnInfo();
+  }
+
+  public viewHistory(ply: number): void {
+    const path = this.pgnTreeManager.getActivePath();
+    const rootFen = makeFen(this.pgnTreeManager.getRootPos().toSetup());
+    this.historyViewerManager.viewHistory(
+      ply,
+      path,
+      rootFen,
+      this.board,
+      () => this.onStateChange(),
+      (fenViewing) => this.updateCommentAndShapes(fenViewing)
+    );
+  }
+
+  public stopViewingHistory(): void {
+    this.historyViewerManager.stopViewingHistory(
+      this.board,
+      () => this.onStateChange(),
+      () => {
+        const path = this.pgnTreeManager.getActivePath();
+        const lastMove = path.length ? path[path.length - 1].data.move : null;
+        this.board.set({
+          fen: this.getFen(),
+          viewOnly: this.historyViewerManager.getState().viewOnly,
+          lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
+        });
+        this.updateGameState({ updateFen: false });
       }
-    }
+    );
   }
 
-  getPgnInfo() {
-    const headersObj: Record<string, string> = {};
-    for (const [k, v] of this.headers.entries()) {
-      headersObj[k] = v;
-    }
-    return headersObj;
-  }
-
-  // NAVIGATION D'HISTORIQUE
-
-  viewHistory(ply: number): void {
-    const path = this.getActivePath();
-    if (ply < 0 || ply > path.length) return;
-
-    if (ply < path.length) {
-      this.state.historyViewerState = {
-        isEnabled: true,
-        plyViewing: ply,
-        viewOnly: this.board.state.viewOnly,
-      };
-      this.onStateChange();
-
-      const fenViewing = ply === 0 ? makeFen(this.rootPos.toSetup()) : path[ply - 1].data.fen;
-
-      this.board.set({
-        fen: fenViewing,
-        viewOnly: false,
-        movable: {
-          color: undefined,
-          dests: undefined,
-          free: false,
-        },
-        lastMove:
-          ply > 0
-            ? [path[ply - 1].data.move.from as Key, path[ply - 1].data.move.to as Key]
-            : undefined,
-      });
-
-      this.updateCommentAndShapes(fenViewing);
-    } else {
-      this.stopViewingHistory();
-    }
-  }
-
-  stopViewingHistory(): void {
-    if (this.state.historyViewerState.isEnabled) {
-      const path = this.getActivePath();
-      const lastMove = path.length ? path[path.length - 1].data.move : null;
-      this.board.set({
-        fen: this.getFen(),
-        viewOnly: this.state.historyViewerState.viewOnly,
-        lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
-      });
-      this.state.historyViewerState = { isEnabled: false };
-      this.onStateChange();
-      this.updateGameState({ updateFen: false });
-    }
-  }
-
-  viewStart(): void {
+  public viewStart(): void {
     this.viewHistory(0);
   }
 
-  viewNext(): void {
-    if (
-      this.state.historyViewerState.isEnabled &&
-      this.state.historyViewerState.plyViewing !== undefined
-    ) {
-      this.viewHistory(this.state.historyViewerState.plyViewing + 1);
+  public viewNext(): void {
+    const historyState = this.historyViewerManager.getState();
+    if (historyState.isEnabled && historyState.plyViewing !== undefined) {
+      this.viewHistory(historyState.plyViewing + 1);
     }
   }
 
-  viewPrevious(): void {
+  public viewPrevious(): void {
+    const historyState = this.historyViewerManager.getState();
     const ply =
-      this.state.historyViewerState.isEnabled &&
-      this.state.historyViewerState.plyViewing !== undefined
-        ? this.state.historyViewerState.plyViewing
+      historyState.isEnabled && historyState.plyViewing !== undefined
+        ? historyState.plyViewing
         : this.getCurrentPlyNumber();
     this.viewHistory(ply - 1);
   }
 
-  getVariationsAtPly(ply?: number): VariationInfo[] {
-    const path = this.getActivePath();
+  public getVariationsAtPly(ply?: number): VariationInfo[] {
+    const historyState = this.historyViewerManager.getState();
     const targetPly =
       ply !== undefined
         ? ply
-        : this.state.historyViewerState.isEnabled &&
-            this.state.historyViewerState.plyViewing !== undefined
-          ? this.state.historyViewerState.plyViewing
-          : path.length;
-
-    if (targetPly <= 0 || targetPly > path.length) return [];
-
-    const parentNode = targetPly === 1 ? this.rootNode : path[targetPly - 2];
-    const currentChild = path[targetPly - 1];
-
-    return parentNode.children.map((child, index) => ({
-      index,
-      san: child.data.san,
-      fen: child.data.fen,
-      move: child.data.move,
-      isMainline: child === currentChild,
-      comments: child.data.comments,
-    }));
+        : historyState.isEnabled && historyState.plyViewing !== undefined
+          ? historyState.plyViewing
+          : this.pgnTreeManager.getActivePath().length;
+    return this.pgnTreeManager.getVariationsAtPly(targetPly);
   }
 
-  selectVariation(variationIndex: number): boolean {
-    const path = this.getActivePath();
+  public selectVariation(variationIndex: number): boolean {
+    const historyState = this.historyViewerManager.getState();
     const targetPly =
-      this.state.historyViewerState.isEnabled &&
-      this.state.historyViewerState.plyViewing !== undefined
-        ? this.state.historyViewerState.plyViewing
-        : path.length;
+      historyState.isEnabled && historyState.plyViewing !== undefined
+        ? historyState.plyViewing
+        : this.pgnTreeManager.getActivePath().length;
 
-    if (targetPly <= 0 || targetPly > path.length) return false;
+    const success = this.pgnTreeManager.selectVariation(variationIndex, targetPly);
+    if (!success) return false;
 
-    const parentNode = targetPly === 1 ? this.rootNode : path[targetPly - 2];
-    if (variationIndex < 0 || variationIndex >= parentNode.children.length) return false;
+    this.pos = this.pgnTreeManager.syncGamePosToCurrentNode();
+    this.cachedFen = null;
 
-    const selectedChild = parentNode.children[variationIndex];
-    let endNode: Node<PgnNodeMeta> = selectedChild;
-    while (endNode.children.length > 0) {
-      endNode = endNode.children[0];
-    }
-
-    this.currentNode = endNode;
-    this.syncGamePosToCurrentNode();
-
-    if (this.state.historyViewerState.isEnabled) {
+    if (historyState.isEnabled) {
       this.viewHistory(targetPly);
     } else {
       this.updateGameState();
@@ -1485,306 +1250,83 @@ export class BoardCore {
     return true;
   }
 
-  getPgnTree(): PgnTreeNode {
-    const buildTreeNode = (node: Node<PgnNodeMeta>): PgnTreeNode => {
-      const isChild = isChildNode(node);
-      return {
-        san: isChild ? node.data.san : undefined,
-        fen: isChild ? node.data.fen : makeFen(this.rootPos.toSetup()),
-        move: isChild ? node.data.move : undefined,
-        comments: isChild ? node.data.comments : undefined,
-        variations: node.children.map((child) => buildTreeNode(child)),
-      };
-    };
-    return buildTreeNode(this.rootNode);
+  public getPgnTree(): PgnTreeNode {
+    return this.pgnTreeManager.getPgnTree();
   }
 
-  // STOCKFISH INTEGRATION
-
-  public updateStockfishConfig(config: StockfishConfig) {
-    this.stockfishConfig = { ...this.stockfishConfig, ...config };
-    this.initStockfish();
-    this.triggerStockfish();
+  public updateStockfishConfig(config: StockfishConfig): void {
+    this.stockfishManager.updateStockfishConfig(
+      config,
+      !!this.state.freeMode,
+      this.getIsGameOver(),
+      this.getTurnColor(),
+      () => this.getEnginePositionCommand()
+    );
   }
 
-  private initStockfish() {
-    console.log('[BoardCore] initStockfish called. Config:', this.stockfishConfig);
-    if (this.state.freeMode) {
-      console.log('[BoardCore] initStockfish aborted: freeMode is active');
-      this.terminateStockfish();
-      return;
-    }
-
-    const { workerUrl, whiteMode, blackMode, whiteElo, blackElo } = this.stockfishConfig;
-    if (
-      !workerUrl ||
-      (!whiteMode && !blackMode) ||
-      (whiteMode === 'disabled' && blackMode === 'disabled')
-    ) {
-      this.terminateStockfish();
-      return;
-    }
-
-    if (whiteMode && whiteMode !== 'disabled') {
-      if (!this.whiteWorker) {
-        this.whiteWorker = new Worker(workerUrl);
-        this.whiteWorker.onmessage = (e) => this.handleWhiteMessage(e.data);
-        this.whiteWorker.postMessage('uci');
-        this.whiteWorker.postMessage('ucinewgame');
-        this.whiteWorker.postMessage('isready');
-      }
-      if (whiteMode === 'elo') {
-        const elo = whiteElo || 1500;
-        this.whiteWorker.postMessage('setoption name UCI_LimitStrength value true');
-        this.whiteWorker.postMessage(`setoption name UCI_Elo value ${elo}`);
-      } else if (whiteMode === 'hint') {
-        this.whiteWorker.postMessage('setoption name Hash value 256');
-      }
-    } else {
-      if (this.whiteWorker) {
-        this.whiteWorker.terminate();
-        this.whiteWorker = null;
-      }
-    }
-
-    if (blackMode && blackMode !== 'disabled') {
-      if (!this.blackWorker) {
-        this.blackWorker = new Worker(workerUrl);
-        this.blackWorker.onmessage = (e) => this.handleBlackMessage(e.data);
-        this.blackWorker.postMessage('uci');
-        this.blackWorker.postMessage('ucinewgame');
-        this.blackWorker.postMessage('isready');
-      }
-      if (blackMode === 'elo') {
-        const elo = blackElo || 1500;
-        this.blackWorker.postMessage('setoption name UCI_LimitStrength value true');
-        this.blackWorker.postMessage(`setoption name UCI_Elo value ${elo}`);
-      } else if (blackMode === 'hint') {
-        this.blackWorker.postMessage('setoption name Hash value 256');
-      }
-    } else {
-      if (this.blackWorker) {
-        this.blackWorker.terminate();
-        this.blackWorker = null;
-      }
-    }
-  }
-
-  private terminateStockfish() {
-    if (this.whiteWorker) {
-      this.whiteWorker.terminate();
-      this.whiteWorker = null;
-    }
-    if (this.blackWorker) {
-      this.blackWorker.terminate();
-      this.blackWorker = null;
-    }
-  }
-
-  private getEnginePositionCommand(): string {
-    const history = this.getHistory(true) as Move[];
-    const movesStr = history.map((m) => m.from + m.to + (m.promotion || '')).join(' ');
-    return movesStr ? `position startpos moves ${movesStr}` : 'position startpos';
-  }
-
-  private triggerStockfish() {
-    if (this.state.freeMode || this.getIsGameOver()) {
-      console.log('[BoardCore] triggerStockfish ignored: freeMode or game over');
-      this.terminateStockfish();
-      return;
-    }
-
-    const turn = this.getTurnColor();
-    const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
-
-    if (!mode || mode === 'disabled') {
-      return;
-    }
-
-    const movetime = this.stockfishConfig.stockfishMoveTime || 1000;
-    console.log('[BoardCore] triggerStockfish. Turn:', turn, 'Mode:', mode, 'MoveTime:', movetime);
-
-    if (turn === 'white' && this.whiteWorker) {
-      const positionCmd = this.getEnginePositionCommand();
-      console.log('[BoardCore] Sending to White Worker:', positionCmd, `go movetime ${movetime}`);
-      this.whiteWorker.postMessage(positionCmd);
-      this.whiteWorker.postMessage(`go movetime ${movetime}`);
-    } else if (turn === 'black' && this.blackWorker) {
-      const positionCmd = this.getEnginePositionCommand();
-      console.log('[BoardCore] Sending to Black Worker:', positionCmd, `go movetime ${movetime}`);
-      this.blackWorker.postMessage(positionCmd);
-      this.blackWorker.postMessage(`go movetime ${movetime}`);
-    }
-  }
-
-  private handleWhiteMessage(line: string) {
-    if (line.startsWith('bestmove')) {
-      const parts = line.split(' ');
-      const bestMove = parts[1];
-      if (bestMove && bestMove !== '(none)') {
-        const mode = this.stockfishConfig.whiteMode;
-        if (mode === 'hint') {
-          this.lastSuggestedMove = bestMove;
-          this.emitEvent('stockfish-hint', bestMove);
-        } else if (mode === 'elo') {
-          const from = bestMove.slice(0, 2);
-          const to = bestMove.slice(2, 4);
-          const promotion = bestMove.length > 4 ? bestMove.charAt(4) : undefined;
-          this.move({ from, to, promotion });
-        }
-      }
-    }
-  }
-
-  private handleBlackMessage(line: string) {
-    if (line.startsWith('bestmove')) {
-      const parts = line.split(' ');
-      const bestMove = parts[1];
-      if (bestMove && bestMove !== '(none)') {
-        const mode = this.stockfishConfig.blackMode;
-        if (mode === 'hint') {
-          this.lastSuggestedMove = bestMove;
-          this.emitEvent('stockfish-hint', bestMove);
-        } else if (mode === 'elo') {
-          const from = bestMove.slice(0, 2);
-          const to = bestMove.slice(2, 4);
-          const promotion = bestMove.length > 4 ? bestMove.charAt(4) : undefined;
-          this.move({ from, to, promotion });
-        }
-      }
-    }
-  }
-
-  private shapesToPgnComment(shapes: DrawShape[]): string {
-    if (shapes.length === 0) return '';
-    const cal: string[] = [];
-    const cpl: string[] = [];
-
-    for (const s of shapes) {
-      const brushChar = this.getBrushChar(s.brush || 'green');
-      if (s.orig && s.dest) {
-        cal.push(`${brushChar}${s.orig}${s.dest}`);
-      } else if (s.orig) {
-        cpl.push(`${brushChar}${s.orig}`);
-      }
-    }
-
-    let annotation = '';
-    if (cal.length > 0) {
-      annotation += `[%cal ${cal.join(',')}]`;
-    }
-    if (cpl.length > 0) {
-      annotation += `[%cpl ${cpl.join(',')}]`;
-    }
-    return annotation;
-  }
-
-  private getBrushChar(brushName: string): string {
-    switch (brushName.toLowerCase()) {
-      case 'green':
-        return 'G';
-      case 'red':
-        return 'R';
-      case 'blue':
-        return 'B';
-      case 'yellow':
-        return 'Y';
-      default:
-        return 'G';
-    }
-  }
-
-  setCommentAtPly(
+  public setCommentAtPly(
     ply: number,
     text: string,
     shapes: DrawShape[] = [],
     updateBoardShapes = true
   ): void {
-    const path = this.getActivePath();
+    const path = this.pgnTreeManager.getActivePath();
     if (ply < 0 || ply > path.length) return;
 
-    const targetNode = ply === 0 ? this.rootNode : path[ply - 1];
-    const shapesAnnotation = this.shapesToPgnComment(shapes);
+    const targetNode = ply === 0 ? this.pgnTreeManager.getRootNode() : path[ply - 1];
+    const shapesAnnotation = this.annotationManager.shapesToPgnComment(shapes);
     const combined = `${shapesAnnotation} ${text}`.trim();
 
     if (isChildNode(targetNode)) {
       targetNode.data.comments = combined ? [combined] : [];
     }
 
-    const isViewingThisPly = this.state.historyViewerState.isEnabled
-      ? this.state.historyViewerState.plyViewing === ply
+    const historyState = this.historyViewerManager.getState();
+    const isViewingThisPly = historyState.isEnabled
+      ? historyState.plyViewing === ply
       : ply === path.length;
 
     if (isViewingThisPly) {
       this.state.currentComment = text;
       if (updateBoardShapes) {
-        this.applyBoardShapes(shapes);
+        this.annotationManager.applyBoardShapes(
+          shapes,
+          this.board,
+          !!this.state.preserveShapesOnPositionChange
+        );
       }
       this.onStateChange();
     }
   }
 
-  setComment(text: string, shapes: DrawShape[] = []): void {
+  public setComment(text: string, shapes: DrawShape[] = []): void {
+    const historyState = this.historyViewerManager.getState();
     const ply =
-      this.state.historyViewerState.isEnabled &&
-      this.state.historyViewerState.plyViewing !== undefined
-        ? this.state.historyViewerState.plyViewing
+      historyState.isEnabled && historyState.plyViewing !== undefined
+        ? historyState.plyViewing
         : (this.getHistory(true) as Move[]).length;
     this.setCommentAtPly(ply, text, shapes);
   }
 
-  setCustomDests(dests: Map<Key, Key[]> | null): void {
-    this.customDests = dests;
+  public setCustomDests(dests: Map<Key, Key[]> | null): void {
+    this.exerciseManager.setCustomDests(dests);
     this.updateGameState({ updateFen: false });
   }
 
-  restrictMovesToPieces(squares: Key[] | null): void {
-    if (!squares) {
-      this.setCustomDests(null);
-      return;
-    }
-    const allDests = possibleMoves(this.pos);
-    const filteredDests = new Map<Key, Key[]>();
-    for (const sq of squares) {
-      const destsForSq = allDests.get(sq);
-      if (destsForSq) {
-        filteredDests.set(sq, destsForSq);
-      }
-    }
-    this.setCustomDests(filteredDests);
+  public restrictMovesToPieces(squares: Key[] | null): void {
+    this.exerciseManager.restrictMovesToPieces(squares, this.pos);
+    this.updateGameState({ updateFen: false });
   }
 
-  isSquareAttacked(square: Key, byColor: 'white' | 'black'): boolean {
-    const sq = parseSquare(square);
-    if (sq === undefined) return false;
-    const color: ChessopsColor = byColor === 'white' ? 'white' : 'black';
-    return this.pos.kingAttackers(sq, color, this.pos.board.occupied).nonEmpty();
+  public isSquareAttacked(square: Key, byColor: 'white' | 'black'): boolean {
+    return this.exerciseManager.isSquareAttacked(square, byColor, this.pos);
   }
 
-  getPieces(): Map<Key, { type: string; color: 'w' | 'b' }> {
-    const piecesMap = new Map<Key, { type: string; color: 'w' | 'b' }>();
-    const boardState = this.board.state.pieces;
-    const roleToPieceType: Record<string, string> = {
-      pawn: 'p',
-      knight: 'n',
-      bishop: 'b',
-      rook: 'r',
-      queen: 'q',
-      king: 'k',
-    };
-    for (const [square, piece] of boardState) {
-      const type = roleToPieceType[piece.role];
-      if (type) {
-        piecesMap.set(square as Key, {
-          type,
-          color: piece.color === 'white' ? 'w' : 'b',
-        });
-      }
-    }
-    return piecesMap;
+  public getPieces(): Map<Key, { type: string; color: 'w' | 'b' }> {
+    return this.exerciseManager.getPieces(this.board.state.pieces);
   }
 
-  getSoloHistory(): Move[] {
-    return this.soloHistory;
+  public getSoloHistory(): Move[] {
+    return this.exerciseManager.getSoloHistory();
   }
 }
