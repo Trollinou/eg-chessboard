@@ -1,0 +1,163 @@
+# 📚 Guide d'Utilisation & Anti-Sèche : `eg-chessboard` (v1.3.1)
+
+Ce document est votre **anti-sèche d'utilisation**. Il vous permet de retrouver instantanément les réglages et snippets de code prêts à l'emploi selon chaque cas d'usage dans vos applications **Vue 3**, **React** ou **WordPress Gutenberg**.
+
+---
+
+## 🏆 Les 5 Règles d'Or à Retenir
+
+1. **Éditeur de Diagramme FEN (Gutenberg Inspector)** :
+   - Passez uniquement `mode="editor"`. Nul besoin d'ajouter d'autres props (`freeMode` et `preserveShapesOnPositionChange` sont automatiques).
+2. **Exercice Solo d'Apprentissage (Déplacer la même pièce plusieurs fois)** :
+   - Utilisez `mode="game"` avec `soloMode={true}` et `playerColor="white"`.
+3. **Exercice avec Consignes Visuelles (Cercles/Flèches qui restent en place)** :
+   - Utilisez `mode="game"` avec `preserveShapesOnPositionChange={true}`.
+4. **Partie contre l'Ordinateur (IA Stockfish)** :
+   - Utilisez `mode="game"` + `playerColor="white"` + `stockfishConfig={{ blackMode: 'elo', blackElo: 1500 }}`.
+5. **Analyseur PGN & Cours Interactifs avec Variantes** :
+   - Utilisez `mode="study"`.
+
+---
+
+## 🧩 1. Les 3 Piliers de Configuration
+
+### A. Le Mode Métier Principal : `mode`
+C'est le paramètre fondamental qui définit la **finalité** du composant :
+- **`mode="game"`** *(défaut)* : Pour **jouer** une partie (humain vs humain ou IA) ou **résoudre** un exercice. Validation stricte des règles par `chessops`.
+- **`mode="editor"`** : Pour **éditer** un diagramme / poser des pièces librement / composer un problème FEN. Tolérance totale aux positions hors-règles.
+- **`mode="study"`** : Pour **analyser** une partie PGN avec sous-variantes `(...)` et commentaires graphiques `[%cal]`/`[%cpl]`.
+
+---
+
+### B. Les Modificateurs de Comportement (Flags / Drapeaux)
+
+| Prop | Type | Par Défaut | Rôle & Usage |
+| :--- | :--- | :--- | :--- |
+| **`freeMode`** | `boolean` | `false` | Déplace n'importe quelle pièce sur n'importe quelle case sans valider les règles ni alterner le trait. *(Inutile si `mode="editor"` car automatique)*. |
+| **`soloMode`** | `boolean` | `false` | Conserve le trait pour la couleur jouée après chaque coup. Utilisé pour les **exercices d'apprentissage solo** (ex: déplacer la même pièce 4 fois de suite). |
+| **`preserveShapesOnPositionChange`** | `boolean` | `false` | Garde les flèches et cercles affichés même lorsque les pièces bougent. Utilisé pour **maintenir les consignes visuelles d'un exercice**. *(Inutile si `mode="editor"` car automatique)*. |
+| **`playerColor`** | `'white' \| 'black' \| 'both'` | `undefined` | Restreint les pièces déplaçables par l'utilisateur. Exemple : `'white'` empêche l'utilisateur d'attraper les pièces noires. |
+| **`fitContainer`** | `boolean` | `false` | Étend l'échiquier à 100% de la hauteur/largeur de son conteneur parent (supprime les ratios fixes). |
+
+---
+
+### C. Le Moteur d'IA : `stockfishConfig`
+Contrôle le Web Worker Stockfish (WASM) :
+- **Si omis ou `{}`** : Aucun Worker créé (performance optimale).
+- **Partie contre l'IA** : `blackMode: 'elo', blackElo: 1500` (l'ordinateur joue les Noirs à 1500 ELO).
+- **Conseil / Suggestion (Hint)** : `whiteMode: 'hint'` (émets l'événement `@stockfish-hint` sans jouer le coup automatiquement).
+
+---
+
+## 📊 2. Matrice de Configuration Rapide (Quel scénario utiliser ?)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    MATRICE DE CONFIGURATION                                      │
+├──────────────────────────────────────┬──────────┬──────────┬──────────┬──────────────┬───────────┤
+│ Scénario d'Usage                      │ mode     │ freeMode │ soloMode │ preserve...  │ player... │
+├──────────────────────────────────────┼──────────┼──────────┼──────────┼──────────────┼───────────┤
+│ 1. Éditeur de Diagramme (Gutenberg)  │ 'editor' │ (Auto)   │ false    │ (Auto)       │ Omis      │
+│ 2. Partie 2 Joueurs en Local (2P)    │ 'game'   │ false    │ false    │ false        │ Omis      │
+│ 3. Joueur Blanc vs Ordinateur (IA)   │ 'game'   │ false    │ false    │ false        │ 'white'   │
+│ 4. Joueur Noir vs Ordinateur (IA)    │ 'game'   │ false    │ false    │ false        │ 'black'   │
+│ 5. Exercice Solo d'Apprentissage     │ 'game'   │ false    │ true     │ true (si req)│ 'white'   │
+│ 6. Lecteur / Cours PGN avec Variantes│ 'study'  │ false    │ false    │ false        │ Omis      │
+│ 7. Bac à Sable / Réflexion Libre     │ 'game'   │ true     │ false    │ false        │ Omis      │
+└──────────────────────────────────────┴──────────┴──────────┴──────────┴──────────────┴───────────┘
+```
+
+---
+
+## 🛠️ 3. Fiches Recettes Prêtes à Copier-Coller
+
+### Recette 1 : Bloc Éditeur de Diagramme (Gutenberg Inspector)
+*Besoin : Poser des pièces librement par clic ou drag, dessiner des flèches au clic droit, aucun contrôle de règles.*
+
+```tsx
+<Chessboard
+  mode="editor"
+  diagram={{ fen: attributes.fen, shapes: attributes.shapes }}
+  onBoardCreated={(core) => (coreRef.current = core)}
+/>
+```
+
+---
+
+### Recette 2 : Partie Joueur vs IA (L'ordinateur joue les Noirs à 1500 ELO)
+*Besoin : Le joueur a les Blancs, l'IA répond automatiquement.*
+
+```tsx
+const stockfishConfig: StockfishConfig = {
+  workerUrl: '/stockfish.js',
+  wasmUrl: '/stockfish.wasm',
+  blackMode: 'elo',
+  blackElo: 1500,
+  stockfishMoveTime: 1000,
+};
+
+<Chessboard
+  mode="game"
+  playerColor="white"
+  stockfishConfig={stockfishConfig}
+  onMove={(move) => console.log('Coup joué :', move.san)}
+/>
+```
+
+---
+
+### Recette 3 : Exercice Solo d'Apprentissage avec Consignes Visuelles
+*Besoin : Déplacer un Cavalier blanc plusieurs fois jusqu'à une cible (cercle vert) sans que les pièces ne réinitialisent les formes.*
+
+```tsx
+<Chessboard
+  mode="game"
+  soloMode={true}
+  preserveShapesOnPositionChange={true}
+  playerColor="white"
+  diagram={{
+    fen: '8/8/8/8/4N3/8/8/8 w - - 0 1',
+    shapes: [
+      { orig: 'e4', brush: 'blue' },
+      { orig: 'c7', brush: 'green' }
+    ]
+  }}
+/>
+```
+
+---
+
+### Recette 4 : Lecteur / Analyseur de Partie PGN avec Variantes & Stockfish Hint
+*Besoin : Naviguer dans les sous-variantes et commentaires PGN `[%cal]`/`[%cpl]`, recevoir des conseils de l'IA.*
+
+```tsx
+const stockfishConfig: StockfishConfig = {
+  workerUrl: '/stockfish.js',
+  wasmUrl: '/stockfish.wasm',
+  whiteMode: 'hint',
+  blackMode: 'hint',
+};
+
+<Chessboard
+  mode="study"
+  stockfishConfig={stockfishConfig}
+  onBoardCreated={(core) => {
+    core.loadPgn('1. e4 e5 (1... c5 { [%cal Gc5d4] } 2. Nf3) 2. Nf3 Nc6');
+  }}
+  onStockfishHint={(hint) => console.log('Meilleur coup suggéré par IA :', hint)}
+/>
+```
+
+---
+
+### Recette 5 : Partie 2 Joueurs en Local (Même Écran)
+*Besoin : Deux joueurs s'affrontent sur le même écran avec alternance stricte des traits et vérification des règles.*
+
+```tsx
+<Chessboard
+  mode="game"
+  playerColor="both"
+  onCheck={(color) => alert(`Échec au roi ${color} !`)}
+  onCheckmate={(color) => alert(`Échec et mat ! Les ${color === 'white' ? 'Noirs' : 'Blancs'} ont gagné.`)}
+/>
+```
