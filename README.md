@@ -11,12 +11,17 @@ Elle s'appuie sur **[@lichess-org/chessground](https://github.com/lichess-org/ch
 La bibliothèque est construite selon le principe de **source de vérité unique** :
 
 - **`BoardCore` (TS pur - Façade d'Orchestration)** : Moteur logique agnostique qui orchestre l'état et offre l'interface unifiée avec les wrappers. Il s'appuie sur des sous-modules spécialisés sous `src/core/` :
-  - **`DomHandler`** : Événements pointer/mouse/touch et calcul dynamique des cases.
-  - **`StockfishManager`** : Gestion du cycle de vie et communications avec les Web Workers Stockfish (UCI).
+  - **`DomHandler`** : Événements pointer/mouse/touch et calcul dynamique de la géométrie de la grille et des cases.
+  - **`StockfishManager`** : Gestion du cycle de vie, protocole UCI et communications avec les Web Workers Stockfish.
   - **`ExerciseManager`** : Restrictions de mouvements (`restrictMovesToPieces`), détection d'attaques et historique solo.
-  - **`AnnotationManager`** : Parsing des annotations PGN (`[%cal]`, `[%cpl]`) et gestion des formes graphiques (flèches/cercles).
-  - **`PgnTreeManager`** : Arbre PGN (`Node<PgnNodeMeta>`), gestion des sous-variantes et parsing SAN.
-  - **`HistoryViewerManager`** : Navigation pas-à-pas dans l'historique des demi-coups.
+  - **`AnnotationManager`** : Parsing des annotations PGN (`[%cal]`, `[%cpl]`), formes graphiques (flèches/cercles) et synchronisation des événements de tracé (`handleDrawableChange`, `updateCommentAndShapes`).
+  - **`PgnTreeManager`** : Arbre PGN (`Node<PgnNodeMeta>`), gestion des sous-variantes, parsing SAN et sérialisation.
+  - **`HistoryViewerManager`** : Navigation pas-à-pas dans l'historique (`viewHistory`, `viewNext`, `viewPrevious`, `viewStart`) et états d'affichage.
+  - **`FenManager`** : Parsing FEN tolérant, repli manuel et utilitaires d'évaluation de position/matériel (`getMaterialCount`, `getCapturedPieces`, `getGameOverReason`).
+  - **`PromotionManager`** : Détection des pions non promus (rangées 1 & 8) et gestion des promesses de dialogues de promotion.
+  - **`MoveManager`** : Exécution des coups (SAN/POJO), synchronisation avec l'arbre PGN et émission d'événements de mouvement.
+  - **`BoardConfigBuilder`** : Construction de la configuration Chessground et synchronisation réactive de l'état graphique/logique (`updateGameState`, `syncGameFromBoard`).
+  - **`pieceMapping`** : Module de constantes partagées (`roleToPieceSymbol`, `pieceSymbolToRole`) et utilitaire centralisé `buildMovePojo` pour la construction des objets `Move`.
 - **Wrapper Vue 3 (`TheChessboard.vue`)** : Composant Vue 3 réactif prêt à l'emploi.
 - **Wrapper React (`Chessboard.tsx`)** : Composant React (Gutenberg) réactif prêt à l'emploi.
 - **CSS unifié** : Styles de base Chessground accompagnés des pièces au format SVG vectoriel base64.

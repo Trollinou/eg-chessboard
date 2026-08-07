@@ -8,13 +8,18 @@ Pour éviter les divergences de comportement entre le modèle _pull/immutabilit�
 2. **Mutations Interdites depuis la Vue** : Aucun wrapper (React ou Vue) ne doit modifier directement l'objet `state` ou ses sous-propriétés (ex: `state.promotionDialogState`). Toute modification doit passer par une méthode publique de `BoardCore`.
 3. **Flux Unidirectionnel avec Événements** : Le cœur notifie les wrappers de tout changement d'état interne via un mécanisme d'écoute (`onStateChange`). Le wrapper React met alors à jour son `useState` (via le getter public `core.getState()`), et le wrapper Vue met à jour sa référence réactive.
 4. **Pas de Fuite d'Abstraction** : L'accès aux propriétés privées par contournement de typage (ex: `coreRef.current['state']`) est strictly interdit. Toutes les lectures d'état se font via les getters publics (`getState()`, `getCurrentComment()`, `getHistoryViewerState()`, `isViewingHistory()`, etc.).
-5. **Décomposition Modulaire sous `src/core/`** : `BoardCore` agit comme une **Façade** conservant l'API publique inchangée et déléguant les traitements internes à ses sub-managers dédiés :
-   - `DomHandler` : Gestion des événements DOM (pointer/mouse/touch) et calcul des cases.
-   - `StockfishManager` : Cycle de vie et messages des Web Workers Stockfish.
-   - `ExerciseManager` : Restrictions de coups, attaques et mode solo.
-   - `AnnotationManager` : Formes dessinées, menaces et balises PGN `[%cal]`/`[%cpl]`.
-   - `PgnTreeManager` : Arbre PGN, nœuds de sous-variantes et parsing.
-   - `HistoryViewerManager` : Navigation et états d'affichage de l'historique.
+5. **Décomposition Modulaire sous `src/core/`** : `BoardCore` agit comme une **Façade** conservant l'API publique inchangée et déléguant les traitements internes à ses 10 sub-managers dédiés :
+   - `DomHandler` : Gestion des événements DOM (pointer/mouse/touch) et calcul dynamique de la géométrie de la grille et des cases.
+   - `StockfishManager` : Cycle de vie, gestion UCI et messages des Web Workers Stockfish.
+   - `ExerciseManager` : Restrictions de coups (`restrictMovesToPieces`), détection d'attaques et historique solo.
+   - `AnnotationManager` : Formes dessinées, menaces, balises PGN `[%cal]`/`[%cpl]` et synchronisation des événements de tracé (`handleDrawableChange`, `updateCommentAndShapes`).
+   - `PgnTreeManager` : Arbre PGN (`Node<PgnNodeMeta>`), nœuds de sous-variantes, parsing SAN et sérialisation.
+   - `HistoryViewerManager` : Navigation pas-à-pas dans l'historique (`viewHistory`, `viewNext`, `viewPrevious`, `viewStart`), états d'affichage et résolution centralisée du ply courant (`getCurrentViewingPly`).
+   - `FenManager` : Parsing FEN tolérant, repli manuel et utilitaires de position / matériel (`getMaterialCount`, `getCapturedPieces`, `getGameOverReason`).
+   - `PromotionManager` : Détection automatique des promotions (rangées 1 & 8 en mode libre/éditeur) et gestion des promesses de dialogues.
+   - `MoveManager` : Exécution des coups (SAN/POJO), synchronisation avec l'arbre PGN et gestion des événements de mouvement.
+   - `BoardConfigBuilder` : Construction de la configuration Chessground et synchronisation réactive de l'état graphique/logique (`updateGameState`, `syncGameFromBoard`).
+   - `pieceMapping` : Module de constantes partagées (`roleToPieceSymbol`, `pieceSymbolToRole`) et utilitaire centralisé `buildMovePojo` pour la construction d'objets `Move` à partir d'un coup chessops parsé. Évite la duplication de ces maps et de la logique de construction dans les sous-managers.
 
 ---
 

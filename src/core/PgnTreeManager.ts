@@ -1,19 +1,18 @@
-import { Chess, makeSquare } from 'chessops';
+import { Chess } from 'chessops';
 import { makeFen } from 'chessops/fen';
-import { parseSan, makeSanAndPlay } from 'chessops/san';
+import { parseSan } from 'chessops/san';
 import {
   parsePgn,
   makePgn,
   Node,
-  ChildNode,
   isChildNode,
   transform,
   startingPosition,
   defaultHeaders,
   type PgnNodeData,
 } from 'chessops/pgn';
-import { isNormal, type Role } from 'chessops/types';
-import type { Move, PgnNodeMeta, VariationInfo, PgnTreeNode } from '../types';
+import type { PgnNodeMeta, VariationInfo, PgnTreeNode } from '../types';
+import { buildMovePojo } from './pieceMapping';
 
 class TransformContext {
   constructor(public pos: Chess) {}
@@ -27,15 +26,6 @@ class EmptyContext {
     return new EmptyContext();
   }
 }
-
-const roleToPieceSymbol: Record<Role, string> = {
-  pawn: 'p',
-  knight: 'n',
-  bishop: 'b',
-  rook: 'r',
-  queen: 'q',
-  king: 'k',
-};
 
 export class PgnTreeManager {
   private headers: Map<string, string> = defaultHeaders();
@@ -82,8 +72,8 @@ export class PgnTreeManager {
     return null;
   }
 
-  public getActivePath(): ChildNode<PgnNodeMeta>[] {
-    const path: ChildNode<PgnNodeMeta>[] = [];
+  public getActivePath(): import('chessops/pgn').ChildNode<PgnNodeMeta>[] {
+    const path: import('chessops/pgn').ChildNode<PgnNodeMeta>[] = [];
     let node: Node<PgnNodeMeta> = this.currentNode;
     while (isChildNode(node)) {
       path.unshift(node);
@@ -121,41 +111,12 @@ export class PgnTreeManager {
       const parsed = parseSan(c.pos, node.san);
       if (!parsed) return undefined;
       const fenBefore = makeFen(c.pos.toSetup());
-      const fromStr = isNormal(parsed) ? makeSquare(parsed.from) : '';
-      const toStr = makeSquare(parsed.to);
-      const pieceBefore = isNormal(parsed) ? c.pos.board.get(parsed.from) : undefined;
-      const colorBefore: 'w' | 'b' = c.pos.turn === 'white' ? 'w' : 'b';
-      let capturedPiece = c.pos.board.get(parsed.to);
-      const isEnPassant =
-        isNormal(parsed) &&
-        pieceBefore?.role === 'pawn' &&
-        fromStr[0] !== toStr[0] &&
-        !capturedPiece;
 
-      if (isEnPassant) {
-        capturedPiece = { role: 'pawn', color: colorBefore === 'w' ? 'black' : 'white' };
-      }
-      const promoChar =
-        isNormal(parsed) && parsed.promotion ? roleToPieceSymbol[parsed.promotion] : undefined;
-
-      const sanStr = makeSanAndPlay(c.pos, parsed);
-      const fenAfter = makeFen(c.pos.toSetup());
-
-      const movePojo: Move = {
-        from: fromStr,
-        to: toStr,
-        piece: pieceBefore ? roleToPieceSymbol[pieceBefore.role] : 'p',
-        color: colorBefore,
-        san: sanStr,
-        captured: capturedPiece ? roleToPieceSymbol[capturedPiece.role] : undefined,
-        promotion: promoChar,
-        before: fenBefore,
-        after: fenAfter,
-      };
+      const movePojo = buildMovePojo(c.pos, parsed, fenBefore);
 
       const meta: PgnNodeMeta = {
-        san: sanStr,
-        fen: fenAfter,
+        san: movePojo.san,
+        fen: movePojo.after,
         move: movePojo,
         comments: node.comments,
         startingComments: node.startingComments,

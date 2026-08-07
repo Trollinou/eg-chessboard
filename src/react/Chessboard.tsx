@@ -8,7 +8,14 @@ import {
   type StockfishConfig,
   type ChessDiagram,
 } from '../BoardCore';
-export { BoardCore, type BoardCoreState, type StockfishConfig, type ChessDiagram, type Move, type BoardMode };
+export {
+  BoardCore,
+  type BoardCoreState,
+  type StockfishConfig,
+  type ChessDiagram,
+  type Move,
+  type BoardMode,
+};
 import { PromotionDialog } from './components/PromotionDialog';
 
 export interface ChessboardProps {

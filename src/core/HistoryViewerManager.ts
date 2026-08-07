@@ -20,6 +20,16 @@ export class HistoryViewerManager {
     return this.state.isEnabled;
   }
 
+  /**
+   * Returns the ply currently being viewed, or the fallback value if not viewing history.
+   * Centralizes the repeated ternary pattern for ply resolution.
+   */
+  public getCurrentViewingPly(fallbackPly: number): number {
+    return this.state.isEnabled && this.state.plyViewing !== undefined
+      ? this.state.plyViewing
+      : fallbackPly;
+  }
+
   public resetState(): void {
     this.state = { isEnabled: false };
   }
@@ -83,5 +93,45 @@ export class HistoryViewerManager {
       return path.map((n) => n.data.move);
     }
     return path.map((n) => n.data.san);
+  }
+
+  public viewStart(
+    path: ChildNode<PgnNodeMeta>[],
+    rootFen: string,
+    board: Api | null,
+    onStateChange: () => void,
+    updateCommentAndShapes: (fenViewing: string) => void
+  ): void {
+    this.viewHistory(0, path, rootFen, board, onStateChange, updateCommentAndShapes);
+  }
+
+  public viewNext(
+    path: ChildNode<PgnNodeMeta>[],
+    rootFen: string,
+    board: Api | null,
+    onStateChange: () => void,
+    updateCommentAndShapes: (fenViewing: string) => void
+  ): void {
+    const ply =
+      this.state.isEnabled && this.state.plyViewing !== undefined ? this.state.plyViewing : 0;
+    if (ply < path.length) {
+      this.viewHistory(ply + 1, path, rootFen, board, onStateChange, updateCommentAndShapes);
+    }
+  }
+
+  public viewPrevious(
+    path: ChildNode<PgnNodeMeta>[],
+    rootFen: string,
+    board: Api | null,
+    onStateChange: () => void,
+    updateCommentAndShapes: (fenViewing: string) => void
+  ): void {
+    const ply =
+      this.state.isEnabled && this.state.plyViewing !== undefined
+        ? this.state.plyViewing
+        : path.length;
+    if (ply > 0) {
+      this.viewHistory(ply - 1, path, rootFen, board, onStateChange, updateCommentAndShapes);
+    }
   }
 }

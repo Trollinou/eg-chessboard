@@ -1,6 +1,27 @@
 import type { DrawShape } from '@lichess-org/chessground/draw';
 import type { Key } from '@lichess-org/chessground/types';
 import type { Api } from '@lichess-org/chessground/api';
+import type { BoardCoreState } from '../BoardCore';
+import type { PgnTreeManager } from './PgnTreeManager';
+import type { HistoryViewerManager } from './HistoryViewerManager';
+import type { Move } from '../types';
+
+export interface AnnotationContext {
+  state: BoardCoreState;
+  board?: Api;
+  pgnTreeManager: PgnTreeManager;
+  historyViewerManager: HistoryViewerManager;
+  getMode: () => string;
+  getHistory: (verbose?: boolean) => Move[] | string[];
+  setCommentAtPly: (
+    ply: number,
+    text: string,
+    shapes: DrawShape[],
+    updateBoardShapes?: boolean
+  ) => void;
+  emitEvent: (event: string, ...args: unknown[]) => void;
+  onStateChange: () => void;
+}
 
 export class AnnotationManager {
   private currentPreservedShapes: DrawShape[] = [];
@@ -45,6 +66,78 @@ export class AnnotationManager {
       this.currentPreservedShapes ||
       []
     );
+  }
+
+  public handleDrawableChange(shapes: DrawShape[], ctx: AnnotationContext): void {
+    if (this.isDrawingUpdate || this.isProgrammaticShapeUpdate) return;
+
+    this.isDrawingUpdate = true;
+    try {
+      const mode = ctx.getMode();
+      const isPreserve = !!ctx.state.preserveShapesOnPositionChange || mode === 'editor';
+
+      if (mode === 'editor') {
+        const boardState = ctx.board as unknown as {
+          state?: { drawable?: { current?: unknown } };
+        };
+        const isDrawingInChessground = !!boardState?.state?.drawable?.current;
+        if (shapes.length > 0 || isDrawingInChessground) {
+          this.setPreservedShapes(shapes);
+        } else if (ctx.board && this.getPreservedShapes().length > 0) {
+          this.applyBoardShapes(this.getPreservedShapes(), ctx.board, true);
+        }
+      } else if (mode === 'game' && isPreserve) {
+        if (ctx.board && this.getPreservedShapes().length > 0) {
+          this.applyBoardShapes(this.getPreservedShapes(), ctx.board, true);
+        }
+      } else {
+        this.setPreservedShapes(shapes);
+      }
+
+      if (mode === 'study') {
+        const ply = ctx.historyViewerManager.getCurrentViewingPly(
+          (ctx.getHistory(true) as Move[]).length
+        );
+        ctx.setCommentAtPly(ply, ctx.state.currentComment || '', shapes, false);
+      }
+
+      ctx.emitEvent('shapes-change', this.getPreservedShapes());
+    } finally {
+      this.isDrawingUpdate = false;
+    }
+  }
+
+  public updateCommentAndShapes(_fenStr: string, ctx: AnnotationContext): void {
+    const path = ctx.pgnTreeManager.getActivePath();
+    const ply = ctx.historyViewerManager.getCurrentViewingPly(path.length);
+
+    let rawComment = '';
+    if (ply > 0 && ply <= path.length) {
+      const targetNode = path[ply - 1];
+      if (targetNode.data.comments) {
+        rawComment = targetNode.data.comments.join(' ');
+      }
+    } else if (ply === 0 && path.length > 0 && path[0].data.startingComments) {
+      rawComment = path[0].data.startingComments.join(' ');
+    }
+
+    const isPreserve = !!ctx.state.preserveShapesOnPositionChange || ctx.getMode() === 'editor';
+
+    if (!rawComment) {
+      ctx.state.currentComment = '';
+      if (!isPreserve && ctx.board) {
+        this.applyBoardShapes([], ctx.board, false);
+      }
+      ctx.onStateChange();
+      return;
+    }
+
+    const parsed = this.parseComment(rawComment);
+    ctx.state.currentComment = parsed.text;
+    if (!isPreserve && ctx.board) {
+      this.applyBoardShapes(parsed.shapes, ctx.board, false);
+    }
+    ctx.onStateChange();
   }
 
   public drawMove(
