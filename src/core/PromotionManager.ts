@@ -1,7 +1,7 @@
 import { parseSquare } from 'chessops';
 import type { Chess } from 'chessops';
 import type { BoardCoreState } from '../BoardCore';
-import { pieceSymbolToRole } from './pieceMapping';
+import { pieceSymbolToRole, FILES } from './pieceMapping';
 
 export class PromotionManager {
   public static async checkUnpromotedPawns(
@@ -15,9 +15,7 @@ export class PromotionManager {
     if (state.promotionDialogState.isEnabled) return;
     if (!state.freeMode && getMode() !== 'editor') return;
 
-    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-
-    for (const f of files) {
+    for (const f of FILES) {
       // Rank 8: White Pawn Promotion
       const sq8Str = `${f}8`;
       const sq8 = parseSquare(sq8Str)!;

@@ -4,6 +4,7 @@ import type { Key } from '@lichess-org/chessground/types';
 import type { Role, Color } from '@lichess-org/chessground/types';
 import { possibleMoves } from '../BoardHelper';
 import type { Move } from '../types';
+import { roleToPieceSymbol } from './pieceMapping';
 
 export class ExerciseManager {
   private customDests: Map<Key, Key[]> | null = null;
@@ -44,16 +45,8 @@ export class ExerciseManager {
     boardStatePieces: Map<Key, { role: Role; color: Color }>
   ): Map<Key, { type: string; color: 'w' | 'b' }> {
     const piecesMap = new Map<Key, { type: string; color: 'w' | 'b' }>();
-    const roleToPieceType: Record<string, string> = {
-      pawn: 'p',
-      knight: 'n',
-      bishop: 'b',
-      rook: 'r',
-      queen: 'q',
-      king: 'k',
-    };
     for (const [square, piece] of boardStatePieces) {
-      const type = roleToPieceType[piece.role];
+      const type = roleToPieceSymbol[piece.role];
       if (type) {
         piecesMap.set(square, {
           type,

@@ -39,15 +39,18 @@ export class AnnotationManager {
   public applyBoardShapes(
     shapes: DrawShape[],
     board: Api | null,
-    preserveShapesOnPositionChange: boolean
+    preserveShapesOnPositionChange: boolean,
+    mode?: string
   ): void {
     this.currentPreservedShapes = shapes;
     this.isProgrammaticShapeUpdate = true;
     if (board) {
       board.setShapes(shapes);
+      const isGameMode = mode ? mode === 'game' : board.state.drawable.defaultSnapToValidMove;
       board.set({
         drawable: {
           eraseOnMovablePieceClick: !preserveShapesOnPositionChange,
+          defaultSnapToValidMove: isGameMode,
         },
       });
     }

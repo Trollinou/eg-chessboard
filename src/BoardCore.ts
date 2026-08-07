@@ -229,7 +229,7 @@ export class BoardCore {
       this.initialConfig,
       this.getBoardConfigContext()
     );
-    this.board = Chessground(this.domHandler['boardElement'], config);
+    this.board = Chessground(this.domHandler.getElement(), config);
     if (this.initialConfig.drawable?.shapes) {
       this.annotationManager.setPreservedShapes(this.initialConfig.drawable.shapes);
     }
@@ -353,6 +353,7 @@ export class BoardCore {
       this.board.set({
         drawable: {
           eraseOnMovablePieceClick: !preserve,
+          defaultSnapToValidMove: this.getMode() === 'game',
         },
       });
     }
@@ -496,7 +497,11 @@ export class BoardCore {
   }
 
   public setShapes(shapes: DrawShape[] | unknown[]): void {
-    this.annotationManager.applyBoardShapes(shapes as DrawShape[], this.board, this.isPreserveShapes);
+    this.annotationManager.applyBoardShapes(
+      shapes as DrawShape[],
+      this.board,
+      this.isPreserveShapes
+    );
   }
 
   public getState(): Readonly<BoardCoreState> {
@@ -819,8 +824,7 @@ export class BoardCore {
       targetNode.data.comments = combined ? [combined] : [];
     }
 
-    const isViewingThisPly =
-      this.historyViewerManager.getCurrentViewingPly(path.length) === ply;
+    const isViewingThisPly = this.historyViewerManager.getCurrentViewingPly(path.length) === ply;
 
     if (isViewingThisPly) {
       this.state.currentComment = text;

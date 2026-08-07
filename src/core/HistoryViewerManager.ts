@@ -112,8 +112,7 @@ export class HistoryViewerManager {
     onStateChange: () => void,
     updateCommentAndShapes: (fenViewing: string) => void
   ): void {
-    const ply =
-      this.state.isEnabled && this.state.plyViewing !== undefined ? this.state.plyViewing : 0;
+    const ply = this.getCurrentViewingPly(0);
     if (ply < path.length) {
       this.viewHistory(ply + 1, path, rootFen, board, onStateChange, updateCommentAndShapes);
     }
@@ -126,10 +125,7 @@ export class HistoryViewerManager {
     onStateChange: () => void,
     updateCommentAndShapes: (fenViewing: string) => void
   ): void {
-    const ply =
-      this.state.isEnabled && this.state.plyViewing !== undefined
-        ? this.state.plyViewing
-        : path.length;
+    const ply = this.getCurrentViewingPly(path.length);
     if (ply > 0) {
       this.viewHistory(ply - 1, path, rootFen, board, onStateChange, updateCommentAndShapes);
     }

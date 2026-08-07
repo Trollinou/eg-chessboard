@@ -4,6 +4,23 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [1.3.3] - 2026-08-07
+
+### Corrigé & Amélioré
+
+- **Tracé dynamique des formes et flèches (`defaultSnapToValidMove`)** :
+  - Invalidation dynamique du cache des coordonnées DOM (`clearDomBounds`) lors du déclenchement du clic droit (`pointerdown` / `contextmenu`), ainsi qu'au redimensionnement (`ResizeObserver`, `resize` et `scroll`), empêchant tout décalage géométrique.
+  - Alignement par mode métier : restriction de l'aimantage (`defaultSnapToValidMove: true`) au mode `'game'` (coups valides de la Dame et du Cavalier) et désactivation (`defaultSnapToValidMove: false`) en modes `'editor'` et `'study'` pour autoriser les flèches libres entre n'importe quelles cases.
+
+### Refactorisation & Assainissement du Code (Code Health)
+
+- **Encapsulation & Sub-managers** :
+  - Suppression des accès aux membres privés par contournement de typage (`this.domHandler['boardElement']`) avec l'ajout de `domHandler.getElement()`.
+  - Centralisation de la constante de coordonnées de colonnes `FILES` dans `pieceMapping.ts` et réutilisation dans `DomHandler.ts`, `FenManager.ts` et `PromotionManager.ts`.
+  - Réutilisation de `roleToPieceSymbol` dans `ExerciseManager.ts` pour la résolution des pièces de l'échiquier.
+  - Déduplication du cycle de vie et du traitement UCI des workers Stockfish (`setupWorker`, `handleEngineMessage`).
+  - Centralisation de la résolution des plies dans `HistoryViewerManager.ts` (`getCurrentViewingPly`).
+
 ## [1.3.0] - 2026-08-01
 
 ### Ajouté

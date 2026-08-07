@@ -1,17 +1,24 @@
 import type { Key } from '@lichess-org/chessground/types';
 import type { Api } from '@lichess-org/chessground/api';
+import { FILES } from './pieceMapping';
 
 export class DomHandler {
   private boardElement: HTMLElement;
   private pointerDownState: { x: number; y: number; square: Key } | null = null;
   private domListeners: Array<{
+    target: EventTarget;
     type: string;
     listener: EventListenerOrEventListenerObject;
     options?: boolean | AddEventListenerOptions;
   }> = [];
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor(boardElement: HTMLElement) {
     this.boardElement = boardElement;
+  }
+
+  public getElement(): HTMLElement {
+    return this.boardElement;
   }
 
   public bindClickAndBoundsListeners(
@@ -20,18 +27,19 @@ export class DomHandler {
     getOrientation: () => 'white' | 'black'
   ): void {
     const addListener = (
+      target: EventTarget,
       type: string,
       listener: EventListenerOrEventListenerObject,
       options?: boolean | AddEventListenerOptions
     ) => {
-      this.boardElement.addEventListener(type, listener, options);
-      this.domListeners.push({ type, listener, options });
+      target.addEventListener(type, listener, options);
+      this.domListeners.push({ target, type, listener, options });
     };
 
     const onDown = (e: Event) => {
+      clearDomBounds();
       const me = e as MouseEvent | TouchEvent;
       if ('button' in me && me.button !== 0) return;
-      clearDomBounds();
       const sq = this.getSquareFromEvent(me, getOrientation());
       if (sq) {
         let clientX = 0;
@@ -80,14 +88,38 @@ export class DomHandler {
       this.pointerDownState = null;
     };
 
+    const onContextMenu = () => {
+      clearDomBounds();
+    };
+
     if (typeof window !== 'undefined' && 'PointerEvent' in window) {
-      addListener('pointerdown', onDown as EventListener, { capture: true });
-      addListener('pointerup', onUp as EventListener, { capture: true });
+      addListener(this.boardElement, 'pointerdown', onDown as EventListener, { capture: true });
+      addListener(this.boardElement, 'pointerup', onUp as EventListener, { capture: true });
     } else {
-      addListener('mousedown', onDown as EventListener, { capture: true });
-      addListener('mouseup', onUp as EventListener, { capture: true });
-      addListener('touchstart', onDown as EventListener, { capture: true });
-      addListener('touchend', onUp as EventListener, { capture: true });
+      addListener(this.boardElement, 'mousedown', onDown as EventListener, { capture: true });
+      addListener(this.boardElement, 'mouseup', onUp as EventListener, { capture: true });
+      addListener(this.boardElement, 'touchstart', onDown as EventListener, { capture: true });
+      addListener(this.boardElement, 'touchend', onUp as EventListener, { capture: true });
+    }
+
+    addListener(this.boardElement, 'contextmenu', onContextMenu as EventListener, {
+      capture: true,
+    });
+
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => {
+        clearDomBounds();
+      });
+      this.resizeObserver.observe(this.boardElement);
+    }
+
+    if (typeof window !== 'undefined') {
+      const onWindowChange = () => clearDomBounds();
+      addListener(window, 'resize', onWindowChange as EventListener, { passive: true });
+      addListener(window, 'scroll', onWindowChange as EventListener, {
+        capture: true,
+        passive: true,
+      });
     }
   }
 
@@ -130,8 +162,7 @@ export class DomHandler {
     const file = isWhite ? fileIdx : 7 - fileIdx;
     const rank = isWhite ? 7 - rankIdx : rankIdx;
 
-    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-    return `${files[file]}${rank + 1}` as Key;
+    return `${FILES[file]}${rank + 1}` as Key;
   }
 
   public clearDomBounds(board: Api | null): void {
@@ -144,8 +175,12 @@ export class DomHandler {
   }
 
   public destroy(): void {
-    for (const { type, listener, options } of this.domListeners) {
-      this.boardElement.removeEventListener(type, listener, options);
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+    for (const { target, type, listener, options } of this.domListeners) {
+      target.removeEventListener(type, listener, options);
     }
     this.domListeners = [];
   }

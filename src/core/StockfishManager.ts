@@ -63,48 +63,43 @@ export class StockfishManager {
       return;
     }
 
-    if (whiteMode && whiteMode !== 'disabled') {
-      if (!this.whiteWorker) {
-        this.whiteWorker = new Worker(workerUrl);
-        this.whiteWorker.onmessage = (e) => this.handleWhiteMessage(e.data);
-        this.whiteWorker.postMessage('uci');
-        this.whiteWorker.postMessage('ucinewgame');
-        this.whiteWorker.postMessage('isready');
-      }
-      if (whiteMode === 'elo') {
-        const elo = whiteElo || 1500;
-        this.whiteWorker.postMessage('setoption name UCI_LimitStrength value true');
-        this.whiteWorker.postMessage(`setoption name UCI_Elo value ${elo}`);
-      } else if (whiteMode === 'hint') {
-        this.whiteWorker.postMessage('setoption name Hash value 256');
-      }
-    } else {
-      if (this.whiteWorker) {
-        this.whiteWorker.terminate();
-        this.whiteWorker = null;
-      }
-    }
+    this.whiteWorker = this.setupWorker(this.whiteWorker, workerUrl, whiteMode, whiteElo, (line) =>
+      this.handleWhiteMessage(line)
+    );
+    this.blackWorker = this.setupWorker(this.blackWorker, workerUrl, blackMode, blackElo, (line) =>
+      this.handleBlackMessage(line)
+    );
+  }
 
-    if (blackMode && blackMode !== 'disabled') {
-      if (!this.blackWorker) {
-        this.blackWorker = new Worker(workerUrl);
-        this.blackWorker.onmessage = (e) => this.handleBlackMessage(e.data);
-        this.blackWorker.postMessage('uci');
-        this.blackWorker.postMessage('ucinewgame');
-        this.blackWorker.postMessage('isready');
+  private setupWorker(
+    currentWorker: Worker | null,
+    workerUrl: string,
+    mode: StockfishMode | undefined,
+    elo: number | undefined,
+    onMessage: (line: string) => void
+  ): Worker | null {
+    if (mode && mode !== 'disabled') {
+      let worker = currentWorker;
+      if (!worker) {
+        worker = new Worker(workerUrl);
+        worker.onmessage = (e) => onMessage(e.data);
+        worker.postMessage('uci');
+        worker.postMessage('ucinewgame');
+        worker.postMessage('isready');
       }
-      if (blackMode === 'elo') {
-        const elo = blackElo || 1500;
-        this.blackWorker.postMessage('setoption name UCI_LimitStrength value true');
-        this.blackWorker.postMessage(`setoption name UCI_Elo value ${elo}`);
-      } else if (blackMode === 'hint') {
-        this.blackWorker.postMessage('setoption name Hash value 256');
+      if (mode === 'elo') {
+        const targetElo = elo || 1500;
+        worker.postMessage('setoption name UCI_LimitStrength value true');
+        worker.postMessage(`setoption name UCI_Elo value ${targetElo}`);
+      } else if (mode === 'hint') {
+        worker.postMessage('setoption name Hash value 256');
       }
+      return worker;
     } else {
-      if (this.blackWorker) {
-        this.blackWorker.terminate();
-        this.blackWorker = null;
+      if (currentWorker) {
+        currentWorker.terminate();
       }
+      return null;
     }
   }
 
@@ -147,52 +142,32 @@ export class StockfishManager {
       movetime
     );
 
-    if (turn === 'white' && this.whiteWorker) {
+    const worker = turn === 'white' ? this.whiteWorker : this.blackWorker;
+    if (worker) {
       const positionCmd = getEnginePositionCommand();
       console.log(
-        '[StockfishManager] Sending to White Worker:',
+        `[StockfishManager] Sending to ${turn === 'white' ? 'White' : 'Black'} Worker:`,
         positionCmd,
         `go movetime ${movetime}`
       );
-      this.whiteWorker.postMessage(positionCmd);
-      this.whiteWorker.postMessage(`go movetime ${movetime}`);
-    } else if (turn === 'black' && this.blackWorker) {
-      const positionCmd = getEnginePositionCommand();
-      console.log(
-        '[StockfishManager] Sending to Black Worker:',
-        positionCmd,
-        `go movetime ${movetime}`
-      );
-      this.blackWorker.postMessage(positionCmd);
-      this.blackWorker.postMessage(`go movetime ${movetime}`);
+      worker.postMessage(positionCmd);
+      worker.postMessage(`go movetime ${movetime}`);
     }
   }
 
   private handleWhiteMessage(line: string): void {
-    if (line.startsWith('bestmove')) {
-      const parts = line.split(' ');
-      const bestMove = parts[1];
-      if (bestMove && bestMove !== '(none)') {
-        const mode = this.stockfishConfig.whiteMode;
-        if (mode === 'hint') {
-          this.lastSuggestedMove = bestMove;
-          this.onHint(bestMove);
-        } else if (mode === 'elo') {
-          const from = bestMove.slice(0, 2);
-          const to = bestMove.slice(2, 4);
-          const promotion = bestMove.length > 4 ? bestMove.charAt(4) : undefined;
-          this.onMove({ from, to, promotion });
-        }
-      }
-    }
+    this.handleEngineMessage(line, this.stockfishConfig.whiteMode);
   }
 
   private handleBlackMessage(line: string): void {
+    this.handleEngineMessage(line, this.stockfishConfig.blackMode);
+  }
+
+  private handleEngineMessage(line: string, mode: StockfishMode | undefined): void {
     if (line.startsWith('bestmove')) {
       const parts = line.split(' ');
       const bestMove = parts[1];
       if (bestMove && bestMove !== '(none)') {
-        const mode = this.stockfishConfig.blackMode;
         if (mode === 'hint') {
           this.lastSuggestedMove = bestMove;
           this.onHint(bestMove);

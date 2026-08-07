@@ -12,7 +12,7 @@ const pgnText = ref<string>(
     `[White "Professeur"]\n` +
     `[Black "Élève"]\n` +
     `[Result "*"]\n\n` +
-    `1. e4 e5 { [%cal Gg1f3,Gg8c6] Commençons par l'ouverture double pion roi classique. } ` +
+    `1. e4 e5 { [%cal Gg1f3,Gb8c6] Commençons par l'ouverture double pion roi classique. } ` +
     `2. Nf3 Nc6 { [%cpl Gc6,Gf3] Le cavalier blanc attaque e5, le cavalier noir le défend. } ` +
     `3. Bc4 Nf6 { [%cal Gc4f7] L'attaque fritz-légère ou la défense italienne. } ` +
     `4. Ng5 d5 { [%cal Gg5f7] Menace de fourchette sur f7, paré par d5. } ` +

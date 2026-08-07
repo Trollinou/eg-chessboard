@@ -5,7 +5,7 @@ import type { Key, Color } from '@lichess-org/chessground/types';
 
 import { possibleMoves } from '../BoardHelper';
 import type { Move } from '../types';
-import { roleToPieceSymbol, pieceSymbolToRole, buildMovePojo } from './pieceMapping';
+import { roleToPieceSymbol, pieceSymbolToRole, buildMovePojo, FILES } from './pieceMapping';
 
 export class FenManager {
   public static safeLoadFen(
@@ -39,7 +39,6 @@ export class FenManager {
     pos.turn = parts[1] === 'b' ? 'black' : 'white';
 
     const ranks = placement.split('/');
-    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
     for (let r = 0; r < 8; r++) {
       const rankStr = ranks[r];
@@ -52,7 +51,7 @@ export class FenManager {
         } else {
           const color: ChessopsColor = char === char.toUpperCase() ? 'white' : 'black';
           const role = pieceSymbolToRole[char.toLowerCase()];
-          const square = parseSquare(`${files[fileIdx]}${8 - r}`)!;
+          const square = parseSquare(`${FILES[fileIdx]}${8 - r}`)!;
           if (fileIdx < 8 && role) {
             pos.board.set(square, { role, color });
           }

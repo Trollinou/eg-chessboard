@@ -7,6 +7,9 @@ import type { Role, Move as ChessopsMove } from 'chessops/types';
 
 import type { Move } from '../types';
 
+/** Standard chess board files (columns a-h). */
+export const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
+
 /** Mapping from chessops Role to single-char piece symbol (e.g. 'pawn' → 'p'). */
 export const roleToPieceSymbol: Record<Role, string> = {
   pawn: 'p',

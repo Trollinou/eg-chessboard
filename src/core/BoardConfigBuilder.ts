@@ -98,10 +98,13 @@ export class BoardConfigBuilder {
       };
     }
 
+    const mode = ctx.getMode();
     const isPreserve = !!ctx.state.preserveShapesOnPositionChange;
+    const defaultSnap = mode === 'game';
 
     const mergedDrawable = {
       enabled: true,
+      defaultSnapToValidMove: defaultSnap,
       eraseOnMovablePieceClick: !isPreserve,
       onChange: (shapes: unknown[]) => {
         ctx.handleDrawableChange(shapes);
@@ -203,6 +206,7 @@ export class BoardConfigBuilder {
           },
           drawable: {
             eraseOnMovablePieceClick: !isPreserve,
+            defaultSnapToValidMove: ctx.getMode() === 'game',
             ...(savedShapes
               ? {
                   autoShapes: [],
