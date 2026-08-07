@@ -21,7 +21,7 @@ import {
   getThreats,
   getFinalFenFromPgn,
 } from './BoardHelper';
-import type { Move, PgnNodeMeta, VariationInfo, PgnTreeNode } from './types';
+import type { Move, PgnNodeMeta, VariationInfo, PgnTreeNode, BoardMode } from './types';
 
 import { DomHandler } from './core/DomHandler';
 import { StockfishManager, type StockfishConfig } from './core/StockfishManager';
@@ -32,6 +32,7 @@ import { PgnTreeManager } from './core/PgnTreeManager';
 
 export interface BoardCoreState {
   showThreats: boolean;
+  mode?: BoardMode;
   freeMode?: boolean;
   soloMode?: boolean;
   preserveShapesOnPositionChange?: boolean;
@@ -139,6 +140,12 @@ export class BoardCore {
     diagram?: ChessDiagram
   ) {
     this.state = state;
+    if (!this.state.mode) {
+      this.state.mode = 'game';
+    }
+    if (this.state.mode === 'editor' && this.state.preserveShapesOnPositionChange === undefined) {
+      this.state.preserveShapesOnPositionChange = true;
+    }
     this.onStateChange = onStateChange;
     this.emitEvent = emitEvent;
     this.initialConfig = initialConfig;
@@ -191,6 +198,9 @@ export class BoardCore {
     }
     const config = this.buildConfig(this.initialConfig);
     this.board = Chessground(this.domHandler['boardElement'], config);
+    if (this.initialConfig.drawable?.shapes) {
+      this.annotationManager.setPreservedShapes(this.initialConfig.drawable.shapes);
+    }
     this.updateGameState({ updateFen: false });
   }
 
@@ -361,22 +371,85 @@ export class BoardCore {
         }
       }
 
+      const isPreserve =
+        !!this.state.preserveShapesOnPositionChange || this.getMode() === 'editor';
+      if (isPreserve && this.board) {
+        this.annotationManager.applyBoardShapes(
+          this.annotationManager.getPreservedShapes(),
+          this.board,
+          true
+        );
+      }
+
       this.emitEvent('move', {
         after: newFen,
       });
+
+      this.checkUnpromotedPawns();
     } finally {
       this.isSyncing = false;
     }
   }
 
+  private async checkUnpromotedPawns(): Promise<void> {
+    if (this.state.promotionDialogState.isEnabled) return;
+    if (!this.state.freeMode && this.getMode() !== 'editor') return;
+
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+    for (const f of files) {
+      // Rank 8: White Pawn Promotion
+      const sq8Str = `${f}8`;
+      const sq8 = parseSquare(sq8Str)!;
+      const piece8 = this.pos.board.get(sq8);
+      if (piece8 && piece8.role === 'pawn' && piece8.color === 'white') {
+        await this.promptPromotionForSquare(sq8Str, 'white');
+        return;
+      }
+
+      // Rank 1: Black Pawn Promotion
+      const sq1Str = `${f}1`;
+      const sq1 = parseSquare(sq1Str)!;
+      const piece1 = this.pos.board.get(sq1);
+      if (piece1 && piece1.role === 'pawn' && piece1.color === 'black') {
+        await this.promptPromotionForSquare(sq1Str, 'black');
+        return;
+      }
+    }
+  }
+
+  private async promptPromotionForSquare(sqStr: string, color: 'white' | 'black'): Promise<void> {
+    const selectedPromotion = await new Promise<string>((resolve) => {
+      this.state.promotionDialogState = {
+        isEnabled: true,
+        color,
+        callback: (promoPiece) => {
+          resolve(promoPiece);
+        },
+      };
+      this.onStateChange();
+    });
+
+    const promotedRole = pieceSymbolToRole[selectedPromotion.toLowerCase()] || 'queen';
+    const sq = parseSquare(sqStr)!;
+    this.pos.board.set(sq, { role: promotedRole, color });
+    this.cachedFen = null;
+
+    this.state.promotionDialogState = { isEnabled: false };
+    this.onStateChange();
+
+    this.updateGameState();
+  }
+
   private updateGameState({ updateFen = true } = {}): void {
     if (!this.historyViewerManager.isViewingHistory()) {
+      const isPreserve =
+        !!this.state.preserveShapesOnPositionChange || this.getMode() === 'editor';
       const currentShapes = this.getShapes();
-      const savedShapes = this.state.preserveShapesOnPositionChange ? [...currentShapes] : null;
+      const savedShapes = isPreserve ? [...currentShapes] : null;
 
       const isFree = !!this.state.freeMode;
       const isSolo = !!this.state.soloMode;
-      const isPreserve = !!this.state.preserveShapesOnPositionChange;
 
       if (
         isSolo &&
@@ -417,11 +490,15 @@ export class BoardCore {
         },
       });
 
+      if (savedShapes) {
+        this.annotationManager.applyBoardShapes(savedShapes, this.board, true);
+      }
       if (this.state.showThreats) {
         this.drawThreats();
       } else if (!savedShapes) {
         this.updateCommentAndShapes(this.getFen());
       }
+      this.checkUnpromotedPawns();
     }
 
     this.emitEvents();
@@ -441,16 +518,23 @@ export class BoardCore {
   private async changeTurn(orig: Key, dest: Key, _metadata: MoveMetadata): Promise<void> {
     const sq = parseSquare(orig)!;
     const piece = this.pos.board.get(sq);
-    const pieceType = piece ? roleToPieceSymbol[piece.role] : 'p';
-    const pieceColor = piece
-      ? piece.color === 'white'
+    const destSq = parseSquare(dest);
+    const destPiece = destSq ? this.pos.board.get(destSq) : undefined;
+    const activePiece = piece || destPiece;
+
+    const pieceType = activePiece ? roleToPieceSymbol[activePiece.role] : undefined;
+    const pieceColor = activePiece
+      ? activePiece.color === 'white'
         ? 'w'
         : 'b'
       : this.pos.turn === 'white'
         ? 'w'
         : 'b';
 
-    if (isPromotion(dest, { type: pieceType, color: pieceColor })) {
+    if (
+      pieceType === 'p' &&
+      isPromotion(dest, { type: pieceType, color: pieceColor })
+    ) {
       const selectedPromotion = await new Promise<string>((resolve) => {
         this.state.promotionDialogState = {
           isEnabled: true,
@@ -462,11 +546,24 @@ export class BoardCore {
         this.onStateChange();
       });
 
-      this.move({
+      const moved = this.move({
         from: orig,
         to: dest,
         promotion: selectedPromotion.toLowerCase(),
       });
+
+      if (!moved && (this.state.freeMode || this.getMode() === 'editor')) {
+        const promotedRole = pieceSymbolToRole[selectedPromotion.toLowerCase()] || 'queen';
+        const color = pieceColor === 'w' ? 'white' : 'black';
+
+        const pieces = new Map(this.board.state.pieces);
+        pieces.set(dest, { role: promotedRole, color });
+        if (orig !== dest) {
+          pieces.delete(orig);
+        }
+        this.board.setPieces(pieces);
+        this.syncGameFromBoard();
+      }
     } else {
       this.move({
         from: orig,
@@ -481,10 +578,38 @@ export class BoardCore {
 
     this.annotationManager.isDrawingUpdate = true;
     try {
-      this.annotationManager.setPreservedShapes(shapes);
-      if (this.state.preserveShapesOnPositionChange && this.board) {
-        // User shapes maintained by Chessground
+      const mode = this.getMode();
+      const isPreserve = !!this.state.preserveShapesOnPositionChange || mode === 'editor';
+
+      if (mode === 'editor') {
+        const boardState = this.board as unknown as {
+          state?: { drawable?: { current?: unknown } };
+        };
+        const isDrawingInChessground = !!boardState?.state?.drawable?.current;
+        if (shapes.length > 0 || isDrawingInChessground) {
+          this.annotationManager.setPreservedShapes(shapes);
+        } else if (this.board && this.annotationManager.getPreservedShapes().length > 0) {
+          this.annotationManager.applyBoardShapes(
+            this.annotationManager.getPreservedShapes(),
+            this.board,
+            true
+          );
+        }
+      } else if (mode === 'game' && isPreserve) {
+        // In 'game' mode with preserveShapesOnPositionChange (e.g. exercises), consigne shapes are read-only.
+        // Prevent user right-click drawing or erasure from altering the preserved consigne shapes.
+        if (this.board && this.annotationManager.getPreservedShapes().length > 0) {
+          this.annotationManager.applyBoardShapes(
+            this.annotationManager.getPreservedShapes(),
+            this.board,
+            true
+          );
+        }
       } else {
+        this.annotationManager.setPreservedShapes(shapes);
+      }
+
+      if (mode === 'study') {
         const historyViewerState = this.historyViewerManager.getState();
         const ply =
           historyViewerState.isEnabled && historyViewerState.plyViewing !== undefined
@@ -493,22 +618,36 @@ export class BoardCore {
 
         this.setCommentAtPly(ply, this.state.currentComment || '', shapes, false);
       }
-      this.emitEvent('shapes-change', shapes);
+
+      this.emitEvent('shapes-change', this.annotationManager.getPreservedShapes());
     } finally {
       this.annotationManager.isDrawingUpdate = false;
     }
   }
 
   private updateCommentAndShapes(_fenStr: string): void {
-    const currentNode = this.pgnTreeManager.getCurrentNode();
+    const path = this.pgnTreeManager.getActivePath();
+    const historyState = this.historyViewerManager.getState();
+    const ply =
+      historyState.isEnabled && historyState.plyViewing !== undefined
+        ? historyState.plyViewing
+        : path.length;
+
     let rawComment = '';
-    if (isChildNode(currentNode) && currentNode.data.comments) {
-      rawComment = currentNode.data.comments.join(' ');
+    if (ply > 0 && ply <= path.length) {
+      const targetNode = path[ply - 1];
+      if (targetNode.data.comments) {
+        rawComment = targetNode.data.comments.join(' ');
+      }
+    } else if (ply === 0 && path.length > 0 && path[0].data.startingComments) {
+      rawComment = path[0].data.startingComments.join(' ');
     }
+
+    const isPreserve = !!this.state.preserveShapesOnPositionChange || this.getMode() === 'editor';
 
     if (!rawComment) {
       this.state.currentComment = '';
-      if (this.isViewingHistory() && !this.state.preserveShapesOnPositionChange) {
+      if (!isPreserve) {
         this.annotationManager.applyBoardShapes([], this.board, false);
       }
       this.onStateChange();
@@ -517,7 +656,7 @@ export class BoardCore {
 
     const parsed = this.annotationManager.parseComment(rawComment);
     this.state.currentComment = parsed.text;
-    if (!this.state.preserveShapesOnPositionChange) {
+    if (!isPreserve) {
       this.annotationManager.applyBoardShapes(parsed.shapes, this.board, false);
     }
     this.onStateChange();
@@ -544,6 +683,19 @@ export class BoardCore {
 
   // PUBLIC API CONTRACT
 
+  public setMode(mode: BoardMode): void {
+    this.state.mode = mode;
+    if (mode === 'editor' && this.state.preserveShapesOnPositionChange === undefined) {
+      this.state.preserveShapesOnPositionChange = true;
+    }
+    this.updateGameState({ updateFen: false });
+    this.onStateChange();
+  }
+
+  public getMode(): BoardMode {
+    return this.state.mode || 'game';
+  }
+
   public closePromotionDialog(): void {
     this.state.promotionDialogState = { isEnabled: false };
     this.onStateChange();
@@ -563,6 +715,16 @@ export class BoardCore {
 
   public setPreserveShapesOnPositionChange(preserve: boolean): void {
     this.state.preserveShapesOnPositionChange = preserve;
+    if (preserve && this.board) {
+      const boardState = this.board as unknown as {
+        state?: { drawable?: { shapes?: DrawShape[]; autoShapes?: DrawShape[] } };
+      };
+      const currentBoardShapes =
+        boardState?.state?.drawable?.shapes || boardState?.state?.drawable?.autoShapes || [];
+      if (currentBoardShapes.length > 0) {
+        this.annotationManager.setPreservedShapes(currentBoardShapes);
+      }
+    }
     if (this.board) {
       this.board.set({
         drawable: {
@@ -641,6 +803,7 @@ export class BoardCore {
     this.board.set({
       fen: this.getFen(),
       lastMove: undefined,
+      selected: undefined,
     });
     this.updateGameState({ updateFen: false });
     this.initStockfish();
@@ -1090,6 +1253,9 @@ export class BoardCore {
     this.safeLoadFen(fenStr);
     this.historyViewerManager.resetState();
     this.onStateChange();
+    if (this.board) {
+      this.board.set({ selected: undefined });
+    }
     this.updateGameState();
     this.initStockfish();
     this.triggerStockfish();
@@ -1131,6 +1297,9 @@ export class BoardCore {
     if (sq === undefined) return false;
     const role = pieceSymbolToRole[piece.type];
     if (!role) return false;
+    if (this.board) {
+      this.board.set({ selected: undefined });
+    }
     this.pos.board.set(sq, { role, color: piece.color === 'w' ? 'white' : 'black' });
     this.cachedFen = null;
     this.updateGameState();
@@ -1140,6 +1309,9 @@ export class BoardCore {
   public removePiece(square: Key | string): void {
     const sq = parseSquare(square);
     if (sq !== undefined) {
+      if (this.board) {
+        this.board.set({ selected: undefined });
+      }
       this.pos.board.take(sq);
       this.cachedFen = null;
       this.updateGameState();
@@ -1200,8 +1372,12 @@ export class BoardCore {
 
   public viewNext(): void {
     const historyState = this.historyViewerManager.getState();
-    if (historyState.isEnabled && historyState.plyViewing !== undefined) {
-      this.viewHistory(historyState.plyViewing + 1);
+    const ply =
+      historyState.isEnabled && historyState.plyViewing !== undefined
+        ? historyState.plyViewing
+        : 0;
+    if (ply < this.getCurrentPlyNumber()) {
+      this.viewHistory(ply + 1);
     }
   }
 
@@ -1211,7 +1387,9 @@ export class BoardCore {
       historyState.isEnabled && historyState.plyViewing !== undefined
         ? historyState.plyViewing
         : this.getCurrentPlyNumber();
-    this.viewHistory(ply - 1);
+    if (ply > 0) {
+      this.viewHistory(ply - 1);
+    }
   }
 
   public getVariationsAtPly(ply?: number): VariationInfo[] {

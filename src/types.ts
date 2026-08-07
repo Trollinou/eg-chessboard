@@ -1,3 +1,5 @@
+export type BoardMode = 'editor' | 'game' | 'study';
+
 export interface Move {
   from: string;
   to: string;

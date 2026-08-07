@@ -23,16 +23,12 @@ export class AnnotationManager {
     this.currentPreservedShapes = shapes;
     this.isProgrammaticShapeUpdate = true;
     if (board) {
-      if (preserveShapesOnPositionChange) {
-        board.set({
-          drawable: {
-            autoShapes: [],
-            shapes: shapes,
-          },
-        });
-      } else {
-        board.setShapes(shapes);
-      }
+      board.setShapes(shapes);
+      board.set({
+        drawable: {
+          eraseOnMovablePieceClick: !preserveShapesOnPositionChange,
+        },
+      });
     }
     requestAnimationFrame(() => {
       this.isProgrammaticShapeUpdate = false;
@@ -84,10 +80,11 @@ export class AnnotationManager {
     while ((calMatch = calRegex.exec(commentStr)) !== null) {
       const list = calMatch[1].split(',');
       for (const item of list) {
-        if (item.length >= 5) {
-          const brush = this.getBrushName(item[0].toLowerCase());
-          const orig = item.substring(1, 3) as Key;
-          const dest = item.substring(3, 5) as Key;
+        const trimmed = item.trim();
+        if (trimmed.length >= 5) {
+          const brush = this.getBrushName(trimmed[0].toLowerCase());
+          const orig = trimmed.substring(1, 3) as Key;
+          const dest = trimmed.substring(3, 5) as Key;
           shapes.push({ orig, dest, brush });
         }
       }
@@ -98,9 +95,10 @@ export class AnnotationManager {
     while ((cplMatch = cplRegex.exec(commentStr)) !== null) {
       const list = cplMatch[1].split(',');
       for (const item of list) {
-        if (item.length >= 3) {
-          const brush = this.getBrushName(item[0].toLowerCase());
-          const orig = item.substring(1, 3) as Key;
+        const trimmed = item.trim();
+        if (trimmed.length >= 3) {
+          const brush = this.getBrushName(trimmed[0].toLowerCase());
+          const orig = trimmed.substring(1, 3) as Key;
           shapes.push({ orig, brush });
         }
       }

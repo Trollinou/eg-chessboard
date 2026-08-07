@@ -46,45 +46,57 @@ function promotionSelected(piece: PromotionPiece): void {
 </template>
 
 <style scoped>
+dialog.promotion-dialog,
 .promotion-dialog {
+  all: unset;
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 1000;
-  background: white;
-  border: 2px solid #333;
-  border-radius: 8px;
-  padding: 10px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  background: #f0d9b5;
+  border: 3px solid #b58863;
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
+  margin: 0;
+  width: max-content;
+  max-width: 90%;
+  height: auto;
+  display: block;
+  pointer-events: auto !important;
 }
 
 .promotion-pieces {
   display: flex;
+  flex-direction: row;
   gap: 12px;
+  align-items: center;
+  justify-content: center;
 }
 
 .promotion-piece-btn {
-  background: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  background: #ffffff;
+  border: 2px solid #b58863;
+  border-radius: 10px;
   cursor: pointer;
-  width: 55px;
-  height: 55px;
+  width: 72px;
+  height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-size: 80% 80%;
+  background-size: 92% 92%;
   background-position: center;
   background-repeat: no-repeat;
-  transition:
-    background-color 0.2s,
-    transform 0.1s;
+  transition: all 0.2s ease-in-out;
+  pointer-events: auto !important;
 }
 
 .promotion-piece-btn:hover {
-  background-color: #e2e2e2;
-  transform: scale(1.05);
+  background-color: #e6c89c;
+  border-color: #8b5a2b;
+  transform: scale(1.08);
 }
 
 .promotion-piece-btn:active {

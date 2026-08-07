@@ -23,40 +23,15 @@ export const PromotionDialog: React.FC<PromotionDialogProps> = ({ state, onPromo
   };
 
   return (
-    <dialog
-      className="promotion-dialog"
-      open
-      style={{
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 1000,
-        background: 'white',
-        border: '2px solid #333',
-        borderRadius: '8px',
-        padding: '10px',
-        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.4)',
-      }}
-    >
-      <div className="promotion-pieces" style={{ display: 'flex', gap: '12px' }}>
+    <dialog className="promotion-dialog" open>
+      <div className="promotion-pieces">
         {promotionPieces.map((piece) => (
           <button
             key={piece.name}
             type="button"
             className={`promotion-piece-btn ${piece.name.toLowerCase()} ${state.color}`}
+            aria-label={piece.name}
             onClick={() => handleSelect(piece.data)}
-            style={{
-              background: '#f0f0f0',
-              border: '1px solid #ccc',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              width: '55px',
-              height: '55px',
-              backgroundSize: '80% 80%',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-            }}
           />
         ))}
       </div>

@@ -113,7 +113,7 @@ function goLive() {
       <!-- Section Gauche: L'échiquier -->
       <div class="board-panel">
         <div class="board-wrapper">
-          <TheChessboard :free-mode="false" @board-created="onBoardCreated" @move="syncState" />
+          <TheChessboard mode="study" :free-mode="false" @board-created="onBoardCreated" @move="syncState" />
         </div>
 
         <!-- Contrôles de navigation -->

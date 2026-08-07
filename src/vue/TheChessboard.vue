@@ -5,14 +5,14 @@ export {
   type StockfishConfig,
   type ChessDiagram,
 } from '../BoardCore';
-export type { Move } from '../types';
+export type { Move, BoardMode } from '../types';
 </script>
 
 <script setup lang="ts">
 import { ref, shallowRef, onMounted, onUnmounted, reactive, watch } from 'vue';
 import type { Config } from '@lichess-org/chessground/config';
 import type { DrawShape } from '@lichess-org/chessground/draw';
-import type { Move } from '../types';
+import type { Move, BoardMode } from '../types';
 import {
   BoardCore,
   type BoardCoreState,
@@ -24,6 +24,7 @@ import PromotionDialog from './components/PromotionDialog.vue';
 const props = withDefaults(
   defineProps<{
     boardConfig?: Config;
+    mode?: BoardMode;
     playerColor?: 'white' | 'black' | 'both';
     freeMode?: boolean;
     soloMode?: boolean;
@@ -34,6 +35,7 @@ const props = withDefaults(
   }>(),
   {
     boardConfig: () => ({}),
+    mode: 'game',
     freeMode: false,
     soloMode: false,
     fitContainer: false,
@@ -60,6 +62,7 @@ const core = shallowRef<BoardCore | null>(null);
 
 const state = reactive<BoardCoreState>({
   showThreats: false,
+  mode: props.mode,
   freeMode: props.freeMode,
   soloMode: props.soloMode,
   preserveShapesOnPositionChange: props.preserveShapesOnPositionChange,
@@ -67,6 +70,17 @@ const state = reactive<BoardCoreState>({
   historyViewerState: { isEnabled: false },
   currentComment: '',
 });
+
+// Watch for mode changes
+watch(
+  () => props.mode,
+  (newVal) => {
+    state.mode = newVal;
+    if (core.value && newVal) {
+      core.value.setMode(newVal);
+    }
+  }
+);
 
 // Watch for freeMode changes
 watch(

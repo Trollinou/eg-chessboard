@@ -78,12 +78,16 @@ const capturedPieces = reactive<{ white: string[]; black: string[] }>({
 // Solo Mode State
 const soloBoardCore = ref<BoardCore | null>(null);
 const soloHistory = ref<string[]>([]);
-const soloSelectedPiece = ref<'knight' | 'rook' | 'bishop' | 'queen' | 'king'>('knight');
+const soloSelectedPiece = ref<'pawn' | 'knight' | 'rook' | 'bishop' | 'queen' | 'king'>('knight');
 const soloExercise = ref<'alone' | 'capture'>('alone');
 const remainingTargets = ref<number>(0);
 
 const getSoloFen = () => {
-  if (soloSelectedPiece.value === 'knight') {
+  if (soloSelectedPiece.value === 'pawn') {
+    return soloExercise.value === 'alone'
+      ? '8/4P3/8/8/8/8/8/8 w - - 0 1'
+      : '3p1p2/4P3/8/8/8/8/8/8 w - - 0 1';
+  } else if (soloSelectedPiece.value === 'knight') {
     return soloExercise.value === 'alone'
       ? '8/8/8/8/4N3/8/8/8 w - - 0 1'
       : '8/8/3p1p2/2p3p1/4N3/8/8/8 w - - 0 1';
@@ -107,8 +111,42 @@ const getSoloFen = () => {
   }
 };
 
+const getSoloShapes = (): DrawShape[] => {
+  let start: Key = 'e4';
+  let target: Key = 'c7';
+  if (soloSelectedPiece.value === 'pawn') {
+    start = 'e7';
+    target = 'e8';
+  } else if (soloSelectedPiece.value === 'knight') {
+    start = 'e4';
+    target = 'c7';
+  } else if (soloSelectedPiece.value === 'rook') {
+    start = 'e4';
+    target = 'e8';
+  } else if (soloSelectedPiece.value === 'bishop') {
+    start = 'e4';
+    target = 'a8';
+  } else if (soloSelectedPiece.value === 'queen') {
+    start = 'e4';
+    target = 'h7';
+  } else if (soloSelectedPiece.value === 'king') {
+    start = 'e4';
+    target = 'e8';
+  }
+
+  if (soloExercise.value !== 'alone') {
+    return [{ orig: start, brush: 'blue' }];
+  }
+
+  return [
+    { orig: start, brush: 'blue' },
+    { orig: target, brush: 'green' },
+  ];
+};
+
 const soloDiagram = computed(() => ({
   fen: getSoloFen(),
+  shapes: getSoloShapes(),
 }));
 
 const updateTargetsCount = () => {
@@ -135,21 +173,27 @@ const onSoloMove = () => {
   }
 };
 
-const selectPiece = (piece: 'knight' | 'rook' | 'bishop' | 'queen' | 'king') => {
+const selectPiece = (piece: 'pawn' | 'knight' | 'rook' | 'bishop' | 'queen' | 'king') => {
   soloSelectedPiece.value = piece;
   soloHistory.value = [];
+  if (soloBoardCore.value) {
+    soloBoardCore.value.setDiagram(soloDiagram.value);
+  }
   setTimeout(updateTargetsCount, 50);
 };
 
 const selectExercise = (type: 'alone' | 'capture') => {
   soloExercise.value = type;
   soloHistory.value = [];
+  if (soloBoardCore.value) {
+    soloBoardCore.value.setDiagram(soloDiagram.value);
+  }
   setTimeout(updateTargetsCount, 50);
 };
 
 const handleSoloReset = () => {
   if (soloBoardCore.value) {
-    soloBoardCore.value.setDiagram({ fen: getSoloFen() });
+    soloBoardCore.value.setDiagram(soloDiagram.value);
     soloHistory.value = [];
     setTimeout(updateTargetsCount, 50);
   }
@@ -475,8 +519,10 @@ const formatMove = (move: string, index: number) => {
       <section class="board-column">
         <div class="board-wrapper">
           <TheChessboard
+            mode="game"
             player-color="white"
             :solo-mode="true"
+            :preserve-shapes-on-position-change="true"
             :diagram="soloDiagram"
             @board-created="onSoloBoardCreated"
             @move="onSoloMove"
@@ -494,7 +540,7 @@ const formatMove = (move: string, index: number) => {
           <h2>Statut de l'exercice</h2>
           <div class="status-indicator">
             <span v-if="soloExercise === 'alone'" class="status-text">
-              🐴 Déplacez la pièce librement selon ses mouvements légaux !
+              🎯 Déplacez la pièce du cercle bleu (départ) au cercle vert (arrivée) !
             </span>
             <span v-else-if="remainingTargets > 0" class="status-text">
               🎯 Capturez tous les pions noirs ! Encore
@@ -511,6 +557,13 @@ const formatMove = (move: string, index: number) => {
         <div class="glass-card">
           <h2>Choisir la pièce à déplacer</h2>
           <div class="piece-selector-grid">
+            <button
+              :class="{ active: soloSelectedPiece === 'pawn' }"
+              class="btn btn-secondary piece-btn"
+              @click="selectPiece('pawn')"
+            >
+              ♙ Pion
+            </button>
             <button
               :class="{ active: soloSelectedPiece === 'knight' }"
               class="btn btn-secondary piece-btn"
@@ -603,6 +656,7 @@ const formatMove = (move: string, index: number) => {
       <section class="board-column">
         <div class="board-wrapper">
           <TheChessboard
+            mode="editor"
             :free-mode="true"
             :preserve-shapes-on-position-change="editorPreserveShapes"
             @board-created="onEditorBoardCreated"

@@ -1,18 +1,19 @@
 import React, { useRef, useEffect, useState } from 'react';
 import type { Config } from '@lichess-org/chessground/config';
 import type { DrawShape } from '@lichess-org/chessground/draw';
-import type { Move } from '../types';
+import type { Move, BoardMode } from '../types';
 import {
   BoardCore,
   type BoardCoreState,
   type StockfishConfig,
   type ChessDiagram,
 } from '../BoardCore';
-export { BoardCore, type BoardCoreState, type StockfishConfig, type ChessDiagram, type Move };
+export { BoardCore, type BoardCoreState, type StockfishConfig, type ChessDiagram, type Move, type BoardMode };
 import { PromotionDialog } from './components/PromotionDialog';
 
 export interface ChessboardProps {
   boardConfig?: Config;
+  mode?: BoardMode;
   playerColor?: 'white' | 'black' | 'both';
   freeMode?: boolean;
   soloMode?: boolean;
@@ -34,6 +35,7 @@ export interface ChessboardProps {
 
 export const Chessboard: React.FC<ChessboardProps> = ({
   boardConfig = {},
+  mode = 'game',
   playerColor,
   freeMode = false,
   soloMode = false,
@@ -57,6 +59,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
 
   const [state, setState] = useState<BoardCoreState>({
     showThreats: false,
+    mode,
     freeMode,
     soloMode,
     preserveShapesOnPositionChange,
@@ -64,6 +67,14 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     historyViewerState: { isEnabled: false },
     currentComment: '',
   });
+
+  useEffect(() => {
+    if (coreRef.current && mode) {
+      coreRef.current.setMode(mode);
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setState((prev) => ({ ...prev, mode }));
+  }, [mode]);
 
   useEffect(() => {
     if (coreRef.current) {
@@ -100,6 +111,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
         const coreState = core.getState();
         setState({
           showThreats: coreState.showThreats,
+          mode: coreState.mode,
           freeMode: coreState.freeMode,
           soloMode: coreState.soloMode,
           preserveShapesOnPositionChange: coreState.preserveShapesOnPositionChange,

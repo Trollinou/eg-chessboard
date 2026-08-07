@@ -34,36 +34,32 @@ export class HistoryViewerManager {
   ): void {
     if (ply < 0 || ply > path.length) return;
 
-    if (ply < path.length) {
-      this.state = {
-        isEnabled: true,
-        plyViewing: ply,
-        viewOnly: board?.state?.viewOnly,
-      };
-      onStateChange();
+    this.state = {
+      isEnabled: true,
+      plyViewing: ply,
+      viewOnly: board?.state?.viewOnly,
+    };
+    onStateChange();
 
-      const fenViewing = ply === 0 ? rootFen : path[ply - 1].data.fen;
+    const fenViewing = ply === 0 ? rootFen : path[ply - 1].data.fen;
 
-      if (board) {
-        board.set({
-          fen: fenViewing,
-          viewOnly: false,
-          movable: {
-            color: undefined,
-            dests: undefined,
-            free: false,
-          },
-          lastMove:
-            ply > 0
-              ? [path[ply - 1].data.move.from as Key, path[ply - 1].data.move.to as Key]
-              : undefined,
-        });
-      }
-
-      updateCommentAndShapes(fenViewing);
-    } else {
-      this.stopViewingHistory(board, onStateChange, () => {});
+    if (board) {
+      board.set({
+        fen: fenViewing,
+        viewOnly: false,
+        movable: {
+          color: undefined,
+          dests: undefined,
+          free: false,
+        },
+        lastMove:
+          ply > 0
+            ? [path[ply - 1].data.move.from as Key, path[ply - 1].data.move.to as Key]
+            : undefined,
+      });
     }
+
+    updateCommentAndShapes(fenViewing);
   }
 
   public stopViewingHistory(

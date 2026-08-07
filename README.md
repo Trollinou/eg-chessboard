@@ -148,11 +148,12 @@ Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une
 | Prop | Type | Par défaut | Description |
 | :--- | :--- | :--- | :--- |
 | `boardConfig` | `Config` | `{}` | Configuration native de l'échiquier Chessground. |
+| `mode` | `'editor' \| 'game' \| 'study'` | `'game'` | Mode métier : `'editor'` (diagrammes, formes sur canvas persistant), `'game'` (partie/exercice, formes éphémères ou de consigne), `'study'` (annotations PGN rattachées aux demi-coups `[%cal]`/`[%cpl]`). |
 | `playerColor` | `'white' \| 'black' \| 'both'` | `undefined` | Couleur(s) autorisée(s) au déplacement pour l'utilisateur. |
 | `freeMode` | `boolean` | `false` | Mode libre : déplace les pièces librement sans validation stricte des règles ni contrainte d'alternance de tour, et resynchronise l'état et la FEN. |
 | `soloMode` | `boolean` | `false` | Mode solo : autorise les déplacements consécutifs du même joueur sans alternance forcée. |
 | `fitContainer` | `boolean` | `false` | Étend l'échiquier à 100% de la hauteur/largeur du conteneur parent (supprime les ratios fixes). |
-| `preserveShapesOnPositionChange` | `boolean` | `false` | Conserve les formes/flèches dessinées lors de la pose ou suppression de pièces. |
+| `preserveShapesOnPositionChange` | `boolean` | `false` | Conserve les formes/flèches dessinées lors de la pose ou suppression de pièces (implicite si `mode='editor'`). |
 | `stockfishConfig`| `StockfishConfig` | `{}` | Configuration du moteur de jeu et d'analyse Stockfish. |
 | `diagram` | `ChessDiagram` | `undefined` | Position FEN et annotations graphiques (flèches/cercles) d'initialisation. |
 
