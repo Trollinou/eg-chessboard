@@ -7,12 +7,12 @@ import { copyFileSync, existsSync, mkdirSync } from 'fs';
 const copyStockfishPlugin = () => ({
   name: 'copy-stockfish',
   closeBundle() {
-    const distDir = resolve(__dirname, 'dist');
+    const distDir = resolve(import.meta.dirname, 'dist');
     if (!existsSync(distDir)) {
       mkdirSync(distDir, { recursive: true });
     }
-    const srcJs = resolve(__dirname, 'node_modules/stockfish/bin/stockfish-18-lite-single.js');
-    const srcWasm = resolve(__dirname, 'node_modules/stockfish/bin/stockfish-18-lite-single.wasm');
+    const srcJs = resolve(import.meta.dirname, 'node_modules/stockfish/bin/stockfish-18-lite-single.js');
+    const srcWasm = resolve(import.meta.dirname, 'node_modules/stockfish/bin/stockfish-18-lite-single.wasm');
     if (existsSync(srcJs)) {
       copyFileSync(srcJs, resolve(distDir, 'stockfish.js'));
     }
@@ -25,7 +25,7 @@ const copyStockfishPlugin = () => ({
 export default defineConfig(({ command }) => {
   return {
     root: command === 'serve' ? 'sandbox' : '.',
-    publicDir: resolve(__dirname, 'public'),
+    publicDir: resolve(import.meta.dirname, 'public'),
     plugins: [vue(), react(), copyStockfishPlugin()],
     server: {
       headers: {
@@ -37,9 +37,9 @@ export default defineConfig(({ command }) => {
       target: 'es2021',
       lib: {
         entry: {
-          index: resolve(__dirname, 'src/index.ts'),
-          vue: resolve(__dirname, 'src/vue/TheChessboard.vue'),
-          react: resolve(__dirname, 'src/react/Chessboard.tsx'),
+          index: resolve(import.meta.dirname, 'src/index.ts'),
+          vue: resolve(import.meta.dirname, 'src/vue/TheChessboard.vue'),
+          react: resolve(import.meta.dirname, 'src/react/Chessboard.tsx'),
         },
         formats: ['es'],
       },
