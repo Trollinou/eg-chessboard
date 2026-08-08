@@ -4,7 +4,7 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
-## [1.3.4] - 2026-08-08
+## [1.3.5] - 2026-08-08
 
 ### Ajouté & Amélioré
 
