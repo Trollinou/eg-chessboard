@@ -4,6 +4,16 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [1.3.4] - 2026-08-08
+
+### Ajouté & Amélioré
+
+- **Taille réactive et proportionnelle du panneau de promotion (`.promotion-dialog`)** :
+  - Intégration des CSS Container Queries (`container-type: inline-size` sur `.main-board`).
+  - Redimensionnement dynamique des pièces du panneau de promotion (`.promotion-piece-btn`) pour représenter exactement **90% de la taille d'une case de l'échiquier** (`calc(100cqw / 8 * 0.9)`).
+  - Adaptation réactive du padding, de l'espacement (`gap`), de l'arrondi (`border-radius`) et des bordures du dialogue en fonction de la taille réelle de l'échiquier.
+  - Synchronisation parfaite des styles réactifs entre React et Vue 3 (`PromotionDialog.vue`).
+
 ## [1.3.3] - 2026-08-07
 
 ### Corrigé & Amélioré

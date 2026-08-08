@@ -55,9 +55,9 @@ dialog.promotion-dialog,
   transform: translate(-50%, -50%);
   z-index: 1000;
   background: #f0d9b5;
-  border: 3px solid #b58863;
-  border-radius: 12px;
-  padding: 10px 14px;
+  border: clamp(2px, 0.4cqw, 4px) solid #b58863;
+  border-radius: clamp(6px, 1.8cqw, 14px);
+  padding: calc(100cqw * 0.015) calc(100cqw * 0.02);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
   box-sizing: border-box;
   margin: 0;
@@ -71,18 +71,18 @@ dialog.promotion-dialog,
 .promotion-pieces {
   display: flex;
   flex-direction: row;
-  gap: 12px;
+  gap: calc(100cqw * 0.018);
   align-items: center;
   justify-content: center;
 }
 
 .promotion-piece-btn {
   background: #ffffff;
-  border: 2px solid #b58863;
-  border-radius: 10px;
+  border: clamp(1px, 0.35cqw, 3px) solid #b58863;
+  border-radius: clamp(4px, 1.5cqw, 10px);
   cursor: pointer;
-  width: 72px;
-  height: 72px;
+  width: calc(100cqw / 8 * 0.9);
+  height: calc(100cqw / 8 * 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
