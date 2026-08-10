@@ -1,3 +1,18 @@
+# Règle GitHub MCP
+- Interdiction d'utiliser l'outil `get_repository_content` sur la racine du projet (cela chargerait des milliers de fichiers).
+- Utilise toujours `search_code` ou `get_file_content` sur des fichiers ciblés.
+
+--- 
+
+# Instructions d'Optimisation de Contexte
+
+## Règles de manipulation PHP / JS / TS / VUE / CSS / TSX / JSX / HTML
+- Interdiction de lire ou charger des fichiers entiers si la tâche cible une fonction précise. Utilise des requêtes ciblées par blocs de lignes.
+- Ne réécris JAMAIS un fichier complet pour une modification de logique. Produis uniquement des blocs de "diff" de code ou des fonctions isolées.
+- Supprime tous les commentaires verbeux ou disclaimers lors des réponses.
+
+---
+
 # Spécification d'Isopérimètre : eg-chessboard
 
 ## 1. Principes Fondamentaux d'Architecture

@@ -420,20 +420,7 @@ export class BoardCore {
   }
 
   public resetBoard(): void {
-    this.pos = Chess.default();
-    this.cachedFen = null;
-    this.pgnTreeManager.resetTree(this.pos);
-    this.exerciseManager.resetSoloHistory();
-    this.historyViewerManager.resetState();
-    this.onStateChange();
-    this.board.set({
-      fen: this.getFen(),
-      lastMove: undefined,
-      selected: undefined,
-    });
-    this.updateGameState({ updateFen: false });
-    this.initStockfish();
-    this.triggerStockfish();
+    this.newGame();
   }
 
   public undoLastMove(): void {
