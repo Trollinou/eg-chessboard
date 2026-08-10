@@ -1,6 +1,10 @@
 import type { Api } from '@lichess-org/chessground/api';
 import type { Key } from '@lichess-org/chessground/types';
 import type { ChildNode } from 'chessops/pgn';
+import { parseFen } from 'chessops/fen';
+import { Chess } from 'chessops';
+import { possibleMoves } from '../BoardHelper';
+import { FenManager } from './FenManager';
 import type { Move, PgnNodeMeta } from '../types';
 
 export interface HistoryViewerState {
@@ -40,7 +44,8 @@ export class HistoryViewerManager {
     rootFen: string,
     board: Api | null,
     onStateChange: () => void,
-    updateCommentAndShapes: (fenViewing: string) => void
+    updateCommentAndShapes: (fenViewing: string) => void,
+    opts?: { isReadOnly?: boolean; freeMode?: boolean }
   ): void {
     if (ply < 0 || ply > path.length) return;
 
@@ -52,21 +57,42 @@ export class HistoryViewerManager {
     onStateChange();
 
     const fenViewing = ply === 0 ? rootFen : path[ply - 1].data.fen;
+    const isReadOnly = opts?.isReadOnly ?? true;
 
     if (board) {
+      let movableColor: 'white' | 'black' | 'both' | undefined = undefined;
+      let movableDests: Map<Key, Key[]> | undefined = undefined;
+
+      if (!isReadOnly) {
+        const setupRes = parseFen(fenViewing);
+        if (setupRes.isOk) {
+          const chessRes = Chess.fromSetup(setupRes.value);
+          if (chessRes.isOk) {
+            const posViewing = chessRes.value;
+            const turnColor = posViewing.turn === 'white' ? 'white' : 'black';
+            movableColor = opts?.freeMode ? 'both' : turnColor;
+            movableDests = opts?.freeMode
+              ? FenManager.getPossibleMovesForBothColors(posViewing)
+              : possibleMoves(posViewing);
+          }
+        }
+      }
+
+      board.set({ fen: '' });
       board.set({
         fen: fenViewing,
         viewOnly: false,
         movable: {
-          color: undefined,
-          dests: undefined,
-          free: false,
+          color: movableColor,
+          dests: movableDests,
+          free: !!opts?.freeMode,
         },
         lastMove:
           ply > 0
             ? [path[ply - 1].data.move.from as Key, path[ply - 1].data.move.to as Key]
             : undefined,
       });
+      board.redrawAll();
     }
 
     updateCommentAndShapes(fenViewing);
@@ -100,9 +126,10 @@ export class HistoryViewerManager {
     rootFen: string,
     board: Api | null,
     onStateChange: () => void,
-    updateCommentAndShapes: (fenViewing: string) => void
+    updateCommentAndShapes: (fenViewing: string) => void,
+    opts?: { isReadOnly?: boolean; freeMode?: boolean }
   ): void {
-    this.viewHistory(0, path, rootFen, board, onStateChange, updateCommentAndShapes);
+    this.viewHistory(0, path, rootFen, board, onStateChange, updateCommentAndShapes, opts);
   }
 
   public viewNext(
@@ -110,11 +137,12 @@ export class HistoryViewerManager {
     rootFen: string,
     board: Api | null,
     onStateChange: () => void,
-    updateCommentAndShapes: (fenViewing: string) => void
+    updateCommentAndShapes: (fenViewing: string) => void,
+    opts?: { isReadOnly?: boolean; freeMode?: boolean }
   ): void {
     const ply = this.getCurrentViewingPly(0);
     if (ply < path.length) {
-      this.viewHistory(ply + 1, path, rootFen, board, onStateChange, updateCommentAndShapes);
+      this.viewHistory(ply + 1, path, rootFen, board, onStateChange, updateCommentAndShapes, opts);
     }
   }
 
@@ -123,11 +151,12 @@ export class HistoryViewerManager {
     rootFen: string,
     board: Api | null,
     onStateChange: () => void,
-    updateCommentAndShapes: (fenViewing: string) => void
+    updateCommentAndShapes: (fenViewing: string) => void,
+    opts?: { isReadOnly?: boolean; freeMode?: boolean }
   ): void {
     const ply = this.getCurrentViewingPly(path.length);
     if (ply > 0) {
-      this.viewHistory(ply - 1, path, rootFen, board, onStateChange, updateCommentAndShapes);
+      this.viewHistory(ply - 1, path, rootFen, board, onStateChange, updateCommentAndShapes, opts);
     }
   }
 }

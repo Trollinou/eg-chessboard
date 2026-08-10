@@ -44,6 +44,7 @@ Les types `Key`, `DrawShape` ainsi que `Move`, `VariationInfo` et `PgnTreeNode` 
 | **Couleur Joueur**    | Prop  | `playerColor`     | `playerColor`         | Types littéraux : `'white' \| 'black' \| 'both'`.                                                                                                                                                                                          |
 | **Mode Libre**        | Prop  | `freeMode`        | `freeMode`            | Synchronisé dynamiquement via `useEffect` (React) et `watch` (Vue). L'écouteur `change` de Chessground (configuré dans `events.change`) synchronise automatiquement le jeu (`syncGameFromBoard`) lors de tout drag-and-drop en mode libre. En mode libre (`freeMode: true`), les coups ne sont pas soumis aux règles d'alternance stricte des traits (`move()` adapte dynamiquement le trait à la couleur de la pièce jouée), permettant les coups consécutifs sans réinitialisation de pièces. |
 | **Mode Solo**         | Prop  | `soloMode`        | `soloMode`            | Utilisé pour les exercices d'apprentissage (déplacements consécutifs sans alternance de tour).                                                                                                                                             |
+| **Lecture Seule**     | Prop  | `readOnly`        | `readOnly`            | Booleen (par défaut `false` en mode editor). En `readOnly: true` (Mode Lecteur), les coups ne modifient pas l'arbre PGN et les formes au clic droit sont éphémères. En `readOnly: false` (Mode Éditeur), les coups sur n'importe quel ply créent des sous-variantes et les formes/commentaires sont persistants dans le PGN. |
 | **Conteneur Fit**     | Prop  | `fitContainer`    | `fitContainer`        | Applique la classe CSS `.fit-container` au conteneur principal `.main-wrap` pour étendre l'échiquier à 100% de la hauteur/largeur du conteneur parent.                                                                                    |
 | **Config Stockfish**  | Prop  | `stockfishConfig` | `stockfishConfig`     | Synchronisation dynamique des options du moteur (incluant `workerUrl` et `wasmUrl`). Si absente ou inactive, aucun Web Worker n'est créé.                                                                                                 |
 | **Diagramme**         | Prop  | `diagram`         | `diagram`             | Initialisation et mise à jour dynamique de la FEN et des formes (flèches/cercles) via `setDiagram(diagram)`.                                                                                                                               |
@@ -85,6 +86,7 @@ setState({
   showThreats: coreState.showThreats,
   freeMode: coreState.freeMode,
   soloMode: coreState.soloMode,
+  readOnly: coreState.readOnly,
   promotionDialogState: { ...coreState.promotionDialogState },
   historyViewerState: { ...coreState.historyViewerState },
   currentComment: coreState.currentComment,
@@ -93,19 +95,24 @@ setState({
 
 ---
 
-## 5. Gestion des annotations graphiques, commentaires et Variantes PGN
+## 5. Gestion des annotations graphiques, commentaires, Mode Lecteur / Éditeur et Variantes PGN
 
 Pour assurer l'uniformité du traitement des exercices et des PGN (incluant la gestion des arbres de variantes) :
 
 1. **Extraction automatique** : Le traitement des commentaires textuels, des balises propriétaires (`[%cal]` pour les flèches, `[%cpl]` pour les ronds) et de la structure en arbre (`Node<PgnNodeMeta>`) est opéré exclusivement par `BoardCore` via `chessops/pgn`. Les wrappers ne doivent pas faire de parsing PGN de leur côté.
 2. **Champ d'état commun** : Le texte de commentaire nettoyé est exposé dans l'état commun sous la clé `currentComment`, accessible via le getter public `core.getCurrentComment()`.
 3. **Méthodes de dessin et d'extraction publiques** : Toute opération de dessin dynamique (ex: `drawMove`, `drawCircle`, `setShapes`) ou d'extraction des formes posées sur l'échiquier (`getShapes(): DrawShape[]`) doit être invoquée via les méthodes publiques de `BoardCore`. Les paramètres de cases (`from`, `to`, `square`) acceptent de manière permissive le type `Key | string`.
-4. **Enrichissement / Saisie de commentaires** : L'écriture de commentaires et d'annotations graphiques dans le PGN s'effectue uniquement via `core.setComment(text, shapes)` (cible le coup visualisé à l'écran) ou `core.setCommentAtPly(ply, text, shapes)`. Le PGN résultant est récupéré via `core.getPgn()` et inclut l'intégralité des sous-variantes entre parenthèses `(...)`.
-5. **Navigation et sous-variantes** :
-   - `core.getVariationsAtPly(ply?)` : retourne la liste des variantes alternatives (`VariationInfo[]`) disponibles au coup demandé.
+4. **Distinction Stricte Mode Lecteur (`readOnly: true`) vs Mode Éditeur (`readOnly: false`)** :
+   - **Mode Lecteur (`readOnly: true`)** : Permet de consulter un PGN et de suivre ses variantes sans modifier la structure. Les formes dessinées au clic droit sont **éphémères** (affichées visuellement sans être écrites dans les balises PGN) et les pièces ne peuvent pas être déplacées pour altérer l'arbre PGN.
+   - **Mode Éditeur (`readOnly: false`)** : Déplacer une pièce sur n'importe quel coup visualisé crée automatiquement une **sous-variante** dans le PGN (ou suit la branche si le coup existe déjà). Les commentaires textuels et les formes (`[%cal]`, `[%cpl]`) sont **persistants** et enregistrés directement dans l'arbre PGN.
+5. **Initialisation & FEN Setup** : Démarrer une nouvelle partie ou charger une FEN personnalisée s'effectue via `core.newGame(fen?)`. Si la FEN n'est pas la position de départ standard, `BoardCore` injecte automatiquement les en-têtes `[SetUp "1"]` et `[FEN "..."]` dans la sortie PGN (`core.getPgn()`).
+6. **Enrichissement / Saisie de commentaires** : L'écriture de commentaires et d'annotations graphiques dans le PGN s'effectue uniquement via `core.setComment(text, shapes)` (cible le coup visualisé à l'écran) ou `core.setCommentAtPly(ply, text, shapes)`. Le PGN résultant est récupéré via `core.getPgn()` et inclut l'intégralité des sous-variantes entre parenthèses `(...)`.
+7. **Navigation et sous-variantes** :
+   - `core.getVariationsAtPly(ply?)` : retourne la liste des variantes alternatives (`VariationInfo[]`) disponibles au coup demandé (y compris au coup 1 avec `ply=0`).
    - `core.selectVariation(index)` : bascule le coup et la branche active vers la sous-variante choisie.
+   - `core.promoteVariation(index?)` : promeut la variante sélectionnée en ligne principale (*mainline*).
+   - `core.deleteVariation(index?)` : supprime la variante sélectionnée.
    - `core.getPgnTree()` : expose l'arborescence complète sous forme d'un arbre `PgnTreeNode`.
-6. **Tracé interactif en mode historique** : Afin de permettre l'enrichissement graphique du PGN lors de la navigation dans l'historique, le plateau de jeu reste interactif pour le tracé (`viewOnly: false` configuré au niveau de Chessground). Pour empêcher toute modification de la position par l'utilisateur tout en autorisant le dessin de cercles et de flèches avec le clic droit/glisser, les déplacements de pièces sont totalement désactivés via le paramétrage de Chessground (`movable.color: undefined`, `movable.dests: undefined`, `movable.free: false`). Les modifications graphiques opérées par l'utilisateur déclenchent `drawable.onChange` et mettent automatiquement à jour le PGN via `setCommentAtPly` (sans redessiner les formes déjà tracées grâce au paramètre `updateBoardShapes = false`).
 
 ---
 
@@ -127,6 +134,9 @@ Pour restreindre dynamiquement les mouvements de l'utilisateur ou valider ses ac
 
 Pour interroger l'état interne de l'échiquier et gérer le nettoyage de manière uniforme :
 
+- `core.setReadOnly(readOnly: boolean): void` : Active/désactive le mode lecture seule (Lecteur vs Éditeur PGN).
+- `core.isReadOnly(): boolean` : Indique si le mode lecture seule est actuellement actif.
+- `core.newGame(fen?: string): void` : Réinitialise l'échiquier et l'arbre PGN à partir de la position initiale ou d'une FEN personnalisée (avec en-têtes Setup PGN).
 - `core.setPlayerColor(color: 'white' | 'black' | 'both'): void` : Définit dynamiquement la couleur du joueur autorisée aux déplacements sans qu'elle ne soit écrasée par le trait courant.
 - `core.setConfig(config: Config, fillDefaults?: boolean): void` : Applique les modifications de configuration sur Chessground sans réinitialiser la FEN ni effacer la sélection si la FEN reste inchangée.
 - `core.getOrientation(): 'white' | 'black'` : Retourne l'orientation actuelle du plateau de jeu.

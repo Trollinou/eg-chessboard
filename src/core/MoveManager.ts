@@ -1,4 +1,5 @@
 import { parseSquare, type Chess } from 'chessops';
+import { makeFen } from 'chessops/fen';
 import { parseSan } from 'chessops/san';
 import { isNormal } from 'chessops/types';
 import type { Role, Move as ChessopsMove } from 'chessops/types';
@@ -26,9 +27,10 @@ export interface MoveManagerContext {
   getFen: () => string;
   getMode: () => string;
   resetFenCache: () => void;
-  updateGameState: (opts?: { updateFen?: boolean }) => void;
+  updateGameState: (opts?: { updateFen?: boolean; animate?: boolean }) => void;
   triggerStockfish: () => void;
   syncGameFromBoard: () => void;
+  setPos: (pos: Chess) => void;
 }
 
 export class MoveManager {
@@ -36,7 +38,51 @@ export class MoveManager {
     moveObj: string | { from: string; to: string; promotion?: string },
     ctx: MoveManagerContext
   ): boolean {
-    console.log('[MoveManager] executeMove called with:', moveObj);
+    const wasViewingHistory = ctx.historyViewerManager.isViewingHistory();
+
+    if (wasViewingHistory) {
+      const ply = ctx.historyViewerManager.getCurrentViewingPly(ctx.pgnTreeManager.getActivePath().length);
+      const path = ctx.pgnTreeManager.getActivePath();
+      const targetNode = ply === 0 ? ctx.pgnTreeManager.getRootNode() : path[ply - 1];
+
+      if (ctx.state.readOnly) {
+        const tempPos = ctx.pgnTreeManager.syncGamePosToPly(ply);
+        let tempParsed: ChessopsMove | undefined;
+        if (typeof moveObj === 'string') {
+          tempParsed = parseSan(tempPos, moveObj);
+        } else {
+          const fromSq = parseSquare(moveObj.from);
+          const toSq = parseSquare(moveObj.to);
+          if (fromSq !== undefined && toSq !== undefined) {
+            tempParsed = { from: fromSq, to: toSq };
+          }
+        }
+        if (tempParsed) {
+          const fenBefore = makeFen(tempPos.toSetup());
+          const movePojo = buildMovePojo(tempPos, tempParsed, fenBefore);
+          const existingChild = targetNode.children.find(
+            (child) =>
+              child.data.san === movePojo.san ||
+              (child.data.move.from === movePojo.from && child.data.move.to === movePojo.to)
+          );
+          if (!existingChild) {
+            return false;
+          }
+        }
+      }
+
+      ctx.pgnTreeManager.setCurrentNode(targetNode);
+      const syncedPos = ctx.pgnTreeManager.syncGamePosToPly(ply);
+      ctx.setPos(syncedPos);
+      ctx.pos = syncedPos;
+      ctx.resetFenCache();
+      ctx.historyViewerManager.stopViewingHistory(ctx.board, ctx.onStateChange, () => {
+        ctx.board.set({ fen: '' });
+        ctx.board.set({ fen: ctx.getFen() });
+        ctx.updateGameState({ updateFen: true, animate: false });
+      });
+    }
+
     let parsedMove: ChessopsMove | undefined;
 
     if (ctx.state.freeMode) {
@@ -119,14 +165,19 @@ export class MoveManager {
     }
     ctx.pgnTreeManager.setCurrentNode(childNode!);
 
-    if (!ctx.historyViewerManager.isViewingHistory()) {
+    if (!wasViewingHistory) {
       ctx.board.move(movePojo.from as Key, movePojo.to as Key);
       if (isNormal(parsedMove) && parsedMove.promotion) {
         setTimeout(() => {
           ctx.board.set({ fen: ctx.getFen() });
         }, 50);
       }
-      ctx.updateGameState({ updateFen: true });
+      ctx.updateGameState({ updateFen: true, animate: true });
+    } else {
+      ctx.board.set({ fen: '' });
+      ctx.board.set({ fen: ctx.getFen() });
+      ctx.updateGameState({ updateFen: true, animate: false });
+      ctx.board.redrawAll();
     }
 
     ctx.emitEvent('move', movePojo);
@@ -149,10 +200,16 @@ export class MoveManager {
     _metadata: MoveMetadata,
     ctx: MoveManagerContext
   ): Promise<void> {
+    let targetPos = ctx.pos;
+    if (ctx.historyViewerManager.isViewingHistory()) {
+      const ply = ctx.historyViewerManager.getCurrentViewingPly(ctx.pgnTreeManager.getActivePath().length);
+      targetPos = ctx.pgnTreeManager.syncGamePosToPly(ply);
+    }
+
     const sq = parseSquare(orig)!;
-    const piece = ctx.pos.board.get(sq);
+    const piece = targetPos.board.get(sq);
     const destSq = parseSquare(dest);
-    const destPiece = destSq ? ctx.pos.board.get(destSq) : undefined;
+    const destPiece = destSq ? targetPos.board.get(destSq) : undefined;
     const activePiece = piece || destPiece;
 
     const pieceType = activePiece ? roleToPieceSymbol[activePiece.role] : undefined;
@@ -160,7 +217,7 @@ export class MoveManager {
       ? activePiece.color === 'white'
         ? 'w'
         : 'b'
-      : ctx.pos.turn === 'white'
+      : targetPos.turn === 'white'
         ? 'w'
         : 'b';
 

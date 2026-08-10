@@ -166,7 +166,7 @@ export class BoardConfigBuilder {
     }
   }
 
-  public updateGameState(ctx: BoardConfigContext, { updateFen = true } = {}): void {
+  public updateGameState(ctx: BoardConfigContext, { updateFen = true, animate = true } = {}): void {
     if (!ctx.historyViewerManager.isViewingHistory()) {
       const isPreserve = !!ctx.state.preserveShapesOnPositionChange || ctx.getMode() === 'editor';
       const currentShapes = ctx.getShapes();
@@ -193,7 +193,7 @@ export class BoardConfigBuilder {
           ...(updateFen ? { fen: ctx.getFen() } : {}),
           turnColor: ctx.getTurnColor(),
           check: ctx.pos.isCheck() ? ctx.getTurnColor() : undefined,
-          animation: { enabled: !isPreserve && !isFree },
+          animation: { enabled: animate && !isPreserve && !isFree },
           lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
           movable: {
             free: isFree,
