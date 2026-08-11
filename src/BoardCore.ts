@@ -27,6 +27,7 @@ export interface BoardCoreState {
   mode?: BoardMode;
   freeMode?: boolean;
   soloMode?: boolean;
+  readOnly?: boolean;
   preserveShapesOnPositionChange?: boolean;
   promotionDialogState: {
     isEnabled: boolean;
@@ -137,6 +138,10 @@ export class BoardCore {
       board: this.board,
       onStateChange: () => this.onStateChange(),
       updateCommentAndShapes: (fenViewing: string) => this.updateCommentAndShapes(fenViewing),
+      opts: {
+        isReadOnly: this.isReadOnly(),
+        freeMode: !!this.state.freeMode,
+      },
     };
   }
 
@@ -160,6 +165,7 @@ export class BoardCore {
       exerciseManager: this.exerciseManager,
       historyViewerManager: this.historyViewerManager,
       annotationManager: this.annotationManager,
+      pgnTreeManager: this.pgnTreeManager,
       userMovableColor: this.userMovableColor,
       setUserMovableColor: (color) => {
         this.userMovableColor = color;
@@ -203,6 +209,9 @@ export class BoardCore {
       updateGameState: (opts) => this.updateGameState(opts),
       triggerStockfish: () => this.triggerStockfish(),
       syncGameFromBoard: () => this.syncGameFromBoard(),
+      setPos: (pos: Chess) => {
+        this.pos = pos;
+      },
     };
   }
 
@@ -259,7 +268,8 @@ export class BoardCore {
       () => this.updateGameState(),
       () => {
         this.cachedFen = null;
-      }
+      },
+      this.board
     );
   }
 
@@ -412,20 +422,7 @@ export class BoardCore {
   }
 
   public resetBoard(): void {
-    this.pos = Chess.default();
-    this.cachedFen = null;
-    this.pgnTreeManager.resetTree(this.pos);
-    this.exerciseManager.resetSoloHistory();
-    this.historyViewerManager.resetState();
-    this.onStateChange();
-    this.board.set({
-      fen: this.getFen(),
-      lastMove: undefined,
-      selected: undefined,
-    });
-    this.updateGameState({ updateFen: false });
-    this.initStockfish();
-    this.triggerStockfish();
+    this.newGame();
   }
 
   public undoLastMove(): void {
@@ -704,6 +701,37 @@ export class BoardCore {
     return this.pgnTreeManager.getPgnInfo();
   }
 
+  public setReadOnly(readOnly: boolean): void {
+    this.state.readOnly = readOnly;
+    this.updateGameState({ updateFen: false });
+    this.onStateChange();
+  }
+
+  public isReadOnly(): boolean {
+    return !!this.state.readOnly;
+  }
+
+  public newGame(fen?: string): void {
+    if (fen) {
+      this.safeLoadFen(fen);
+    } else {
+      this.pos = Chess.default();
+      this.cachedFen = null;
+      this.pgnTreeManager.resetTree(this.pos);
+    }
+    this.exerciseManager.resetSoloHistory();
+    this.historyViewerManager.resetState();
+    this.onStateChange();
+    this.board.set({
+      fen: this.getFen(),
+      lastMove: undefined,
+      selected: undefined,
+    });
+    this.updateGameState({ updateFen: false });
+    this.initStockfish();
+    this.triggerStockfish();
+  }
+
   public viewHistory(ply: number): void {
     const args = this.getHistoryNavigationArgs();
     this.historyViewerManager.viewHistory(
@@ -712,7 +740,8 @@ export class BoardCore {
       args.rootFen,
       args.board,
       args.onStateChange,
-      args.updateCommentAndShapes
+      args.updateCommentAndShapes,
+      args.opts
     );
   }
 
@@ -723,6 +752,7 @@ export class BoardCore {
       () => {
         const path = this.pgnTreeManager.getActivePath();
         const lastMove = path.length ? path[path.length - 1].data.move : null;
+        this.board.set({ fen: '' });
         this.board.set({
           fen: this.getFen(),
           viewOnly: this.historyViewerManager.getState().viewOnly,
@@ -740,7 +770,8 @@ export class BoardCore {
       args.rootFen,
       args.board,
       args.onStateChange,
-      args.updateCommentAndShapes
+      args.updateCommentAndShapes,
+      args.opts
     );
   }
 
@@ -751,7 +782,8 @@ export class BoardCore {
       args.rootFen,
       args.board,
       args.onStateChange,
-      args.updateCommentAndShapes
+      args.updateCommentAndShapes,
+      args.opts
     );
   }
 
@@ -762,7 +794,8 @@ export class BoardCore {
       args.rootFen,
       args.board,
       args.onStateChange,
-      args.updateCommentAndShapes
+      args.updateCommentAndShapes,
+      args.opts
     );
   }
 
@@ -784,13 +817,70 @@ export class BoardCore {
     this.pos = this.pgnTreeManager.syncGamePosToCurrentNode();
     this.cachedFen = null;
 
+    const newPly = targetPly + 1;
+    const activePath = this.pgnTreeManager.getActivePath();
+
     if (this.historyViewerManager.isViewingHistory()) {
-      this.viewHistory(targetPly);
+      if (newPly >= activePath.length) {
+        this.stopViewingHistory();
+      } else {
+        this.viewHistory(newPly);
+      }
     } else {
       this.updateGameState();
     }
     this.onStateChange();
     return true;
+  }
+
+  public deleteVariation(variationIndex?: number): boolean {
+    const targetPly = this.historyViewerManager.getCurrentViewingPly(
+      this.pgnTreeManager.getActivePath().length
+    );
+    const idx = variationIndex !== undefined ? variationIndex : 0;
+    const success = this.pgnTreeManager.deleteVariation(idx, targetPly);
+    if (success) {
+      this.pos = this.pgnTreeManager.syncGamePosToCurrentNode();
+      this.cachedFen = null;
+      const activePath = this.pgnTreeManager.getActivePath();
+      if (this.historyViewerManager.isViewingHistory()) {
+        const viewingPly = Math.min(targetPly, activePath.length);
+        if (viewingPly >= activePath.length) {
+          this.stopViewingHistory();
+        } else {
+          this.viewHistory(viewingPly);
+        }
+      } else {
+        this.updateGameState();
+      }
+      this.onStateChange();
+    }
+    return success;
+  }
+
+  public promoteVariation(variationIndex?: number): boolean {
+    const targetPly = this.historyViewerManager.getCurrentViewingPly(
+      this.pgnTreeManager.getActivePath().length
+    );
+    const idx = variationIndex !== undefined ? variationIndex : 0;
+    const success = this.pgnTreeManager.promoteVariation(idx, targetPly);
+    if (success) {
+      this.pos = this.pgnTreeManager.syncGamePosToCurrentNode();
+      this.cachedFen = null;
+      const activePath = this.pgnTreeManager.getActivePath();
+      const newPly = targetPly + 1;
+      if (this.historyViewerManager.isViewingHistory()) {
+        if (newPly >= activePath.length) {
+          this.stopViewingHistory();
+        } else {
+          this.viewHistory(newPly);
+        }
+      } else {
+        this.updateGameState();
+      }
+      this.onStateChange();
+    }
+    return success;
   }
 
   public getPgnTree(): PgnTreeNode {
@@ -816,12 +906,18 @@ export class BoardCore {
     const path = this.pgnTreeManager.getActivePath();
     if (ply < 0 || ply > path.length) return;
 
-    const targetNode = ply === 0 ? this.pgnTreeManager.getRootNode() : path[ply - 1];
     const shapesAnnotation = this.annotationManager.shapesToPgnComment(shapes);
     const combined = `${shapesAnnotation} ${text}`.trim();
 
-    if (isChildNode(targetNode)) {
-      targetNode.data.comments = combined ? [combined] : [];
+    if (ply === 0) {
+      if (path.length > 0) {
+        path[0].data.startingComments = combined ? [combined] : [];
+      }
+    } else {
+      const targetNode = path[ply - 1];
+      if (isChildNode(targetNode)) {
+        targetNode.data.comments = combined ? [combined] : [];
+      }
     }
 
     const isViewingThisPly = this.historyViewerManager.getCurrentViewingPly(path.length) === ply;

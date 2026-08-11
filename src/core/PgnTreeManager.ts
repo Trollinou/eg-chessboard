@@ -58,6 +58,11 @@ export class PgnTreeManager {
     this.rootNode = new Node<PgnNodeMeta>();
     this.currentNode = this.rootNode;
     this.rootPos = startPos ? startPos.clone() : Chess.default();
+    const fen = makeFen(this.rootPos.toSetup());
+    if (fen !== 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1') {
+      this.headers.set('SetUp', '1');
+      this.headers.set('FEN', fen);
+    }
   }
 
   public findParentNode(
@@ -89,6 +94,19 @@ export class PgnTreeManager {
     const newPos = this.rootPos.clone();
     for (const child of path) {
       const m = parseSan(newPos, child.data.san);
+      if (m) {
+        newPos.play(m);
+      }
+    }
+    return newPos;
+  }
+
+  public syncGamePosToPly(targetPly: number): Chess {
+    const path = this.getActivePath();
+    const newPos = this.rootPos.clone();
+    const limit = Math.min(targetPly, path.length);
+    for (let i = 0; i < limit; i++) {
+      const m = parseSan(newPos, path[i].data.san);
       if (m) {
         newPos.play(m);
       }
@@ -160,10 +178,11 @@ export class PgnTreeManager {
 
   public getVariationsAtPly(targetPly: number): VariationInfo[] {
     const path = this.getActivePath();
-    if (targetPly <= 0 || targetPly > path.length) return [];
+    const effectivePly = targetPly === 0 ? 1 : targetPly;
+    if (effectivePly <= 0 || (path.length > 0 && effectivePly > path.length)) return [];
 
-    const parentNode = targetPly === 1 ? this.rootNode : path[targetPly - 2];
-    const currentChild = path[targetPly - 1];
+    const parentNode = effectivePly === 1 ? this.rootNode : path[effectivePly - 2];
+    const currentChild = path.length >= effectivePly ? path[effectivePly - 1] : undefined;
 
     return parentNode.children.map((child, index) => ({
       index,
@@ -177,9 +196,10 @@ export class PgnTreeManager {
 
   public selectVariation(variationIndex: number, targetPly: number): boolean {
     const path = this.getActivePath();
-    if (targetPly <= 0 || targetPly > path.length) return false;
+    const effectivePly = targetPly === 0 ? 1 : targetPly;
+    if (effectivePly <= 0 || (path.length > 0 && effectivePly > path.length)) return false;
 
-    const parentNode = targetPly === 1 ? this.rootNode : path[targetPly - 2];
+    const parentNode = effectivePly === 1 ? this.rootNode : path[effectivePly - 2];
     if (variationIndex < 0 || variationIndex >= parentNode.children.length) return false;
 
     const selectedChild = parentNode.children[variationIndex];
@@ -189,6 +209,34 @@ export class PgnTreeManager {
     }
 
     this.currentNode = endNode;
+    return true;
+  }
+
+  public deleteVariation(variationIndex: number, targetPly: number): boolean {
+    const path = this.getActivePath();
+    const effectivePly = targetPly === 0 ? 1 : targetPly;
+    if (effectivePly <= 0 || (path.length > 0 && effectivePly > path.length)) return false;
+
+    const parentNode = effectivePly === 1 ? this.rootNode : path[effectivePly - 2];
+    if (variationIndex < 0 || variationIndex >= parentNode.children.length) return false;
+
+    parentNode.children.splice(variationIndex, 1);
+    if (this.findParentNode(this.rootNode, this.currentNode) === null && this.currentNode !== this.rootNode) {
+      this.currentNode = parentNode;
+    }
+    return true;
+  }
+
+  public promoteVariation(variationIndex: number, targetPly: number): boolean {
+    const path = this.getActivePath();
+    const effectivePly = targetPly === 0 ? 1 : targetPly;
+    if (effectivePly <= 0 || (path.length > 0 && effectivePly > path.length)) return false;
+
+    const parentNode = effectivePly === 1 ? this.rootNode : path[effectivePly - 2];
+    if (variationIndex <= 0 || variationIndex >= parentNode.children.length) return false;
+
+    const [promoted] = parentNode.children.splice(variationIndex, 1);
+    parentNode.children.unshift(promoted);
     return true;
   }
 

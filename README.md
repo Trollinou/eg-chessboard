@@ -157,6 +157,7 @@ Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une
 | `playerColor` | `'white' \| 'black' \| 'both'` | `undefined` | Couleur(s) autorisée(s) au déplacement pour l'utilisateur. |
 | `freeMode` | `boolean` | `false` | Mode libre : déplace les pièces librement sans validation stricte des règles ni contrainte d'alternance de tour, et resynchronise l'état et la FEN. |
 | `soloMode` | `boolean` | `false` | Mode solo : autorise les déplacements consécutifs du même joueur sans alternance forcée. |
+| `readOnly` | `boolean` | `false` | Mode lecture seule (Lecteur vs Éditeur PGN). En `readOnly: true`, les coups ne modifient pas le PGN et les formes dessinées sont éphémères. En `readOnly: false`, les coups créent des variantes et les formes/commentaires sont enregistrés dans le PGN. |
 | `fitContainer` | `boolean` | `false` | Étend l'échiquier à 100% de la hauteur/largeur du conteneur parent (supprime les ratios fixes). |
 | `preserveShapesOnPositionChange` | `boolean` | `false` | Conserve les formes/flèches dessinées lors de la pose ou suppression de pièces (implicite si `mode='editor'`). |
 | `stockfishConfig`| `StockfishConfig` | `{}` | Configuration du moteur de jeu et d'analyse Stockfish. |
@@ -206,6 +207,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `getCurrentComment()` | `string` | Commentaire textuel PGN du demi-coup actuellement visualisé. |
 | `getHistoryViewerState()`| `Readonly<HistoryViewerState>` | État de la navigation dans l'historique PGN. |
 | `isViewingHistory()` | `boolean` | Indique si l'utilisateur consulte un coup antérieur dans l'historique. |
+| `isReadOnly()` | `boolean` | Indique si le mode lecture seule est actuellement actif. |
 | `getState()` | `Readonly<BoardCoreState>` | Retourne l'état réactif global du Core. |
 | `getCapturedPieces()` | `{ white: string[], black: string[] }` | Liste des pièces capturées par chaque couleur. |
 | `getMaterialCount()` | `{ white: number, black: number, diff: number }` | Décompte du matériel et différentiel. |
@@ -218,6 +220,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | Méthode | Arguments | Description |
 | :--- | :--- | :--- |
 | `move(moveObj)` | `string \| { from: string, to: string, promotion?: string }` | Joue un coup programmatiquement (ex: `'e4'` ou `{ from: 'e2', to: 'e4' }`). Crée une nouvelle variante si le coup diffère de la ligne existante. |
+| `newGame(fen?)` | `fen?: string` | Démarre une nouvelle partie (position initiale par défaut ou FEN personnalisée avec en-têtes SetUp & FEN automatiques). |
 | `setPosition(fen)` | `fen: string` | Charge une FEN. Tolère les FENs incomplètes sans crash. |
 | `setDiagram(diagram)` | `diagram: ChessDiagram` | Charge une position FEN et ses formes (flèches/cercles). |
 | `getDiagram()` | `none` | Retourne l'objet `{ fen, shapes }` représentant la position et les dessins actuels. |
@@ -231,6 +234,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `setPlayerColor(color)` | `color: 'white' \| 'black' \| 'both'` | Modifie dynamiquement la couleur du joueur autorisée aux déplacements. |
 | `setFreeMode(freeMode)` | `freeMode: boolean` | Active/désactive le mode libre. |
 | `setSoloMode(soloMode)` | `soloMode: boolean` | Active/désactive le mode solo. |
+| `setReadOnly(readOnly)` | `readOnly: boolean` | Active/désactive le mode lecture seule (Lecteur vs Éditeur PGN). |
 | `setPreserveShapesOnPositionChange(...)` | `preserve: boolean` | Active/désactive la persistance des formes lors des changements de pièces. |
 | `setConfig(config)` | `config: Config` | Applique une nouvelle configuration. Conserve la sélection et les formes si la FEN est inchangée. |
 | `getFinalFenFromPgn(pgn)` | `pgn: string` | Retourne la FEN finale calculée à partir d'une chaîne PGN. |
@@ -245,8 +249,10 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `viewStart()` | `none` | Navigue au tout début de la partie (ply 0). |
 | `viewNext()` | `none` | Navigue au coup suivant. |
 | `viewPrevious()` | `none` | Navigue au coup précédent. |
-| `getVariationsAtPly(ply?)` | `ply?: number` | Retourne la liste des sous-variantes alternatives (`VariationInfo[]`) disponibles à ce demi-coup. |
+| `getVariationsAtPly(ply?)` | `ply?: number` | Retourne la liste des sous-variantes alternatives (`VariationInfo[]`) disponibles à ce demi-coup (supporte ply 0). |
 | `selectVariation(index)`| `variationIndex: number` | Bascule le plateau et la ligne active vers la sous-variante indiquée par son index. |
+| `promoteVariation(index?)`| `variationIndex?: number` | Promeut la sous-variante indiquée au rang de ligne principale (*mainline*). |
+| `deleteVariation(index?)` | `variationIndex?: number` | Supprime la sous-variante indiquée de l'arbre PGN. |
 | `getPgnTree()` | `none` | Retourne l'arborescence PGN complète sous forme d'un arbre `PgnTreeNode`. |
 
 ### 4. Annotations Graphiques & Commentaires PGN

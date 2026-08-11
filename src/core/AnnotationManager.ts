@@ -98,10 +98,13 @@ export class AnnotationManager {
       }
 
       if (mode === 'study') {
-        const ply = ctx.historyViewerManager.getCurrentViewingPly(
-          (ctx.getHistory(true) as Move[]).length
-        );
-        ctx.setCommentAtPly(ply, ctx.state.currentComment || '', shapes, false);
+        const isReadOnly = !!ctx.state.readOnly;
+        if (!isReadOnly) {
+          const ply = ctx.historyViewerManager.getCurrentViewingPly(
+            (ctx.getHistory(true) as Move[]).length
+          );
+          ctx.setCommentAtPly(ply, ctx.state.currentComment || '', shapes, false);
+        }
       }
 
       ctx.emitEvent('shapes-change', this.getPreservedShapes());

@@ -357,7 +357,7 @@ const formatMove = (move: string, index: number) => {
               ? 'Stockfish Sandbox'
               : activeTab === 'solo'
                 ? 'Solo Sandbox'
-                : 'PGN Reader'
+                : 'Lecteur & Éditeur PGN'
           }}</span>
         </h1>
       </div>
@@ -384,7 +384,7 @@ const formatMove = (move: string, index: number) => {
           ✏️ Mode Édition & Diagramme
         </button>
         <button :class="{ active: activeTab === 'pgn' }" class="tab-btn" @click="activeTab = 'pgn'">
-          📖 Mode Lecteur PGN
+          📖 Lecteur & Éditeur PGN
         </button>
       </div>
     </header>

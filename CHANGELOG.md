@@ -4,6 +4,25 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [Non publié / Unreleased]
+
+### Ajouté & Amélioré
+
+- **Mode Éditeur PGN (`readOnly: false`) & Arborescence Interactive** :
+  - Support complet de l'édition PGN interactive avec création et suivi dynamique des sous-variantes.
+  - Déplacement de pièces à partir de n'importe quel ply de l'historique pour insérer automatiquement une sous-variante dans l'arbre PGN.
+  - Sauvegarde persistante des commentaires textuels et des annotations graphiques (`[%cal]`, `[%cpl]`) dans les nœuds du PGN (`Node<PgnNodeMeta>`).
+  - Distinction stricte entre Mode Lecteur (`readOnly: true` : navigation sans altération, formes éphémères) et Mode Éditeur (`readOnly: false` : sous-variantes et persistance).
+  - Nouvelles méthodes d'API publique et synchronisation réactive : `setReadOnly`, `isReadOnly`, `deleteVariation`, `promoteVariation`, `selectVariation`, `getVariationsAtPly`.
+  - Intégration de `syncGamePosToPly` et liaison explicite du setter `setPos` sur `BoardCore.pos` pour garantir la synchronisation instantanée de l'échiquier lors des coups joués en historique.
+- **Correction de la persistance des promotions et de l'édition libre (`PromotionManager` & `BoardConfigBuilder`)** :
+  - Synchronisation explicite de la carte interne des pièces de Chessground (`board.state.pieces`) lors de la sélection d'une promotion.
+  - Remplacement de `Chess.fromSetup` par `FenManager.safeLoadFen` dans `syncGameFromBoard` pour accepter toutes les positions de diagrammes personnalisées (ex: pièces hors-normes, absence de rois, échecs atypiques) sans rejet ni avertissement intempestif.
+  - Ajout du bloc de fallback pour les déplacements libres normaux en mode édition (`changeTurn`), garantissant la répercussion instantanée des mouvements de pièces sur l'état logique et l'arbre PGN.
+  - Suppression des avertissements informatifs `console.warn` de `safeLoadFen` pour conserver une console propre et silencieuse lors de la composition de positions.
+
+---
+
 ## [1.3.5] - 2026-08-08
 
 ### Ajouté & Amélioré

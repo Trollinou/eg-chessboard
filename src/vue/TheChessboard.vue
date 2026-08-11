@@ -28,6 +28,7 @@ const props = withDefaults(
     playerColor?: 'white' | 'black' | 'both';
     freeMode?: boolean;
     soloMode?: boolean;
+    readOnly?: boolean;
     fitContainer?: boolean;
     preserveShapesOnPositionChange?: boolean;
     stockfishConfig?: StockfishConfig;
@@ -38,6 +39,7 @@ const props = withDefaults(
     mode: 'game',
     freeMode: false,
     soloMode: false,
+    readOnly: false,
     fitContainer: false,
     preserveShapesOnPositionChange: false,
     stockfishConfig: () => ({}),
@@ -65,6 +67,7 @@ const state = reactive<BoardCoreState>({
   mode: props.mode,
   freeMode: props.freeMode,
   soloMode: props.soloMode,
+  readOnly: props.readOnly,
   preserveShapesOnPositionChange: props.preserveShapesOnPositionChange,
   promotionDialogState: { isEnabled: false },
   historyViewerState: { isEnabled: false },
@@ -78,6 +81,17 @@ watch(
     state.mode = newVal;
     if (core.value && newVal) {
       core.value.setMode(newVal);
+    }
+  }
+);
+
+// Watch for readOnly changes
+watch(
+  () => props.readOnly,
+  (newVal) => {
+    state.readOnly = newVal;
+    if (core.value && newVal !== undefined) {
+      core.value.setReadOnly(newVal);
     }
   }
 );

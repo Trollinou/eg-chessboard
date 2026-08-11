@@ -35,6 +35,7 @@ C'est le paramètre fondamental qui définit la **finalité** du composant :
 | :--- | :--- | :--- | :--- |
 | **`freeMode`** | `boolean` | `false` | Déplace n'importe quelle pièce sur n'importe quelle case sans valider les règles ni alterner le trait. *(Inutile si `mode="editor"` car automatique)*. |
 | **`soloMode`** | `boolean` | `false` | Conserve le trait pour la couleur jouée après chaque coup. Utilisé pour les **exercices d'apprentissage solo** (ex: déplacer la même pièce 4 fois de suite). |
+| **`readOnly`** | `boolean` | `false` | Mode lecture seule en mode `study`. Si `true` (Lecteur PGN), la navigation est libre mais les pièces ne modifient pas l'arbre et les formes sont éphémères. Si `false` (Éditeur PGN), les coups créent des sous-variantes et les formes/commentaires sont enregistrés dans le PGN. |
 | **`preserveShapesOnPositionChange`** | `boolean` | `false` | Garde les flèches et cercles affichés même lorsque les pièces bougent. Utilisé pour **maintenir les consignes visuelles d'un exercice**. *(Inutile si `mode="editor"` car automatique)*. |
 | **`playerColor`** | `'white' \| 'black' \| 'both'` | `undefined` | Restreint les pièces déplaçables par l'utilisateur. Exemple : `'white'` empêche l'utilisateur d'attraper les pièces noires. |
 | **`fitContainer`** | `boolean` | `false` | Étend l'échiquier à 100% de la hauteur/largeur de son conteneur parent (supprime les ratios fixes). |
@@ -52,19 +53,20 @@ Contrôle le Web Worker Stockfish (WASM) :
 ## 📊 2. Matrice de Configuration Rapide (Quel scénario utiliser ?)
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                    MATRICE DE CONFIGURATION                                      │
-├──────────────────────────────────────┬──────────┬──────────┬──────────┬──────────────┬───────────┤
-│ Scénario d'Usage                      │ mode     │ freeMode │ soloMode │ preserve...  │ player... │
-├──────────────────────────────────────┼──────────┼──────────┼──────────┼──────────────┼───────────┤
-│ 1. Éditeur de Diagramme (Gutenberg)  │ 'editor' │ (Auto)   │ false    │ (Auto)       │ Omis      │
-│ 2. Partie 2 Joueurs en Local (2P)    │ 'game'   │ false    │ false    │ false        │ Omis      │
-│ 3. Joueur Blanc vs Ordinateur (IA)   │ 'game'   │ false    │ false    │ false        │ 'white'   │
-│ 4. Joueur Noir vs Ordinateur (IA)    │ 'game'   │ false    │ false    │ false        │ 'black'   │
-│ 5. Exercice Solo d'Apprentissage     │ 'game'   │ false    │ true     │ true (si req)│ 'white'   │
-│ 6. Lecteur / Cours PGN avec Variantes│ 'study'  │ false    │ false    │ false        │ Omis      │
-│ 7. Bac à Sable / Réflexion Libre     │ 'game'   │ true     │ false    │ false        │ Omis      │
-└──────────────────────────────────────┴──────────┴──────────┴──────────┴──────────────┴───────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    MATRICE DE CONFIGURATION                                                 │
+├──────────────────────────────────────┬──────────┬──────────┬──────────┬──────────┬──────────────┬───────────┤
+│ Scénario d'Usage                      │ mode     │ readOnly │ freeMode │ soloMode │ preserve...  │ player... │
+├──────────────────────────────────────┼──────────┼──────────┼──────────┼──────────┼──────────────┼───────────┤
+│ 1. Éditeur de Diagramme (Gutenberg)  │ 'editor' │ false    │ (Auto)   │ false    │ (Auto)       │ Omis      │
+│ 2. Partie 2 Joueurs en Local (2P)    │ 'game'   │ false    │ false    │ false    │ false        │ Omis      │
+│ 3. Joueur Blanc vs Ordinateur (IA)   │ 'game'   │ false    │ false    │ false    │ false        │ 'white'   │
+│ 4. Joueur Noir vs Ordinateur (IA)    │ 'game'   │ false    │ false    │ false    │ false        │ 'black'   │
+│ 5. Exercice Solo d'Apprentissage     │ 'game'   │ false    │ false    │ true     │ true (si req)│ 'white'   │
+│ 6. Lecteur PGN (Lecture Seule)       │ 'study'  │ true     │ false    │ false    │ false        │ Omis      │
+│ 7. Éditeur PGN (Interactif & Variantes)│ 'study'│ false    │ false    │ false    │ false        │ Omis      │
+│ 8. Bac à Sable / Réflexion Libre     │ 'game'   │ false    │ true     │ false    │ false        │ Omis      │
+└──────────────────────────────────────┴──────────┴──────────┴──────────┴──────────┴──────────────┴───────────┘
 ```
 
 ---
@@ -127,30 +129,40 @@ const stockfishConfig: StockfishConfig = {
 
 ---
 
-### Recette 4 : Lecteur / Analyseur de Partie PGN avec Variantes & Stockfish Hint
-*Besoin : Naviguer dans les sous-variantes et commentaires PGN `[%cal]`/`[%cpl]`, recevoir des conseils de l'IA.*
+### Recette 4 : Lecteur PGN en Lecture Seule (`readOnly={true}`)
+*Besoin : Consulter une partie PGN et ses variantes sans altérer le document. Formes éphémères au clic droit.*
 
 ```tsx
-const stockfishConfig: StockfishConfig = {
-  workerUrl: '/stockfish.js',
-  wasmUrl: '/stockfish.wasm',
-  whiteMode: 'hint',
-  blackMode: 'hint',
-};
-
 <Chessboard
   mode="study"
-  stockfishConfig={stockfishConfig}
+  readOnly={true}
   onBoardCreated={(core) => {
     core.loadPgn('1. e4 e5 (1... c5 { [%cal Gc5d4] } 2. Nf3) 2. Nf3 Nc6');
   }}
-  onStockfishHint={(hint) => console.log('Meilleur coup suggéré par IA :', hint)}
 />
 ```
 
 ---
 
-### Recette 5 : Partie 2 Joueurs en Local (Même Écran)
+### Recette 5 : Éditeur PGN Interactif avec Création de Variantes (`readOnly={false}`)
+*Besoin : Saisir de nouveaux coups sur n'importe quel demi-coup pour générer des sous-variantes, ajouter des explications textuelles et dessiner des flèches persistantes.*
+
+```tsx
+<Chessboard
+  mode="study"
+  readOnly={false}
+  onBoardCreated={(core) => {
+    // Nouvelle partie ou FEN personnalisée avec en-têtes Setup automatiques
+    core.newGame('r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3');
+    // Récupérer le PGN généré à tout moment :
+    console.log(core.getPgn());
+  }}
+/>
+```
+
+---
+
+### Recette 6 : Partie 2 Joueurs en Local (Même Écran)
 *Besoin : Deux joueurs s'affrontent sur le même écran avec alternance stricte des traits et vérification des règles.*
 
 ```tsx

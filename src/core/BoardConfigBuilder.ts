@@ -1,5 +1,4 @@
 import type { DrawShape } from '@lichess-org/chessground/draw';
-import { parseFen } from 'chessops/fen';
 import { Chess } from 'chessops';
 import type { Color as ChessopsColor } from 'chessops/types';
 import type { Config } from '@lichess-org/chessground/config';
@@ -13,6 +12,7 @@ import { FenManager } from './FenManager';
 import { AnnotationManager } from './AnnotationManager';
 import type { ExerciseManager } from './ExerciseManager';
 import type { HistoryViewerManager } from './HistoryViewerManager';
+import type { PgnTreeManager } from './PgnTreeManager';
 
 export interface BoardConfigContext {
   state: BoardCoreState;
@@ -21,6 +21,7 @@ export interface BoardConfigContext {
   exerciseManager: ExerciseManager;
   historyViewerManager: HistoryViewerManager;
   annotationManager: AnnotationManager;
+  pgnTreeManager: PgnTreeManager;
   userMovableColor?: 'white' | 'black' | 'both';
   setUserMovableColor: (color?: 'white' | 'black' | 'both') => void;
   getTurnColor: () => 'white' | 'black';
@@ -138,14 +139,11 @@ export class BoardConfigBuilder {
 
       const newFen = `${placement} ${turn} ${castling} ${ep} ${halfmove} ${fullmove}`;
 
-      const setupRes = parseFen(newFen);
-      if (setupRes.isOk) {
-        const chessRes = Chess.fromSetup(setupRes.value);
-        if (chessRes.isOk) {
-          ctx.setPos(chessRes.value);
-          ctx.resetFenCache();
-        }
-      }
+      FenManager.safeLoadFen(newFen, (pos) => {
+        ctx.setPos(pos);
+        ctx.pgnTreeManager.resetTree(pos);
+      });
+      ctx.resetFenCache();
 
       const isPreserve = !!ctx.state.preserveShapesOnPositionChange || ctx.getMode() === 'editor';
       if (isPreserve && ctx.board) {
@@ -166,7 +164,7 @@ export class BoardConfigBuilder {
     }
   }
 
-  public updateGameState(ctx: BoardConfigContext, { updateFen = true } = {}): void {
+  public updateGameState(ctx: BoardConfigContext, { updateFen = true, animate = true } = {}): void {
     if (!ctx.historyViewerManager.isViewingHistory()) {
       const isPreserve = !!ctx.state.preserveShapesOnPositionChange || ctx.getMode() === 'editor';
       const currentShapes = ctx.getShapes();
@@ -193,7 +191,7 @@ export class BoardConfigBuilder {
           ...(updateFen ? { fen: ctx.getFen() } : {}),
           turnColor: ctx.getTurnColor(),
           check: ctx.pos.isCheck() ? ctx.getTurnColor() : undefined,
-          animation: { enabled: !isPreserve && !isFree },
+          animation: { enabled: animate && !isPreserve && !isFree },
           lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
           movable: {
             free: isFree,

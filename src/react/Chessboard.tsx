@@ -24,6 +24,7 @@ export interface ChessboardProps {
   playerColor?: 'white' | 'black' | 'both';
   freeMode?: boolean;
   soloMode?: boolean;
+  readOnly?: boolean;
   fitContainer?: boolean;
   preserveShapesOnPositionChange?: boolean;
   stockfishConfig?: StockfishConfig;
@@ -46,6 +47,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   playerColor,
   freeMode = false,
   soloMode = false,
+  readOnly = false,
   fitContainer = false,
   preserveShapesOnPositionChange = false,
   stockfishConfig = {},
@@ -69,6 +71,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     mode,
     freeMode,
     soloMode,
+    readOnly,
     preserveShapesOnPositionChange,
     promotionDialogState: { isEnabled: false },
     historyViewerState: { isEnabled: false },
@@ -82,6 +85,14 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState((prev) => ({ ...prev, mode }));
   }, [mode]);
+
+  useEffect(() => {
+    if (coreRef.current) {
+      coreRef.current.setReadOnly(readOnly);
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setState((prev) => ({ ...prev, readOnly }));
+  }, [readOnly]);
 
   useEffect(() => {
     if (coreRef.current) {
@@ -121,6 +132,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
           mode: coreState.mode,
           freeMode: coreState.freeMode,
           soloMode: coreState.soloMode,
+          readOnly: coreState.readOnly,
           preserveShapesOnPositionChange: coreState.preserveShapesOnPositionChange,
           promotionDialogState: { ...coreState.promotionDialogState },
           historyViewerState: { ...coreState.historyViewerState },
