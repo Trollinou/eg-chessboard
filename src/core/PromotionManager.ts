@@ -1,5 +1,8 @@
 import { parseSquare } from 'chessops';
+import { makeFen } from 'chessops/fen';
 import type { Chess } from 'chessops';
+import type { Api } from '@lichess-org/chessground/api';
+import type { Key, Role } from '@lichess-org/chessground/types';
 import type { BoardCoreState } from '../BoardCore';
 import { pieceSymbolToRole, FILES } from './pieceMapping';
 
@@ -10,7 +13,8 @@ export class PromotionManager {
     getMode: () => string,
     onStateChange: () => void,
     updateGameState: () => void,
-    resetFenCache: () => void
+    resetFenCache: () => void,
+    board?: Api
   ): Promise<void> {
     if (state.promotionDialogState.isEnabled) return;
     if (!state.freeMode && getMode() !== 'editor') return;
@@ -28,7 +32,8 @@ export class PromotionManager {
           state,
           onStateChange,
           updateGameState,
-          resetFenCache
+          resetFenCache,
+          board
         );
         return;
       }
@@ -45,7 +50,8 @@ export class PromotionManager {
           state,
           onStateChange,
           updateGameState,
-          resetFenCache
+          resetFenCache,
+          board
         );
         return;
       }
@@ -59,7 +65,8 @@ export class PromotionManager {
     state: BoardCoreState,
     onStateChange: () => void,
     updateGameState: () => void,
-    resetFenCache: () => void
+    resetFenCache: () => void,
+    board?: Api
   ): Promise<void> {
     const selectedPromotion = await new Promise<string>((resolve) => {
       state.promotionDialogState = {
@@ -76,6 +83,12 @@ export class PromotionManager {
     const sq = parseSquare(sqStr)!;
     pos.board.set(sq, { role: promotedRole, color });
     resetFenCache();
+
+    if (board && board.state?.pieces) {
+      board.state.pieces.set(sqStr as Key, { role: promotedRole as Role, color });
+      board.set({ fen: '' });
+      board.set({ fen: makeFen(pos.toSetup()) });
+    }
 
     state.promotionDialogState = { isEnabled: false };
     onStateChange();

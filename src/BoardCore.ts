@@ -267,7 +267,8 @@ export class BoardCore {
       () => this.updateGameState(),
       () => {
         this.cachedFen = null;
-      }
+      },
+      this.board
     );
   }
 
