@@ -132,7 +132,6 @@ export class MoveManager {
     }
 
     if (!parsedMove || !ctx.pos.isLegal(parsedMove)) {
-      console.error('[MoveManager] executeMove failed or illegal:', moveObj);
       return false;
     }
 
@@ -255,13 +254,25 @@ export class MoveManager {
         ctx.syncGameFromBoard();
       }
     } else {
-      MoveManager.executeMove(
+      const moved = MoveManager.executeMove(
         {
           from: orig,
           to: dest,
         },
         ctx
       );
+
+      if (!moved && (ctx.state.freeMode || ctx.getMode() === 'editor')) {
+        const color = pieceColor === 'w' ? 'white' : 'black';
+        const role = activePiece ? activePiece.role : 'pawn';
+        const pieces = new Map(ctx.board.state.pieces);
+        pieces.set(dest, { role, color });
+        if (orig !== dest) {
+          pieces.delete(orig);
+        }
+        ctx.board.setPieces(pieces);
+        ctx.syncGameFromBoard();
+      }
     }
   }
 }

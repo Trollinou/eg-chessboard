@@ -15,9 +15,11 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
   - Distinction stricte entre Mode Lecteur (`readOnly: true` : navigation sans altération, formes éphémères) et Mode Éditeur (`readOnly: false` : sous-variantes et persistance).
   - Nouvelles méthodes d'API publique et synchronisation réactive : `setReadOnly`, `isReadOnly`, `deleteVariation`, `promoteVariation`, `selectVariation`, `getVariationsAtPly`.
   - Intégration de `syncGamePosToPly` et liaison explicite du setter `setPos` sur `BoardCore.pos` pour garantir la synchronisation instantanée de l'échiquier lors des coups joués en historique.
-- **Correction de la persistance des promotions en Mode Éditeur/Diagramme (`PromotionManager`)** :
+- **Correction de la persistance des promotions et de l'édition libre (`PromotionManager` & `BoardConfigBuilder`)** :
   - Synchronisation explicite de la carte interne des pièces de Chessground (`board.state.pieces`) lors de la sélection d'une promotion.
-  - Empêche la réapparition de l'ancienne pièce remplacée (ex: Fou noir) sur la case lors des modifications ultérieures de la position (pose/suppression de pièces via `putPiece`).
+  - Remplacement de `Chess.fromSetup` par `FenManager.safeLoadFen` dans `syncGameFromBoard` pour accepter toutes les positions de diagrammes personnalisées (ex: pièces hors-normes, absence de rois, échecs atypiques) sans rejet ni avertissement intempestif.
+  - Ajout du bloc de fallback pour les déplacements libres normaux en mode édition (`changeTurn`), garantissant la répercussion instantanée des mouvements de pièces sur l'état logique et l'arbre PGN.
+  - Suppression des avertissements informatifs `console.warn` de `safeLoadFen` pour conserver une console propre et silencieuse lors de la composition de positions.
 
 ---
 

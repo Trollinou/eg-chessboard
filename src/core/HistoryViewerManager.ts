@@ -1,8 +1,6 @@
 import type { Api } from '@lichess-org/chessground/api';
 import type { Key } from '@lichess-org/chessground/types';
 import type { ChildNode } from 'chessops/pgn';
-import { parseFen } from 'chessops/fen';
-import { Chess } from 'chessops';
 import { possibleMoves } from '../BoardHelper';
 import { FenManager } from './FenManager';
 import type { Move, PgnNodeMeta } from '../types';
@@ -64,18 +62,13 @@ export class HistoryViewerManager {
       let movableDests: Map<Key, Key[]> | undefined = undefined;
 
       if (!isReadOnly) {
-        const setupRes = parseFen(fenViewing);
-        if (setupRes.isOk) {
-          const chessRes = Chess.fromSetup(setupRes.value);
-          if (chessRes.isOk) {
-            const posViewing = chessRes.value;
-            const turnColor = posViewing.turn === 'white' ? 'white' : 'black';
-            movableColor = opts?.freeMode ? 'both' : turnColor;
-            movableDests = opts?.freeMode
-              ? FenManager.getPossibleMovesForBothColors(posViewing)
-              : possibleMoves(posViewing);
-          }
-        }
+        const res = FenManager.safeLoadFen(fenViewing, () => {});
+        const posViewing = res.pos;
+        const turnColor = posViewing.turn === 'white' ? 'white' : 'black';
+        movableColor = opts?.freeMode ? 'both' : turnColor;
+        movableDests = opts?.freeMode
+          ? FenManager.getPossibleMovesForBothColors(posViewing)
+          : possibleMoves(posViewing);
       }
 
       board.set({ fen: '' });

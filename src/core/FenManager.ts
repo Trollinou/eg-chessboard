@@ -21,8 +21,6 @@ export class FenManager {
       }
     }
 
-    console.warn('Invalid FEN loaded, fallback to manual piece placing:', fenStr);
-
     const parts = fenStr.split(' ');
     const placement = parts[0];
 

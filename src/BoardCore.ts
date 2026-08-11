@@ -165,6 +165,7 @@ export class BoardCore {
       exerciseManager: this.exerciseManager,
       historyViewerManager: this.historyViewerManager,
       annotationManager: this.annotationManager,
+      pgnTreeManager: this.pgnTreeManager,
       userMovableColor: this.userMovableColor,
       setUserMovableColor: (color) => {
         this.userMovableColor = color;
