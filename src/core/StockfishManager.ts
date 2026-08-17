@@ -46,9 +46,7 @@ export class StockfishManager {
   }
 
   public initStockfish(isFreeMode: boolean): void {
-    console.log('[StockfishManager] initStockfish called. Config:', this.stockfishConfig);
     if (isFreeMode) {
-      console.log('[StockfishManager] initStockfish aborted: freeMode is active');
       this.terminateStockfish();
       return;
     }
@@ -121,7 +119,6 @@ export class StockfishManager {
     getEnginePositionCommand: () => string
   ): void {
     if (isFreeMode || isGameOver) {
-      console.log('[StockfishManager] triggerStockfish ignored: freeMode or game over');
       this.terminateStockfish();
       return;
     }
@@ -133,23 +130,10 @@ export class StockfishManager {
     }
 
     const movetime = this.stockfishConfig.stockfishMoveTime || 1000;
-    console.log(
-      '[StockfishManager] triggerStockfish. Turn:',
-      turn,
-      'Mode:',
-      mode,
-      'MoveTime:',
-      movetime
-    );
 
     const worker = turn === 'white' ? this.whiteWorker : this.blackWorker;
     if (worker) {
       const positionCmd = getEnginePositionCommand();
-      console.log(
-        `[StockfishManager] Sending to ${turn === 'white' ? 'White' : 'Black'} Worker:`,
-        positionCmd,
-        `go movetime ${movetime}`
-      );
       worker.postMessage(positionCmd);
       worker.postMessage(`go movetime ${movetime}`);
     }

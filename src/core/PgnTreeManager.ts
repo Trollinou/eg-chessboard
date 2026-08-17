@@ -221,7 +221,10 @@ export class PgnTreeManager {
     if (variationIndex < 0 || variationIndex >= parentNode.children.length) return false;
 
     parentNode.children.splice(variationIndex, 1);
-    if (this.findParentNode(this.rootNode, this.currentNode) === null && this.currentNode !== this.rootNode) {
+    if (
+      this.findParentNode(this.rootNode, this.currentNode) === null &&
+      this.currentNode !== this.rootNode
+    ) {
       this.currentNode = parentNode;
     }
     return true;
