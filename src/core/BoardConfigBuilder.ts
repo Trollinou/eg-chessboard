@@ -25,6 +25,7 @@ export interface BoardConfigContext {
   userMovableColor?: 'white' | 'black' | 'both';
   setUserMovableColor: (color?: 'white' | 'black' | 'both') => void;
   getTurnColor: () => 'white' | 'black';
+  getCurrentPlyNumber: () => number;
   getFen: () => string;
   getPlacementFen: () => string;
   getMode: () => string;
@@ -231,6 +232,7 @@ export class BoardConfigBuilder {
   }
 
   public emitEvents(ctx: BoardConfigContext): void {
+    ctx.emitEvent('turn-change', ctx.getTurnColor(), ctx.getCurrentPlyNumber());
     if (ctx.pos.isCheck()) {
       ctx.emitEvent(ctx.pos.isCheckmate() ? 'checkmate' : 'check', ctx.getTurnColor());
     }

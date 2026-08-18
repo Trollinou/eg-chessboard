@@ -40,6 +40,11 @@ export interface BoardCoreState {
     viewOnly?: boolean;
   };
   currentComment?: string;
+  turnColor?: 'white' | 'black';
+  ply?: number;
+  fen?: string;
+  isCheck?: boolean;
+  isGameOver?: boolean;
 }
 
 export type { StockfishConfig, StockfishMode } from './core/StockfishManager';
@@ -171,6 +176,7 @@ export class BoardCore {
         this.userMovableColor = color;
       },
       getTurnColor: () => this.getTurnColor(),
+      getCurrentPlyNumber: () => this.getCurrentPlyNumber(),
       getFen: () => this.getFen(),
       getPlacementFen: () => this.getPlacementFen(),
       getMode: () => this.getMode(),
@@ -273,8 +279,9 @@ export class BoardCore {
     );
   }
 
-  private updateGameState(opts?: { updateFen?: boolean }): void {
+  private updateGameState(opts?: { updateFen?: boolean; animate?: boolean }): void {
     this.boardConfigBuilder.updateGameState(this.getBoardConfigContext(), opts);
+    this.onStateChange();
   }
 
   private async changeTurn(orig: Key, dest: Key, metadata: MoveMetadata): Promise<void> {
@@ -505,6 +512,11 @@ export class BoardCore {
     return {
       ...this.state,
       historyViewerState: this.historyViewerManager.getState(),
+      turnColor: this.getTurnColor(),
+      ply: this.getCurrentPlyNumber(),
+      fen: this.getFen(),
+      isCheck: this.getIsCheck(),
+      isGameOver: this.getIsGameOver(),
     };
   }
 

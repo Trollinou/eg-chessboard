@@ -4,10 +4,20 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
-## [Non publié / Unreleased]
+## [1.5.0] - 2026-08-18
 
 ### Ajouté & Amélioré
 
+- **Réactivité unifiée de l'état de jeu (`BoardCoreState`)** :
+  - Extension de `BoardCoreState` avec les propriétés dynamiques `turnColor` ('white' | 'black'), `ply` (number), `fen` (string), `isCheck` (boolean) et `isGameOver` (boolean).
+  - Synchronisation automatique et centralisée via `onStateChange()` sur toute modification ou transition de partie (coups, annulations `undo`, réinitialisations, navigation dans l'historique).
+  - Dans Vue 3 (`TheChessboard.vue`), l'état `state` est réactif et exposé directement via `defineExpose({ core, state, redraw })`.
+  - Dans React (`Chessboard.tsx`), `useState<BoardCoreState>` est synchronisé avec l'état complet du core.
+- **Nouvel événement de changement de trait (`turn-change` / `onTurnChange`)** :
+  - Vue 3 : émission de `@turn-change="(turnColor, ply) => ..."` à chaque alternance ou transition de trait.
+  - React : support de la prop `onTurnChange?: (turnColor, ply) => void`.
+- **Enrichissement du type `Move` (événement `@move` / `onMove`)** :
+  - Ajout des champs `turnColor`, `ply` et `isCheck` dans l'objet `Move` retourné lors de l'exécution d'un coup.
 - **Mode Éditeur PGN (`readOnly: false`) & Arborescence Interactive** :
   - Support complet de l'édition PGN interactive avec création et suivi dynamique des sous-variantes.
   - Déplacement de pièces à partir de n'importe quel ply de l'historique pour insérer automatiquement une sous-variante dans l'arbre PGN.

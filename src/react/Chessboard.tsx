@@ -31,6 +31,7 @@ export interface ChessboardProps {
   diagram?: ChessDiagram;
   onBoardCreated?: (api: BoardCore) => void;
   onMove?: (move: Move) => void;
+  onTurnChange?: (turnColor: 'white' | 'black', ply: number) => void;
   onCheck?: (color: string) => void;
   onCheckmate?: (color: string) => void;
   onStalemate?: () => void;
@@ -54,6 +55,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   diagram,
   onBoardCreated,
   onMove,
+  onTurnChange,
   onCheck,
   onCheckmate,
   onStalemate,
@@ -76,6 +78,11 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     promotionDialogState: { isEnabled: false },
     historyViewerState: { isEnabled: false },
     currentComment: '',
+    turnColor: 'white',
+    ply: 0,
+    fen: '',
+    isCheck: false,
+    isGameOver: false,
   });
 
   useEffect(() => {
@@ -137,10 +144,17 @@ export const Chessboard: React.FC<ChessboardProps> = ({
           promotionDialogState: { ...coreState.promotionDialogState },
           historyViewerState: { ...coreState.historyViewerState },
           currentComment: coreState.currentComment,
+          turnColor: coreState.turnColor,
+          ply: coreState.ply,
+          fen: coreState.fen,
+          isCheck: coreState.isCheck,
+          isGameOver: coreState.isGameOver,
         });
       },
       (event, ...args) => {
         if (event === 'move') onMove?.(args[0] as Move);
+        else if (event === 'turn-change')
+          onTurnChange?.(args[0] as 'white' | 'black', args[1] as number);
         else if (event === 'check') onCheck?.(args[0] as string);
         else if (event === 'checkmate') onCheckmate?.(args[0] as string);
         else if (event === 'stalemate') onStalemate?.();

@@ -63,6 +63,9 @@ export function buildMovePojo(pos: Chess, parsedMove: ChessopsMove, fenBefore: s
 
   const sanStr = makeSanAndPlay(pos, parsedMove);
   const fenAfter = makeFen(pos.toSetup());
+  const turnAfter: 'white' | 'black' = pos.turn === 'white' ? 'white' : 'black';
+  const plyAfter = (pos.fullmoves - 1) * 2 + (pos.turn === 'black' ? 1 : 2);
+  const isCheckAfter = pos.isCheck();
 
   return {
     from: fromStr,
@@ -74,5 +77,8 @@ export function buildMovePojo(pos: Chess, parsedMove: ChessopsMove, fenBefore: s
     promotion: promoChar,
     before: fenBefore,
     after: fenAfter,
+    turnColor: turnAfter,
+    ply: plyAfter,
+    isCheck: isCheckAfter,
   };
 }

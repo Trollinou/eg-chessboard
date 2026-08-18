@@ -11,6 +11,9 @@ export interface Move {
   promotion?: string;
   before: string;
   after: string;
+  turnColor?: 'white' | 'black';
+  ply?: number;
+  isCheck?: boolean;
 }
 
 export interface PgnNodeMeta {

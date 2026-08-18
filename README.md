@@ -170,7 +170,8 @@ Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une
 | Nom React | Nom Vue 3 | Signature | Description |
 | :--- | :--- | :--- | :--- |
 | `onBoardCreated` | `@board-created` | `(api: BoardCore) => void` | Émis à la création du composant avec l'instance `BoardCore`. |
-| `onMove` | `@move` | `(move: Move) => void` | Émis après chaque coup valide, une fois le rendu graphique totalement achevé. |
+| `onMove` | `@move` | `(move: Move) => void` | Émis après chaque coup valide, une fois le rendu graphique totalement achevé (Move enrichi de `turnColor`, `ply`, `isCheck`). |
+| `onTurnChange` | `@turn-change` | `(turnColor: 'white' \| 'black', ply: number) => void` | Émis lors de tout changement de trait (coup joué, annulation, reset, navigation historique). |
 | `onCheck` | `@check` | `(color: string) => void` | Émis lorsque le roi d'une couleur donnée est mis en échec. |
 | `onCheckmate` | `@checkmate` | `(color: string) => void` | Émis lors d'un échec et mat (transmet la couleur du perdant). |
 | `onStalemate` | `@stalemate` | `() => void` | Émis en cas de pat (stalemate). |

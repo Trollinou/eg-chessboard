@@ -49,6 +49,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   'board-created': [api: BoardCore];
   move: [move: Move];
+  'turn-change': [turnColor: 'white' | 'black', ply: number];
   check: [color: string];
   checkmate: [color: string];
   stalemate: [];
@@ -72,6 +73,11 @@ const state = reactive<BoardCoreState>({
   promotionDialogState: { isEnabled: false },
   historyViewerState: { isEnabled: false },
   currentComment: '',
+  turnColor: 'white',
+  ply: 0,
+  fen: '',
+  isCheck: false,
+  isGameOver: false,
 });
 
 // Watch for mode changes
@@ -137,11 +143,16 @@ onMounted(() => {
     state,
     () => {
       // Triggered when reactive states change inside Core
+      if (core.value) {
+        Object.assign(state, core.value.getState());
+      }
     },
     (event, ...args) => {
       // Emit events to parent Vue component
       if (event === 'move') {
         emit('move', args[0] as Move);
+      } else if (event === 'turn-change') {
+        emit('turn-change', args[0] as 'white' | 'black', args[1] as number);
       } else if (event === 'check') {
         emit('check', args[0] as string);
       } else if (event === 'checkmate') {
@@ -230,6 +241,7 @@ onUnmounted(() => {
 
 defineExpose({
   core,
+  state,
   redraw: (clearBounds = true) => core.value?.redraw(clearBounds),
 });
 </script>

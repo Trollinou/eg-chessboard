@@ -64,7 +64,8 @@ Les types `Key`, `DrawShape` ainsi que `Move`, `VariationInfo` et `PgnTreeNode` 
 | **Config Stockfish**  | Prop  | `stockfishConfig` | `stockfishConfig`     | Synchronisation dynamique des options du moteur (incluant `workerUrl` et `wasmUrl`). Si absente ou inactive, aucun Web Worker n'est créé.                                                                                                 |
 | **Diagramme**         | Prop  | `diagram`         | `diagram`             | Initialisation et mise à jour dynamique de la FEN et des formes (flèches/cercles) via `setDiagram(diagram)`.                                                                                                                               |
 | **Création du Board** | Event | `onBoardCreated`  | `board-created`       | Transmet l'instance de `BoardCore` dès l'initialisation.                                                                                                                                                                                   |
-| **Mouvement**         | Event | `onMove`          | `move`                | Transmet un POJO `Move`. Sans objet d'événement natif. Émis uniquement après la mise à jour graphique complète de l'échiquier (permettant un `undoLastMove` immédiat sans désynchronisation visuelle).                                     |
+| **Mouvement**         | Event | `onMove`          | `move`                | Transmet un POJO `Move` enrichi (`from`, `to`, `san`, `before`, `after`, `turnColor`, `ply`, `isCheck`). Sans objet d'événement natif. Émis uniquement après la mise à jour graphique complète de l'échiquier (permettant un `undoLastMove` immédiat sans désynchronisation visuelle). |
+| **Changement de trait**| Event | `onTurnChange`   | `turn-change`         | Transmet `turnColor` (`'white' \| 'black'`) et `ply` (`number`) lors de tout changement de trait (coup joué, annulation, reset, navigation historique).                                                                                    |
 | **Échec**             | Event | `onCheck`         | `check`               | Transmet la couleur en paramètre (`string`).                                                                                                                                                                                               |
 | **Échec & Mat**       | Event | `onCheckmate`     | `checkmate`           | Transmet la couleur en paramètre (`string`).                                                                                                                                                                                               |
 | **Pat (Stalemate)**   | Event | `onStalemate`     | `stalemate`           | Signature pure sans paramètre.                                                                                                                                                                                                             |
@@ -77,16 +78,16 @@ Les types `Key`, `DrawShape` ainsi que `Move`, `VariationInfo` et `PgnTreeNode` 
 
 ## 4. Gestion de la Réactivité & Résolution du Risque d'État
 
-Le risque majeur de désynchronisation de `this.state` dans `BoardCore` sous React est résolu par les implémentations suivantes :
+Le risque majeur de désynchronisation de `this.state` dans `BoardCore` sous React et Vue est résolu par les implémentations suivantes :
 
-### Cycle de vie d'une action (Exemple de la fermeture du dialogue de Promotion) :
+### Cycle de vie d'une action (Exemple de la fermeture du dialogue de Promotion ou d'un coup joué) :
 
-1. L'utilisateur sélectionne une pièce dans le composant `PromotionDialog`.
+1. Une action ou un coup est déclenché.
 2. Le wrapper de framework intercepte l'action et appelle **exclusivement** la méthode publique du cœur :
-   - **React** : `coreRef.current?.closePromotionDialog();`
-   - **Vue 3** : `core.closePromotionDialog();`
-3. `BoardCore` met à jour son état interne et déclenche le callback global de changement d'état.
-4. Les wrappers réagissent au changement d'état global (via `core.getState()`) pour mettre à jour l'UI.
+   - **React** : `coreRef.current?.closePromotionDialog();` ou `coreRef.current?.move(...)`
+   - **Vue 3** : `core.closePromotionDialog();` ou `core.move(...)`
+3. `BoardCore` met à jour son état interne et déclenche le callback global de changement d'état (`onStateChange`).
+4. Les wrappers réagissent au changement d'état global (via `core.getState()`) pour mettre à jour l'UI de manière réactive.
 
 #### Implémentation attendue dans le composant React (`Chessboard.tsx`) :
 
@@ -99,12 +100,36 @@ Le risque majeur de désynchronisation de `this.state` dans `BoardCore` sous Rea
 const coreState = core.getState();
 setState({
   showThreats: coreState.showThreats,
+  mode: coreState.mode,
   freeMode: coreState.freeMode,
   soloMode: coreState.soloMode,
   readOnly: coreState.readOnly,
+  preserveShapesOnPositionChange: coreState.preserveShapesOnPositionChange,
   promotionDialogState: { ...coreState.promotionDialogState },
   historyViewerState: { ...coreState.historyViewerState },
   currentComment: coreState.currentComment,
+  turnColor: coreState.turnColor,
+  ply: coreState.ply,
+  fen: coreState.fen,
+  isCheck: coreState.isCheck,
+  isGameOver: coreState.isGameOver,
+});
+```
+
+#### Implémentation attendue dans le composant Vue 3 (`TheChessboard.vue`) :
+
+```typescript
+// Synchronisation réactive dans onStateChange :
+() => {
+  if (core.value) {
+    Object.assign(state, core.value.getState());
+  }
+}
+// Exposition de l'état réactif et du core :
+defineExpose({
+  core,
+  state,
+  redraw: (clearBounds = true) => core.value?.redraw(clearBounds),
 });
 ```
 
