@@ -46,6 +46,109 @@ Ou en dépendance locale :
 
 ---
 
+## 🚀 Optimisations de Bundle
+
+La bibliothèque utilise **lazy loading** et **code splitting** pour optimiser les performances :
+
+| Fichier | Taille (gzip) | Chargé | Description |
+|--------|---------------|--------|-------------|
+| `index.js` / `react.js` / `vue.js` | **~0.2-5KB** | ✅ Toujours | Points d'entrée framework |
+| `chunks/BoardCore-*.js` | **~13KB** | ✅ Toujours | Code principal de la bibliothèque |
+| `chunks/vendor-*.js` | **~28KB** | ✅ Toujours | chessops + chessground |
+| `stockfish.js` | **~21KB** | ⚠️ Sur demande | Worker Stockfish (JS) |
+| `stockfish.wasm` | **~7.3MB** | ⚠️ Sur demande | Binaire Stockfish (WASM) |
+
+**Taille totale initiale :** ~**46KB** (gzip) sans Stockfish
+**Avec Stockfish activé :** ~**67KB** + 7.3MB (WASM lazy-loaded)
+
+> ✅ **Aucune dépendance supplémentaire requise** - Tout est bundlé et optimisé.
+> ✅ **Stockfish est lazy-loaded** - Le WASM (7.3MB) n'est chargé que si vous activez le mode Stockfish.
+> ✅ **Code splitting** - Les dépendances lourdes sont séparées pour un cache optimal.
+
+### 📥 Configuration requise pour Stockfish (WASM)
+
+Pour que Stockfish fonctionne (en mode `hint` ou `elo`), votre application doit :
+
+1. **Servir les fichiers `stockfish.js` et `stockfish.wasm`** depuis votre serveur
+2. **Configurer les headers COOP/COEP** pour le lazy loading du WASM
+
+#### Configuration serveur (exemples)
+
+**Nginx :**
+```nginx
+location / {
+  header Cross-Origin-Opener-Policy "same-origin";
+  header Cross-Origin-Embedder-Policy "require-corp";
+}
+```
+
+**Apache :**
+```apache
+Header set Cross-Origin-Opener-Policy "same-origin"
+Header set Cross-Origin-Embedder-Policy "require-corp"
+```
+
+**Express.js :**
+```javascript
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  next();
+});
+```
+
+**Vite (développement) :**
+Déjà configuré dans `vite.config.ts` via les headers du serveur.
+
+#### Configuration du client
+
+Dans votre application, spécifiez les chemins vers les fichiers Stockfish :
+
+```typescript
+const stockfishConfig: StockfishConfig = {
+  workerUrl: '/stockfish.js',      // Chemin vers le worker JS
+  wasmUrl: '/stockfish.wasm',      // Chemin vers le binaire WASM
+  whiteMode: 'hint',                // Mode pour les Blancs
+  blackMode: 'elo',                // Mode pour les Noirs
+  blackElo: 1500,                  // Niveau ELO
+  stockfishMoveTime: 1000,         // Temps de réflexion (ms)
+};
+```
+
+> ⚠️ **Important** : Les chemins doivent être **absolus** (`/stockfish.js`) ou **URL complètes** (`https://cdn.mondomaine.com/stockfish.js`).
+
+---
+
+## 💡 Bonnes pratiques d'intégration
+
+### Optimisation du chargement
+
+1. **Préchargez les chunks critiques** :
+   ```html
+   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/eg-chessboard@1.4.0/chunks/vendor-[hash].js" as="script" crossorigin>
+   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/eg-chessboard@1.4.0/chunks/BoardCore-[hash].js" as="script" crossorigin>
+   ```
+
+2. **Lazy load le composant échiquier** (si l'échiquier n'est pas toujours visible) :
+   ```vue
+   <!-- Vue 3 avec lazy loading -->
+   <template>
+     <Suspense>
+       <TheChessboard v-if="showChessboard" v-bind="chessboardProps" />
+     </Suspense>
+   </template>
+   ```
+
+3. **Cache longue durée** : Configurez votre serveur pour cache les chunks avec `immutable` :
+   ```nginx
+   location ~* \.(js|css)$ {
+     expires 1y;
+     add_header Cache-Control "public, immutable";
+   }
+   ```
+
+---
+
 ## 🛠️ Développement & Compilation
 
 ```bash
@@ -62,6 +165,12 @@ npm run build
 npm run lint
 npm run format:check
 ```
+
+> 💡 **Structure du build** :
+> - Les fichiers principaux (`index.js`, `react.js`, `vue.js`) sont générés dans `/dist`
+> - Les dépendances lourdes sont dans `/dist/chunks/vendor-[hash].js`
+> - Stockfish est copié dans `/dist/stockfish.js` et `/dist/stockfish.wasm`
+> - Les types TypeScript sont générés dans `/dist/*.d.ts`
 
 ---
 
@@ -412,6 +521,24 @@ Exemple d'intégration dans une disposition Flexbox ou Grid responsive :
 }
 </style>
 ```
+
+---
+
+---
+
+## 📜 Changelog
+
+### v1.4.0+ - Optimisations de Bundle (Option C implémentée)
+
+✅ **Code Splitting** : Séparation des dépendances (`chessops` + `chessground`) dans un chunk `vendor-*.js` distinct
+✅ **Lazy Loading Stockfish** : Le WASM (7.3MB) est chargé uniquement si Stockfish est activé
+✅ **Optimisation Vite** : Configuration améliorée avec esbuild, treeshaking, et cache optimisé
+✅ **Documentation mise à jour** : Ajout des sections sur le code splitting et les bonnes pratiques d'intégration
+
+**Impact :**
+- Taille initiale réduite à **~46KB** (gzip) sans Stockfish
+- Meilleure mise en cache des chunks séparés
+- Expérience utilisateur simplifiée (aucune dépendance supplémentaire requise)
 
 ---
 

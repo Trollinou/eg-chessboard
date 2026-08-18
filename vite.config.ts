@@ -35,6 +35,8 @@ export default defineConfig(({ command }) => {
     },
     build: {
       target: 'es2021',
+      minify: 'esbuild',
+      sourcemap: false,
       lib: {
         entry: {
           index: resolve(import.meta.dirname, 'src/index.ts'),
@@ -44,7 +46,9 @@ export default defineConfig(({ command }) => {
         formats: ['es'],
       },
       rollupOptions: {
-        external: ['vue', 'react', 'react-dom', 'react/jsx-runtime', 'chessops', '@lichess-org/chessground'],
+        // Externaliser UNIQUEMENT les dépendances framework (React/Vue)
+        // chessops et chessground sont BUNDLÉS avec la bibliothèque pour simplifier l'intégration
+        external: ['vue', 'react', 'react-dom', 'react/jsx-runtime'],
         output: {
           entryFileNames: '[name].js',
           chunkFileNames: 'chunks/[name]-[hash].js',
@@ -53,11 +57,27 @@ export default defineConfig(({ command }) => {
             vue: 'Vue',
             react: 'React',
             'react-dom': 'ReactDOM',
-            chessops: 'chessops',
-            '@lichess-org/chessground': 'Chessground',
+          },
+          // Code splitting : séparer les dépendances lourdes dans des chunks distincts
+          manualChunks: (id) => {
+            // Regrouper chessops + chessground dans un chunk "vendor"
+            if (id.includes('@lichess-org/chessground') || id.includes('chessops')) {
+              return 'vendor';
+            }
+            // Stockfish JS est déjà géré par copyStockfishPlugin
+            return null;
           },
         },
+        // Optimisation du tree-shaking
+        treeshake: {
+          moduleSideEffects: false,
+          propertyReadSideEffects: false,
+        },
       },
+      // Désactiver le sourcemap en production pour réduire la taille
+      cssMinify: true,
     },
+    // Cache optimisé pour le développement
+    cacheDir: 'node_modules/.vite-cache',
   };
 });
