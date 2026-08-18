@@ -8,6 +8,12 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ### Ajouté & Amélioré
 
+- **Optimisation majeure du bundle CSS autonome (`dist/eg-chessboard.css`)** :
+  - Remplacement des 12 SVGs lourds Inkscape (~138 Ko) par les définitions vectorielles légères et optimisées du thème standard `cburnett`.
+  - Factorisation des sélecteurs pour mutualiser les pièces entre l'échiquier principal (`.cg-wrap piece.<piece>.<color>`) et les boutons de sélection du dialogue de promotion (`.promotion-piece-btn.<piece>.<color>`).
+  - Réduction drastique du poids du CSS de distribution passant de **153 Ko** à **18.12 Ko** (**4.76 Ko gzip**, soit **-88.2%** de réduction de poids).
+  - Maintien du bundle tout-en-un autonome pour une intégration transparente et sans configuration sous React et Vue 3.
+
 - **Mode Éditeur PGN (`readOnly: false`) & Arborescence Interactive** :
   - Support complet de l'édition PGN interactive avec création et suivi dynamique des sous-variantes.
   - Déplacement de pièces à partir de n'importe quel ply de l'historique pour insérer automatiquement une sous-variante dans l'arbre PGN.
