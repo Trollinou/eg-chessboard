@@ -25,6 +25,7 @@ import { pieceSymbolToRole } from './core/pieceMapping';
 export interface BoardCoreState {
   showThreats: boolean;
   mode?: BoardMode;
+  playerColor?: 'white' | 'black' | 'both';
   freeMode?: boolean;
   soloMode?: boolean;
   readOnly?: boolean;
@@ -61,8 +62,6 @@ export class BoardCore {
   private state: BoardCoreState;
   private onStateChange: () => void;
   private emitEvent: (event: string, ...args: unknown[]) => void;
-  private initialConfig: Config;
-  private userMovableColor: 'white' | 'black' | 'both' | undefined;
 
   // Sub-managers
   private domHandler: DomHandler;
@@ -85,8 +84,9 @@ export class BoardCore {
     this.state = state;
     this.onStateChange = onStateChange;
     this.emitEvent = emitEvent;
-    this.initialConfig = initialConfig;
-    this.userMovableColor = initialConfig.movable?.color;
+    if (initialConfig.movable?.color !== undefined) {
+      this.state.playerColor = initialConfig.movable.color as 'white' | 'black' | 'both';
+    }
     this.pos = Chess.default();
 
     this.applyModeDefaults();
@@ -112,7 +112,7 @@ export class BoardCore {
       () => this.getOrientation()
     );
 
-    this.initBoard();
+    this.initBoard(initialConfig);
     this.initStockfish();
 
     if (diagram) {
@@ -170,10 +170,6 @@ export class BoardCore {
       historyViewerManager: this.historyViewerManager,
       annotationManager: this.annotationManager,
       pgnTreeManager: this.pgnTreeManager,
-      userMovableColor: this.userMovableColor,
-      setUserMovableColor: (color) => {
-        this.userMovableColor = color;
-      },
       getTurnColor: () => this.getTurnColor(),
       getCurrentPlyNumber: () => this.getCurrentPlyNumber(),
       getFen: () => this.getFen(),
@@ -229,17 +225,17 @@ export class BoardCore {
     };
   }
 
-  private initBoard() {
-    if (this.initialConfig.fen) {
-      this.safeLoadFen(this.initialConfig.fen);
+  private initBoard(initialConfig: Config = {}) {
+    if (initialConfig.fen) {
+      this.safeLoadFen(initialConfig.fen);
     }
     const config = this.boardConfigBuilder.buildConfig(
-      this.initialConfig,
+      initialConfig,
       this.getBoardConfigContext()
     );
     this.board = Chessground(this.domHandler.getElement(), config);
-    if (this.initialConfig.drawable?.shapes) {
-      this.annotationManager.setPreservedShapes(this.initialConfig.drawable.shapes);
+    if (initialConfig.drawable?.shapes) {
+      this.annotationManager.setPreservedShapes(initialConfig.drawable.shapes);
     }
     this.updateGameState({ updateFen: false });
   }
@@ -367,8 +363,9 @@ export class BoardCore {
   }
 
   public setPlayerColor(color: 'white' | 'black' | 'both'): void {
-    this.userMovableColor = color;
+    this.state.playerColor = color;
     this.updateGameState({ updateFen: false });
+    this.onStateChange();
   }
 
   public clearDomBounds(): void {
@@ -401,7 +398,8 @@ export class BoardCore {
     }
     const { fen: configFen, ...other } = finalConfig;
     if (other.movable?.color !== undefined) {
-      this.userMovableColor = other.movable.color as 'white' | 'black' | 'both';
+      this.state.playerColor = other.movable.color as 'white' | 'black' | 'both';
+      this.onStateChange();
     }
     this.board.set(other);
     if (configFen && !this.isSameFen(configFen)) {
