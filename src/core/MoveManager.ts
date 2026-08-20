@@ -40,7 +40,9 @@ export class MoveManager {
     const wasViewingHistory = ctx.historyViewerManager.isViewingHistory();
 
     if (wasViewingHistory) {
-      const ply = ctx.historyViewerManager.getCurrentViewingPly(ctx.pgnTreeManager.getActivePath().length);
+      const ply = ctx.historyViewerManager.getCurrentViewingPly(
+        ctx.pgnTreeManager.getActivePath().length
+      );
       const path = ctx.pgnTreeManager.getActivePath();
       const targetNode = ply === 0 ? ctx.pgnTreeManager.getRootNode() : path[ply - 1];
 
@@ -197,7 +199,9 @@ export class MoveManager {
   ): Promise<void> {
     let targetPos = ctx.pos;
     if (ctx.historyViewerManager.isViewingHistory()) {
-      const ply = ctx.historyViewerManager.getCurrentViewingPly(ctx.pgnTreeManager.getActivePath().length);
+      const ply = ctx.historyViewerManager.getCurrentViewingPly(
+        ctx.pgnTreeManager.getActivePath().length
+      );
       targetPos = ctx.pgnTreeManager.syncGamePosToPly(ply);
     }
 

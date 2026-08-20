@@ -6,6 +6,14 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+### Ajouté & Corrigé
+
+- **Détection de la Triple Répétition & Règle des 50 coups (`chessops`)** :
+  - Implémentation de `PgnTreeManager.isThreefoldRepetition` exploitant `equalsIgnoreMoves` de `chessops/chess` pour comparer l'identité exacte des positions successives le long de la branche active.
+  - Branchement réel de `BoardCore.getIsThreefoldRepetition()` (qui retournait précédemment `false`).
+  - Prise en compte de la triple répétition et de la règle des 50 coups (`pos.halfmoves >= 100`) dans `BoardCore.getIsDraw()`, `BoardCore.getIsGameOver()` et `BoardCore.getGameOverReason()`.
+  - Émission automatique de l'événement `draw` / `onDraw` dans `BoardConfigBuilder` dès qu'une triple répétition ou les 50 demi-coups sans prise/pion sont atteints.
+
 ### Refactorisation & Performance
 
 - **Simplification du calcul de FEN & suppression du cache FEN (`cachedFen` / `resetFenCache`)** :

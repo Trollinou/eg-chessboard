@@ -565,7 +565,7 @@ export class BoardCore {
   }
 
   public getIsGameOver(): boolean {
-    return this.pos.isEnd();
+    return this.pos.isCheckmate() || this.getIsDraw();
   }
 
   public getIsCheckmate(): boolean {
@@ -581,11 +581,19 @@ export class BoardCore {
   }
 
   public getIsDraw(): boolean {
-    return this.pos.isEnd() && !this.pos.isCheckmate();
+    return (
+      this.pos.isStalemate() ||
+      this.pos.isInsufficientMaterial() ||
+      this.pos.halfmoves >= 100 ||
+      this.getIsThreefoldRepetition()
+    );
   }
 
   public getIsThreefoldRepetition(): boolean {
-    return false;
+    const ply = this.isViewingHistory()
+      ? this.historyViewerManager.getCurrentViewingPly(this.pgnTreeManager.getActivePath().length)
+      : undefined;
+    return this.pgnTreeManager.isThreefoldRepetition(this.pos, ply);
   }
 
   public getIsInsufficientMaterial(): boolean {
@@ -597,7 +605,7 @@ export class BoardCore {
   }
 
   public getGameOverReason(lang: 'fr' | 'en' = 'fr'): string {
-    return FenManager.getGameOverReason(this.pos, lang);
+    return FenManager.getGameOverReason(this.pos, lang, this.getIsThreefoldRepetition());
   }
 
   public destroy(): void {

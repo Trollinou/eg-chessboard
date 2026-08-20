@@ -236,7 +236,11 @@ export class BoardConfigBuilder {
     }
     if (ctx.pos.isStalemate()) {
       ctx.emitEvent('stalemate');
-    } else if (ctx.pos.isEnd()) {
+    } else if (
+      ctx.pos.isEnd() ||
+      ctx.pos.halfmoves >= 100 ||
+      ctx.pgnTreeManager.isThreefoldRepetition(ctx.pos)
+    ) {
       ctx.emitEvent('draw');
     }
   }
