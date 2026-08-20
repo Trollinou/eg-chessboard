@@ -14,6 +14,9 @@ export class StockfishManager {
   private whiteWorker: Worker | null = null;
   private blackWorker: Worker | null = null;
   private stockfishConfig: StockfishConfig = {};
+  /**
+   * Dernier coup suggéré (hint) par Stockfish en notation UCI (ex: "e2e4").
+   */
   public lastSuggestedMove = '';
 
   private onHint: (bestMove: string) => void;

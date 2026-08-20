@@ -26,7 +26,6 @@ export interface MoveManagerContext {
   emitEvent: (event: string, ...args: unknown[]) => void;
   getFen: () => string;
   getMode: () => string;
-  resetFenCache: () => void;
   updateGameState: (opts?: { updateFen?: boolean; animate?: boolean }) => void;
   triggerStockfish: () => void;
   syncGameFromBoard: () => void;
@@ -41,7 +40,9 @@ export class MoveManager {
     const wasViewingHistory = ctx.historyViewerManager.isViewingHistory();
 
     if (wasViewingHistory) {
-      const ply = ctx.historyViewerManager.getCurrentViewingPly(ctx.pgnTreeManager.getActivePath().length);
+      const ply = ctx.historyViewerManager.getCurrentViewingPly(
+        ctx.pgnTreeManager.getActivePath().length
+      );
       const path = ctx.pgnTreeManager.getActivePath();
       const targetNode = ply === 0 ? ctx.pgnTreeManager.getRootNode() : path[ply - 1];
 
@@ -75,7 +76,6 @@ export class MoveManager {
       const syncedPos = ctx.pgnTreeManager.syncGamePosToPly(ply);
       ctx.setPos(syncedPos);
       ctx.pos = syncedPos;
-      ctx.resetFenCache();
       ctx.historyViewerManager.stopViewingHistory(ctx.board, ctx.onStateChange, () => {
         ctx.board.set({ fen: '' });
         ctx.board.set({ fen: ctx.getFen() });
@@ -139,12 +139,10 @@ export class MoveManager {
     const fenBefore = ctx.getFen();
 
     const movePojo = buildMovePojo(ctx.pos, parsedMove, fenBefore);
-    ctx.resetFenCache();
 
     if (ctx.state.soloMode) {
       ctx.exerciseManager.addSoloMove(movePojo);
       ctx.pos.turn = colorBefore === 'w' ? 'white' : 'black';
-      ctx.resetFenCache();
     }
 
     const currentNode = ctx.pgnTreeManager.getCurrentNode();
@@ -201,7 +199,9 @@ export class MoveManager {
   ): Promise<void> {
     let targetPos = ctx.pos;
     if (ctx.historyViewerManager.isViewingHistory()) {
-      const ply = ctx.historyViewerManager.getCurrentViewingPly(ctx.pgnTreeManager.getActivePath().length);
+      const ply = ctx.historyViewerManager.getCurrentViewingPly(
+        ctx.pgnTreeManager.getActivePath().length
+      );
       targetPos = ctx.pgnTreeManager.syncGamePosToPly(ply);
     }
 

@@ -1,4 +1,5 @@
 import { Chess } from 'chessops';
+import { equalsIgnoreMoves } from 'chessops/chess';
 import { makeFen } from 'chessops/fen';
 import { parseSan } from 'chessops/san';
 import {
@@ -114,6 +115,42 @@ export class PgnTreeManager {
     return newPos;
   }
 
+  public isThreefoldRepetition(currentPos: Chess, targetPly?: number): boolean {
+    const path = this.getActivePath();
+    const limit = targetPly !== undefined ? Math.min(targetPly, path.length) : path.length;
+
+    // Collecter les positions le long du chemin actif
+    const positions: Chess[] = [this.rootPos.clone()];
+    const simPos = this.rootPos.clone();
+
+    for (let i = 0; i < limit; i++) {
+      const m = parseSan(simPos, path[i].data.san);
+      if (m) {
+        simPos.play(m);
+        positions.push(simPos.clone());
+      }
+    }
+
+    // Le nombre de demi-coups depuis la dernière prise ou poussée de pion
+    const halfmoves = currentPos.halfmoves;
+    const startIndex = Math.max(0, positions.length - 1 - halfmoves);
+
+    let count = 0;
+    for (let i = positions.length - 1; i >= startIndex; i--) {
+      // Les positions ne peuvent être identiques que si le trait est le même
+      if (positions[i].turn === currentPos.turn) {
+        if (equalsIgnoreMoves(currentPos, positions[i])) {
+          count++;
+          if (count >= 3) {
+            return true;
+          }
+        }
+      }
+    }
+
+    return false;
+  }
+
   public loadPgn(pgnStr: string): Chess {
     const games = parsePgn(pgnStr);
     if (!games.length) return Chess.default();
@@ -221,7 +258,10 @@ export class PgnTreeManager {
     if (variationIndex < 0 || variationIndex >= parentNode.children.length) return false;
 
     parentNode.children.splice(variationIndex, 1);
-    if (this.findParentNode(this.rootNode, this.currentNode) === null && this.currentNode !== this.rootNode) {
+    if (
+      this.findParentNode(this.rootNode, this.currentNode) === null &&
+      this.currentNode !== this.rootNode
+    ) {
       this.currentNode = parentNode;
     }
     return true;

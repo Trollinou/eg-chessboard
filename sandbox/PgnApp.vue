@@ -226,13 +226,13 @@ async function copyPgnToClipboard() {
         <p class="mode-desc">
           <template v-if="isReadOnly">
             <strong>Lecture seule :</strong> Parcourez l'arbre PGN sans risque d'altération. Les
-            flèches/cercles ajoutés au clic droit sont <em>éphémères</em> et les pièces ne créent pas de
-            variantes.
+            flèches/cercles ajoutés au clic droit sont <em>éphémères</em> et les pièces ne créent
+            pas de variantes.
           </template>
           <template v-else>
-            <strong>Édition interactive :</strong> Jouez des coups depuis n'importe quel point du PGN pour
-            <em>générer des sous-variantes</em>. Les commentaires et les annotations visuelles sont enregistrés
-            dans le PGN.
+            <strong>Édition interactive :</strong> Jouez des coups depuis n'importe quel point du
+            PGN pour <em>générer des sous-variantes</em>. Les commentaires et les annotations
+            visuelles sont enregistrés dans le PGN.
           </template>
         </p>
       </div>
@@ -315,7 +315,9 @@ async function copyPgnToClipboard() {
             </button>
           </div>
           <p class="shape-tip">
-            💡 <em>Note :</em> Dans un PGN, les formes appartiennent <strong>exclusivement au coup courant</strong>. Utilisez le clic droit / glisser sur le plateau pour dessiner vos propres formes sur la position affichée !
+            💡 <em>Note :</em> Dans un PGN, les formes appartiennent
+            <strong>exclusivement au coup courant</strong>. Utilisez le clic droit / glisser sur le
+            plateau pour dessiner vos propres formes sur la position affichée !
           </p>
         </div>
       </div>
@@ -349,7 +351,8 @@ async function copyPgnToClipboard() {
               @input="onCommentInput"
             ></textarea>
             <span class="editor-note">
-              ✏️ Les modifications textuelles et les formes sont enregistrées directement dans le PGN.
+              ✏️ Les modifications textuelles et les formes sont enregistrées directement dans le
+              PGN.
             </span>
           </template>
           <template v-else>
@@ -370,10 +373,7 @@ async function copyPgnToClipboard() {
           <h2>🌿 Variantes alternatives à ce coup ({{ variations.length }})</h2>
           <div class="variations-list">
             <div v-for="v in variations" :key="v.index" class="variation-item-row">
-              <button
-                :class="['var-btn', { active: v.isMainline }]"
-                @click="selectVar(v.index)"
-              >
+              <button :class="['var-btn', { active: v.isMainline }]" @click="selectVar(v.index)">
                 {{ v.san }} <span v-if="v.isMainline" class="mainline-tag">(Ligne Principale)</span>
               </button>
 
@@ -488,7 +488,6 @@ async function copyPgnToClipboard() {
 
 .toolbar-card {
   padding: 14px 20px;
-
 }
 
 .toolbar-buttons {

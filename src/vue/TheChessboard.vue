@@ -66,6 +66,7 @@ const core = shallowRef<BoardCore | null>(null);
 const state = reactive<BoardCoreState>({
   showThreats: false,
   mode: props.mode,
+  playerColor: props.playerColor,
   freeMode: props.freeMode,
   soloMode: props.soloMode,
   readOnly: props.readOnly,

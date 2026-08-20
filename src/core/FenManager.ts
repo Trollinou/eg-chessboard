@@ -154,8 +154,11 @@ export class FenManager {
     return captured;
   }
 
-  public static getGameOverReason(pos: Chess, lang: 'fr' | 'en' = 'fr'): string {
-    if (!pos.isEnd()) return '';
+  public static getGameOverReason(
+    pos: Chess,
+    lang: 'fr' | 'en' = 'fr',
+    isThreefold: boolean = false
+  ): string {
     if (pos.isCheckmate()) {
       const turnColor = pos.turn === 'white' ? 'white' : 'black';
       const winner =
@@ -175,7 +178,12 @@ export class FenManager {
       return lang === 'fr'
         ? 'Match nul par matériel insuffisant.'
         : 'Draw by insufficient material.';
-    return lang === 'fr' ? 'Match nul.' : 'Draw.';
+    if (isThreefold)
+      return lang === 'fr' ? 'Match nul par triple répétition.' : 'Draw by threefold repetition.';
+    if (pos.halfmoves >= 100)
+      return lang === 'fr' ? 'Match nul par la règle des 50 coups.' : 'Draw by fifty-move rule.';
+    if (pos.isEnd()) return lang === 'fr' ? 'Match nul.' : 'Draw.';
+    return '';
   }
 
   public static getSquareColor(square: Key | string): 'dark' | 'light' | null {

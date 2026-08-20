@@ -25,6 +25,7 @@ import { pieceSymbolToRole } from './core/pieceMapping';
 export interface BoardCoreState {
   showThreats: boolean;
   mode?: BoardMode;
+  playerColor?: 'white' | 'black' | 'both';
   freeMode?: boolean;
   soloMode?: boolean;
   readOnly?: boolean;
@@ -61,9 +62,6 @@ export class BoardCore {
   private state: BoardCoreState;
   private onStateChange: () => void;
   private emitEvent: (event: string, ...args: unknown[]) => void;
-  private initialConfig: Config;
-  private userMovableColor: 'white' | 'black' | 'both' | undefined;
-  private cachedFen: string | null = null;
 
   // Sub-managers
   private domHandler: DomHandler;
@@ -86,8 +84,9 @@ export class BoardCore {
     this.state = state;
     this.onStateChange = onStateChange;
     this.emitEvent = emitEvent;
-    this.initialConfig = initialConfig;
-    this.userMovableColor = initialConfig.movable?.color;
+    if (initialConfig.movable?.color !== undefined) {
+      this.state.playerColor = initialConfig.movable.color as 'white' | 'black' | 'both';
+    }
     this.pos = Chess.default();
 
     this.applyModeDefaults();
@@ -113,7 +112,7 @@ export class BoardCore {
       () => this.getOrientation()
     );
 
-    this.initBoard();
+    this.initBoard(initialConfig);
     this.initStockfish();
 
     if (diagram) {
@@ -150,10 +149,10 @@ export class BoardCore {
     };
   }
 
-  public get game(): Chess {
-    return this.pos;
-  }
 
+  /**
+   * Obtient ou définit le dernier coup suggéré (hint) par Stockfish en notation UCI (ex: "e2e4").
+   */
   public get lastSuggestedMove(): string {
     return this.stockfishManager.lastSuggestedMove;
   }
@@ -171,10 +170,6 @@ export class BoardCore {
       historyViewerManager: this.historyViewerManager,
       annotationManager: this.annotationManager,
       pgnTreeManager: this.pgnTreeManager,
-      userMovableColor: this.userMovableColor,
-      setUserMovableColor: (color) => {
-        this.userMovableColor = color;
-      },
       getTurnColor: () => this.getTurnColor(),
       getCurrentPlyNumber: () => this.getCurrentPlyNumber(),
       getFen: () => this.getFen(),
@@ -191,9 +186,6 @@ export class BoardCore {
       setPos: (pos) => {
         this.pos = pos;
       },
-      resetFenCache: () => {
-        this.cachedFen = null;
-      },
     };
   }
 
@@ -209,9 +201,6 @@ export class BoardCore {
       emitEvent: (event, ...args) => this.emitEvent(event, ...args),
       getFen: () => this.getFen(),
       getMode: () => this.getMode(),
-      resetFenCache: () => {
-        this.cachedFen = null;
-      },
       updateGameState: (opts) => this.updateGameState(opts),
       triggerStockfish: () => this.triggerStockfish(),
       syncGameFromBoard: () => this.syncGameFromBoard(),
@@ -236,23 +225,22 @@ export class BoardCore {
     };
   }
 
-  private initBoard() {
-    if (this.initialConfig.fen) {
-      this.safeLoadFen(this.initialConfig.fen);
+  private initBoard(initialConfig: Config = {}) {
+    if (initialConfig.fen) {
+      this.safeLoadFen(initialConfig.fen);
     }
     const config = this.boardConfigBuilder.buildConfig(
-      this.initialConfig,
+      initialConfig,
       this.getBoardConfigContext()
     );
     this.board = Chessground(this.domHandler.getElement(), config);
-    if (this.initialConfig.drawable?.shapes) {
-      this.annotationManager.setPreservedShapes(this.initialConfig.drawable.shapes);
+    if (initialConfig.drawable?.shapes) {
+      this.annotationManager.setPreservedShapes(initialConfig.drawable.shapes);
     }
     this.updateGameState({ updateFen: false });
   }
 
   private safeLoadFen(fenStr: string): boolean {
-    this.cachedFen = null;
     const res = FenManager.safeLoadFen(fenStr, (pos) => {
       this.pos = pos;
       this.pgnTreeManager.resetTree(this.pos);
@@ -272,9 +260,6 @@ export class BoardCore {
       () => this.getMode(),
       () => this.onStateChange(),
       () => this.updateGameState(),
-      () => {
-        this.cachedFen = null;
-      },
       this.board
     );
   }
@@ -378,8 +363,9 @@ export class BoardCore {
   }
 
   public setPlayerColor(color: 'white' | 'black' | 'both'): void {
-    this.userMovableColor = color;
+    this.state.playerColor = color;
     this.updateGameState({ updateFen: false });
+    this.onStateChange();
   }
 
   public clearDomBounds(): void {
@@ -412,7 +398,8 @@ export class BoardCore {
     }
     const { fen: configFen, ...other } = finalConfig;
     if (other.movable?.color !== undefined) {
-      this.userMovableColor = other.movable.color as 'white' | 'black' | 'both';
+      this.state.playerColor = other.movable.color as 'white' | 'black' | 'both';
+      this.onStateChange();
     }
     this.board.set(other);
     if (configFen && !this.isSameFen(configFen)) {
@@ -446,7 +433,6 @@ export class BoardCore {
 
     this.pgnTreeManager.setCurrentNode(parentNode);
     this.pos = this.pgnTreeManager.syncGamePosToCurrentNode();
-    this.cachedFen = null;
 
     if (!this.historyViewerManager.isViewingHistory()) {
       this.board.set({ fen: this.getFen() });
@@ -456,7 +442,12 @@ export class BoardCore {
         lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
       });
     }
+    this.onStateChange();
     this.triggerStockfish();
+  }
+
+  public getBoard(): Api {
+    return this.board;
   }
 
   public getMaterialCount() {
@@ -557,10 +548,7 @@ export class BoardCore {
   }
 
   public getFen(): string {
-    if (!this.cachedFen) {
-      this.cachedFen = makeFen(this.pos.toSetup());
-    }
-    return this.cachedFen;
+    return makeFen(this.pos.toSetup());
   }
 
   public getPlacementFen(): string {
@@ -575,7 +563,7 @@ export class BoardCore {
   }
 
   public getIsGameOver(): boolean {
-    return this.pos.isEnd();
+    return this.pos.isCheckmate() || this.getIsDraw();
   }
 
   public getIsCheckmate(): boolean {
@@ -591,11 +579,19 @@ export class BoardCore {
   }
 
   public getIsDraw(): boolean {
-    return this.pos.isEnd() && !this.pos.isCheckmate();
+    return (
+      this.pos.isStalemate() ||
+      this.pos.isInsufficientMaterial() ||
+      this.pos.halfmoves >= 100 ||
+      this.getIsThreefoldRepetition()
+    );
   }
 
   public getIsThreefoldRepetition(): boolean {
-    return false;
+    const ply = this.isViewingHistory()
+      ? this.historyViewerManager.getCurrentViewingPly(this.pgnTreeManager.getActivePath().length)
+      : undefined;
+    return this.pgnTreeManager.isThreefoldRepetition(this.pos, ply);
   }
 
   public getIsInsufficientMaterial(): boolean {
@@ -607,7 +603,7 @@ export class BoardCore {
   }
 
   public getGameOverReason(lang: 'fr' | 'en' = 'fr'): string {
-    return FenManager.getGameOverReason(this.pos, lang);
+    return FenManager.getGameOverReason(this.pos, lang, this.getIsThreefoldRepetition());
   }
 
   public destroy(): void {
@@ -658,10 +654,6 @@ export class BoardCore {
     return this.annotationManager.getShapes(this.board, this.isPreserveShapes);
   }
 
-  public getCurrentShapes(): DrawShape[] {
-    return this.getShapes();
-  }
-
   public getFinalFenFromPgn(pgnStr: string): string {
     return getFinalFenFromPgn(pgnStr, this.getFen());
   }
@@ -678,7 +670,6 @@ export class BoardCore {
       role,
       color: piece.color === 'w' ? 'white' : 'black',
     });
-    this.cachedFen = null;
     this.updateGameState();
     return true;
   }
@@ -690,14 +681,12 @@ export class BoardCore {
         this.board.set({ selected: undefined });
       }
       this.pos.board.take(sq);
-      this.cachedFen = null;
       this.updateGameState();
     }
   }
 
   public loadPgn(pgnStr: string): void {
     this.pos = this.pgnTreeManager.loadPgn(pgnStr);
-    this.cachedFen = null;
     this.historyViewerManager.resetState();
     this.onStateChange();
     this.updateGameState();
@@ -728,7 +717,6 @@ export class BoardCore {
       this.safeLoadFen(fen);
     } else {
       this.pos = Chess.default();
-      this.cachedFen = null;
       this.pgnTreeManager.resetTree(this.pos);
     }
     this.exerciseManager.resetSoloHistory();
@@ -827,7 +815,6 @@ export class BoardCore {
     if (!success) return false;
 
     this.pos = this.pgnTreeManager.syncGamePosToCurrentNode();
-    this.cachedFen = null;
 
     const newPly = targetPly + 1;
     const activePath = this.pgnTreeManager.getActivePath();
@@ -853,7 +840,6 @@ export class BoardCore {
     const success = this.pgnTreeManager.deleteVariation(idx, targetPly);
     if (success) {
       this.pos = this.pgnTreeManager.syncGamePosToCurrentNode();
-      this.cachedFen = null;
       const activePath = this.pgnTreeManager.getActivePath();
       if (this.historyViewerManager.isViewingHistory()) {
         const viewingPly = Math.min(targetPly, activePath.length);
@@ -878,7 +864,6 @@ export class BoardCore {
     const success = this.pgnTreeManager.promoteVariation(idx, targetPly);
     if (success) {
       this.pos = this.pgnTreeManager.syncGamePosToCurrentNode();
-      this.cachedFen = null;
       const activePath = this.pgnTreeManager.getActivePath();
       const newPly = targetPly + 1;
       if (this.historyViewerManager.isViewingHistory()) {

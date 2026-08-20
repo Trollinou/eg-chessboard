@@ -4,6 +4,31 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [Unreleased]
+
+### Ajouté & Corrigé
+
+- **Centralisation de `playerColor` dans `BoardCoreState`** :
+  - Ajout de `playerColor?: 'white' | 'black' | 'both'` directement dans l'interface réactive `BoardCoreState`.
+  - Mise à jour réactive automatique de `state.playerColor` lors des appels à `core.setPlayerColor()`, `core.setConfig()` ou modification de prop (`playerColor` / `boardConfig.movable.color`), notifiant automatiquement `onStateChange()`.
+  - Intégration de `playerColor` dans l'état réactif initial des wrappers React (`useState`) et Vue 3 (`reactive`).
+- **Détection de la Triple Répétition & Règle des 50 coups (`chessops`)** :
+  - Implémentation de `PgnTreeManager.isThreefoldRepetition` exploitant `equalsIgnoreMoves` de `chessops/chess` pour comparer l'identité exacte des positions successives le long de la branche active.
+  - Branchement réel de `BoardCore.getIsThreefoldRepetition()` (qui retournait précédemment `false`).
+  - Prise en compte de la triple répétition et de la règle des 50 coups (`pos.halfmoves >= 100`) dans `BoardCore.getIsDraw()`, `BoardCore.getIsGameOver()` et `BoardCore.getGameOverReason()`.
+  - Émission automatique de l'événement `draw` / `onDraw` dans `BoardConfigBuilder` dès qu'une triple répétition ou les 50 demi-coups sans prise/pion sont atteints.
+
+### Refactorisation & Performance
+
+- **Suppression des redondances `userMovableColor` et `initialConfig` dans `BoardCore`** :
+  - Suppression de la variable d'instance isolée `userMovableColor` au profit de la source de vérité unique `state.playerColor`.
+  - Suppression de la rétention d'instance `initialConfig` dans `BoardCore` : transmission directe de la configuration à `initBoard(initialConfig)` sans duplication mémoire.
+  - Allègement de `BoardConfigContext` et `BoardConfigBuilder` par l'utilisation directe de `ctx.state.playerColor` sans callbacks verbeux (`setUserMovableColor`).
+- **Simplification du calcul de FEN & suppression du cache FEN (`cachedFen` / `resetFenCache`)** :
+  - Suppression de la variable d'état `cachedFen` dans `BoardCore` au profit d'un calcul direct et déterministe à la volée via `makeFen(this.pos.toSetup())`.
+  - Suppression du callback `resetFenCache` dans les contextes et interfaces internes (`BoardConfigContext`, `MoveManagerContext`, `PromotionManager`).
+  - Élimination des risques de désynchronisation d'état (*stale cache*) et allègement des contrats de dépendance entre `BoardCore` et ses sous-managers.
+
 ## [1.5.0] - 2026-08-18
 
 ### Ajouté & Amélioré

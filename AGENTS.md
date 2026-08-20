@@ -182,10 +182,14 @@ Pour interroger l'état interne de l'échiquier et gérer le nettoyage de maniè
 - `core.getOrientation(): 'white' | 'black'` : Retourne l'orientation actuelle du plateau de jeu.
 - `core.getPlacementFen(): string` : Retourne la FEN de placement actuelle des pièces (sans les autres métadonnées de FEN) extraite directement de Chessground (utile en mode libre ou pour les FENs en cours d'édition).
 - `core.getCurrentComment(): string` : Retourne le commentaire textuel du coup courant.
+- `core.lastSuggestedMove: string` : Getter/setter stockant le dernier coup suggéré (*hint*) par Stockfish en notation UCI (ex: `"e2e4"`).
 - `core.getHistoryViewerState(): Readonly<HistoryViewerState>` : Retourne l'état de visualisation de l'historique.
 - `core.isViewingHistory(): boolean` : Indique si la vue navigue actuellement dans l'historique.
 - `core.getInCheckColor(): 'white' | 'black' | null` : Retourne la couleur du joueur en échec (ou `null`).
-- `core.getGameOverReason(lang?: 'fr' | 'en'): string` : Retourne la raison formatée de fin de partie (*ex: "Échec et mat ! Les Blancs ont gagné."*).
+- `core.getIsThreefoldRepetition(): boolean` : Indique si la position actuelle s'est répétée au moins 3 fois dans la variante active.
+- `core.getIsDraw(): boolean` : Indique si la position est nulle (pat, manque de matériel, 50 coups ou triple répétition).
+- `core.getIsGameOver(): boolean` : Indique si la partie est terminée (échec et mat ou nulle).
+- `core.getGameOverReason(lang?: 'fr' | 'en'): string` : Retourne la raison formatée de fin de partie (*ex: "Échec et mat ! Les Blancs ont gagné."*, *"Match nul par triple répétition."*, *"Match nul par la règle des 50 coups."*).
 - `getFinalFenFromPgn(pgnStr: string, fallbackFen?: string): string` : Fonction utilitaire autonome (exportée depuis `BoardHelper` et à la racine d'`eg-chessboard`) qui calcule la FEN finale en rejouant la variante principale du PGN via `chessops`. Permet aux applications hôtes (ex: plugin ROI) de déterminer la position finale d'un PGN sans manipuler directement l'API de `chessops`.
 - `core.destroy(): void` : Libère proprement toutes les sous-ressources (Workers Stockfish, instance DOM Chessground). Appelé automatiquement au démontage des wrappers React (`useEffect` cleanup) et Vue 3 (`onUnmounted`).
 

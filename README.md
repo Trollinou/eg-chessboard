@@ -206,6 +206,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `getIsInsufficientMaterial()`| `boolean` | Indique si le matériel est insuffisant pour mater. |
 | `getGameOverReason(lang?)` | `string` | Retourne la raison formatée de fin de partie en français ou anglais (*ex: "Échec et mat ! Les Blancs ont gagné."*). |
 | `getCurrentComment()` | `string` | Commentaire textuel PGN du demi-coup actuellement visualisé. |
+| `lastSuggestedMove` | `string` | Getter/setter du dernier coup suggéré (*hint*) par Stockfish en notation UCI (ex: `"e2e4"`). |
 | `getHistoryViewerState()`| `Readonly<HistoryViewerState>` | État de la navigation dans l'historique PGN. |
 | `isViewingHistory()` | `boolean` | Indique si l'utilisateur consulte un coup antérieur dans l'historique. |
 | `isReadOnly()` | `boolean` | Indique si le mode lecture seule est actuellement actif. |
@@ -263,7 +264,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `drawMove(from, to, brush)`| `from: string, to: string, brush: string` | Dessine une flèche (couleurs: `'green'`, `'red'`, `'blue'`, `'yellow'`). |
 | `drawCircle(square, brush)`| `square: string, brush: string` | Dessine un cercle sur une case. |
 | `setShapes(shapes)` | `shapes: DrawShape[] \| unknown[]` | Définit la liste complète des formes dessinées. |
-| `getShapes()` / `getCurrentShapes()` | `none` | Récupère les formes actuellement tracées sur le plateau. |
+| `getShapes()` | `none` | Récupère les formes actuellement tracées sur le plateau. |
 | `drawThreats()` | `none` | Calcule et affiche visuellement toutes les menaces et coups légaux. |
 | `hideMoves()` | `none` | Masque les flèches de menaces et efface les formes. |
 | `setComment(text, shapes)`| `text: string, shapes?: DrawShape[]` | Écrit un commentaire et des formes PGN sur le coup visualisé. |
@@ -319,6 +320,36 @@ import type {
   DrawShape 
 } from 'eg-chessboard';
 import { getFinalFenFromPgn } from 'eg-chessboard';
+```
+
+### `BoardCoreState`
+
+```typescript
+export interface BoardCoreState {
+  showThreats: boolean;
+  mode?: 'editor' | 'game' | 'study';
+  playerColor?: 'white' | 'black' | 'both';
+  freeMode?: boolean;
+  soloMode?: boolean;
+  readOnly?: boolean;
+  preserveShapesOnPositionChange?: boolean;
+  promotionDialogState: {
+    isEnabled: boolean;
+    color?: Color;
+    callback?: (piece: string) => void;
+  };
+  historyViewerState: {
+    isEnabled: boolean;
+    plyViewing?: number;
+    viewOnly?: boolean;
+  };
+  currentComment?: string;
+  turnColor?: 'white' | 'black';
+  ply?: number;
+  fen?: string;
+  isCheck?: boolean;
+  isGameOver?: boolean;
+}
 ```
 
 ### `Move`

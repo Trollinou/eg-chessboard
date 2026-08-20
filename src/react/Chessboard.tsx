@@ -71,6 +71,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   const [state, setState] = useState<BoardCoreState>({
     showThreats: false,
     mode,
+    playerColor,
     freeMode,
     soloMode,
     readOnly,
@@ -137,6 +138,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
         setState({
           showThreats: coreState.showThreats,
           mode: coreState.mode,
+          playerColor: coreState.playerColor,
           freeMode: coreState.freeMode,
           soloMode: coreState.soloMode,
           readOnly: coreState.readOnly,
