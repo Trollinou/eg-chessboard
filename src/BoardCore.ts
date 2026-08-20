@@ -149,9 +149,6 @@ export class BoardCore {
     };
   }
 
-  public get game(): Chess {
-    return this.pos;
-  }
 
   /**
    * Obtient ou définit le dernier coup suggéré (hint) par Stockfish en notation UCI (ex: "e2e4").
