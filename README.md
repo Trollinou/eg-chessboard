@@ -264,7 +264,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `drawMove(from, to, brush)`| `from: string, to: string, brush: string` | Dessine une flèche (couleurs: `'green'`, `'red'`, `'blue'`, `'yellow'`). |
 | `drawCircle(square, brush)`| `square: string, brush: string` | Dessine un cercle sur une case. |
 | `setShapes(shapes)` | `shapes: DrawShape[] \| unknown[]` | Définit la liste complète des formes dessinées. |
-| `getShapes()` / `getCurrentShapes()` | `none` | Récupère les formes actuellement tracées sur le plateau. |
+| `getShapes()` | `none` | Récupère les formes actuellement tracées sur le plateau. |
 | `drawThreats()` | `none` | Calcule et affiche visuellement toutes les menaces et coups légaux. |
 | `hideMoves()` | `none` | Masque les flèches de menaces et efface les formes. |
 | `setComment(text, shapes)`| `text: string, shapes?: DrawShape[]` | Écrit un commentaire et des formes PGN sur le coup visualisé. |

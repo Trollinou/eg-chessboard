@@ -656,10 +656,6 @@ export class BoardCore {
     return this.annotationManager.getShapes(this.board, this.isPreserveShapes);
   }
 
-  public getCurrentShapes(): DrawShape[] {
-    return this.getShapes();
-  }
-
   public getFinalFenFromPgn(pgnStr: string): string {
     return getFinalFenFromPgn(pgnStr, this.getFen());
   }
