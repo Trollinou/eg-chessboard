@@ -8,10 +8,10 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ### Ajouté & Corrigé
 
-- **Optimisation majeure du bundle CSS autonome (`dist/eg-chessboard.css`)** :
-  - Remplacement des 12 SVGs lourds Inkscape (~138 Ko) par les définitions vectorielles légères et optimisées du thème standard `cburnett`.
-  - Factorisation des sélecteurs pour mutualiser les pièces entre l'échiquier principal (`.cg-wrap piece.<piece>.<color>`) et les boutons de sélection du dialogue de promotion (`.promotion-piece-btn.<piece>.<color>`).
-  - Réduction drastique du poids du CSS de distribution passant de **153 Ko** à **18.12 Ko** (**4.76 Ko gzip**, soit **-88.2%** de réduction de poids).
+- **Optimisation du bundle CSS autonome (`dist/eg-chessboard.css`)** :
+  - Nettoyage et optimisation SVGO des 12 SVGs vectoriels originaux (suppression des métadonnées d'éditeurs Inkscape/Sodipodi, optimisation des chemins et encodage Data-URI direct).
+  - Préservation intégrale et à 100% du design visuel original des pièces (dégradés, ombres portées, filtres et reflets 3D).
+  - Réduction de la taille du CSS de distribution de **153 Ko** à **92 Ko** (**18.17 Ko gzip**, soit **~60% d'économie en gzip**).
   - Maintien du bundle tout-en-un autonome pour une intégration transparente et sans configuration sous React et Vue 3.
 - **Centralisation de `playerColor` dans `BoardCoreState`** :
   - Ajout de `playerColor?: 'white' | 'black' | 'both'` directement dans l'interface réactive `BoardCoreState`.
