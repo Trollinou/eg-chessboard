@@ -149,7 +149,6 @@ export class BoardCore {
     };
   }
 
-
   /**
    * Obtient ou définit le dernier coup suggéré (hint) par Stockfish en notation UCI (ex: "e2e4").
    */
@@ -229,10 +228,7 @@ export class BoardCore {
     if (initialConfig.fen) {
       this.safeLoadFen(initialConfig.fen);
     }
-    const config = this.boardConfigBuilder.buildConfig(
-      initialConfig,
-      this.getBoardConfigContext()
-    );
+    const config = this.boardConfigBuilder.buildConfig(initialConfig, this.getBoardConfigContext());
     this.board = Chessground(this.domHandler.getElement(), config);
     if (initialConfig.drawable?.shapes) {
       this.annotationManager.setPreservedShapes(initialConfig.drawable.shapes);
