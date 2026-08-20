@@ -322,6 +322,36 @@ import type {
 import { getFinalFenFromPgn } from 'eg-chessboard';
 ```
 
+### `BoardCoreState`
+
+```typescript
+export interface BoardCoreState {
+  showThreats: boolean;
+  mode?: 'editor' | 'game' | 'study';
+  playerColor?: 'white' | 'black' | 'both';
+  freeMode?: boolean;
+  soloMode?: boolean;
+  readOnly?: boolean;
+  preserveShapesOnPositionChange?: boolean;
+  promotionDialogState: {
+    isEnabled: boolean;
+    color?: Color;
+    callback?: (piece: string) => void;
+  };
+  historyViewerState: {
+    isEnabled: boolean;
+    plyViewing?: number;
+    viewOnly?: boolean;
+  };
+  currentComment?: string;
+  turnColor?: 'white' | 'black';
+  ply?: number;
+  fen?: string;
+  isCheck?: boolean;
+  isGameOver?: boolean;
+}
+```
+
 ### `Move`
 
 ```typescript

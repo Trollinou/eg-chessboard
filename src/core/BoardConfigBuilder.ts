@@ -22,8 +22,6 @@ export interface BoardConfigContext {
   historyViewerManager: HistoryViewerManager;
   annotationManager: AnnotationManager;
   pgnTreeManager: PgnTreeManager;
-  userMovableColor?: 'white' | 'black' | 'both';
-  setUserMovableColor: (color?: 'white' | 'black' | 'both') => void;
   getTurnColor: () => 'white' | 'black';
   getCurrentPlyNumber: () => number;
   getFen: () => string;
@@ -53,12 +51,12 @@ export class BoardConfigBuilder {
     const isFree = !!ctx.state.freeMode;
 
     if (userConfig.movable?.color !== undefined) {
-      ctx.setUserMovableColor(userConfig.movable.color as 'white' | 'black' | 'both');
+      ctx.state.playerColor = userConfig.movable.color as 'white' | 'black' | 'both';
     }
 
     const mergedMovable = {
       free: isFree,
-      color: (isFree ? 'both' : ctx.userMovableColor || ctx.getTurnColor()) as
+      color: (isFree ? 'both' : ctx.state.playerColor || ctx.getTurnColor()) as
         'white' | 'black' | 'both',
       dests: isFree ? FenManager.getPossibleMovesForBothColors(ctx.pos) : possibleMoves(ctx.pos),
       events: defaultEvents,
@@ -174,10 +172,10 @@ export class BoardConfigBuilder {
 
       if (
         isSolo &&
-        ctx.userMovableColor &&
-        (ctx.userMovableColor === 'white' || ctx.userMovableColor === 'black')
+        ctx.state.playerColor &&
+        (ctx.state.playerColor === 'white' || ctx.state.playerColor === 'black')
       ) {
-        const requiredTurn: ChessopsColor = ctx.userMovableColor === 'white' ? 'white' : 'black';
+        const requiredTurn: ChessopsColor = ctx.state.playerColor === 'white' ? 'white' : 'black';
         if (ctx.pos.turn !== requiredTurn) {
           ctx.pos.turn = requiredTurn;
         }
@@ -194,10 +192,10 @@ export class BoardConfigBuilder {
           lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
           movable: {
             free: isFree,
-            color: isFree ? 'both' : ctx.userMovableColor || ctx.getTurnColor(),
+            color: isFree ? 'both' : ctx.state.playerColor || ctx.getTurnColor(),
             dests:
               ctx.exerciseManager.getCustomDests() ||
-              (isFree || (isSolo && (!ctx.userMovableColor || ctx.userMovableColor === 'both'))
+              (isFree || (isSolo && (!ctx.state.playerColor || ctx.state.playerColor === 'both'))
                 ? FenManager.getPossibleMovesForBothColors(ctx.pos)
                 : possibleMoves(ctx.pos)),
           },
