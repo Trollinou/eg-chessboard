@@ -153,6 +153,9 @@ export class BoardCore {
     return this.pos;
   }
 
+  /**
+   * Obtient ou définit le dernier coup suggéré (hint) par Stockfish en notation UCI (ex: "e2e4").
+   */
   public get lastSuggestedMove(): string {
     return this.stockfishManager.lastSuggestedMove;
   }

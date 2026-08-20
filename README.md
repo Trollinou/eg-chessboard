@@ -206,6 +206,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `getIsInsufficientMaterial()`| `boolean` | Indique si le matériel est insuffisant pour mater. |
 | `getGameOverReason(lang?)` | `string` | Retourne la raison formatée de fin de partie en français ou anglais (*ex: "Échec et mat ! Les Blancs ont gagné."*). |
 | `getCurrentComment()` | `string` | Commentaire textuel PGN du demi-coup actuellement visualisé. |
+| `lastSuggestedMove` | `string` | Getter/setter du dernier coup suggéré (*hint*) par Stockfish en notation UCI (ex: `"e2e4"`). |
 | `getHistoryViewerState()`| `Readonly<HistoryViewerState>` | État de la navigation dans l'historique PGN. |
 | `isViewingHistory()` | `boolean` | Indique si l'utilisateur consulte un coup antérieur dans l'historique. |
 | `isReadOnly()` | `boolean` | Indique si le mode lecture seule est actuellement actif. |
