@@ -38,7 +38,6 @@ export interface BoardConfigContext {
   emitEvent: (event: string, ...args: unknown[]) => void;
   checkUnpromotedPawns: () => Promise<void>;
   setPos: (pos: Chess) => void;
-  resetFenCache: () => void;
 }
 
 export class BoardConfigBuilder {
@@ -144,7 +143,6 @@ export class BoardConfigBuilder {
         ctx.setPos(pos);
         ctx.pgnTreeManager.resetTree(pos);
       });
-      ctx.resetFenCache();
 
       const isPreserve = !!ctx.state.preserveShapesOnPositionChange || ctx.getMode() === 'editor';
       if (isPreserve && ctx.board) {

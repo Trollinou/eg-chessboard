@@ -26,7 +26,6 @@ export interface MoveManagerContext {
   emitEvent: (event: string, ...args: unknown[]) => void;
   getFen: () => string;
   getMode: () => string;
-  resetFenCache: () => void;
   updateGameState: (opts?: { updateFen?: boolean; animate?: boolean }) => void;
   triggerStockfish: () => void;
   syncGameFromBoard: () => void;
@@ -75,7 +74,6 @@ export class MoveManager {
       const syncedPos = ctx.pgnTreeManager.syncGamePosToPly(ply);
       ctx.setPos(syncedPos);
       ctx.pos = syncedPos;
-      ctx.resetFenCache();
       ctx.historyViewerManager.stopViewingHistory(ctx.board, ctx.onStateChange, () => {
         ctx.board.set({ fen: '' });
         ctx.board.set({ fen: ctx.getFen() });
@@ -139,12 +137,10 @@ export class MoveManager {
     const fenBefore = ctx.getFen();
 
     const movePojo = buildMovePojo(ctx.pos, parsedMove, fenBefore);
-    ctx.resetFenCache();
 
     if (ctx.state.soloMode) {
       ctx.exerciseManager.addSoloMove(movePojo);
       ctx.pos.turn = colorBefore === 'w' ? 'white' : 'black';
-      ctx.resetFenCache();
     }
 
     const currentNode = ctx.pgnTreeManager.getCurrentNode();

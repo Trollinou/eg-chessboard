@@ -4,6 +4,15 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [Unreleased]
+
+### Refactorisation & Performance
+
+- **Simplification du calcul de FEN & suppression du cache FEN (`cachedFen` / `resetFenCache`)** :
+  - Suppression de la variable d'état `cachedFen` dans `BoardCore` au profit d'un calcul direct et déterministe à la volée via `makeFen(this.pos.toSetup())`.
+  - Suppression du callback `resetFenCache` dans les contextes et interfaces internes (`BoardConfigContext`, `MoveManagerContext`, `PromotionManager`).
+  - Élimination des risques de désynchronisation d'état (*stale cache*) et allègement des contrats de dépendance entre `BoardCore` et ses sous-managers.
+
 ## [1.5.0] - 2026-08-18
 
 ### Ajouté & Amélioré

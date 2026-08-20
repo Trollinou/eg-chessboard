@@ -13,7 +13,6 @@ export class PromotionManager {
     getMode: () => string,
     onStateChange: () => void,
     updateGameState: () => void,
-    resetFenCache: () => void,
     board?: Api
   ): Promise<void> {
     if (state.promotionDialogState.isEnabled) return;
@@ -32,7 +31,6 @@ export class PromotionManager {
           state,
           onStateChange,
           updateGameState,
-          resetFenCache,
           board
         );
         return;
@@ -50,7 +48,6 @@ export class PromotionManager {
           state,
           onStateChange,
           updateGameState,
-          resetFenCache,
           board
         );
         return;
@@ -65,7 +62,6 @@ export class PromotionManager {
     state: BoardCoreState,
     onStateChange: () => void,
     updateGameState: () => void,
-    resetFenCache: () => void,
     board?: Api
   ): Promise<void> {
     const selectedPromotion = await new Promise<string>((resolve) => {
@@ -82,7 +78,6 @@ export class PromotionManager {
     const promotedRole = pieceSymbolToRole[selectedPromotion.toLowerCase()] || 'queen';
     const sq = parseSquare(sqStr)!;
     pos.board.set(sq, { role: promotedRole, color });
-    resetFenCache();
 
     if (board && board.state?.pieces) {
       board.state.pieces.set(sqStr as Key, { role: promotedRole as Role, color });

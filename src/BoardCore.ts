@@ -63,7 +63,6 @@ export class BoardCore {
   private emitEvent: (event: string, ...args: unknown[]) => void;
   private initialConfig: Config;
   private userMovableColor: 'white' | 'black' | 'both' | undefined;
-  private cachedFen: string | null = null;
 
   // Sub-managers
   private domHandler: DomHandler;
@@ -191,9 +190,6 @@ export class BoardCore {
       setPos: (pos) => {
         this.pos = pos;
       },
-      resetFenCache: () => {
-        this.cachedFen = null;
-      },
     };
   }
 
@@ -209,9 +205,6 @@ export class BoardCore {
       emitEvent: (event, ...args) => this.emitEvent(event, ...args),
       getFen: () => this.getFen(),
       getMode: () => this.getMode(),
-      resetFenCache: () => {
-        this.cachedFen = null;
-      },
       updateGameState: (opts) => this.updateGameState(opts),
       triggerStockfish: () => this.triggerStockfish(),
       syncGameFromBoard: () => this.syncGameFromBoard(),
@@ -252,7 +245,6 @@ export class BoardCore {
   }
 
   private safeLoadFen(fenStr: string): boolean {
-    this.cachedFen = null;
     const res = FenManager.safeLoadFen(fenStr, (pos) => {
       this.pos = pos;
       this.pgnTreeManager.resetTree(this.pos);
@@ -272,9 +264,6 @@ export class BoardCore {
       () => this.getMode(),
       () => this.onStateChange(),
       () => this.updateGameState(),
-      () => {
-        this.cachedFen = null;
-      },
       this.board
     );
   }
@@ -446,7 +435,6 @@ export class BoardCore {
 
     this.pgnTreeManager.setCurrentNode(parentNode);
     this.pos = this.pgnTreeManager.syncGamePosToCurrentNode();
-    this.cachedFen = null;
 
     if (!this.historyViewerManager.isViewingHistory()) {
       this.board.set({ fen: this.getFen() });
@@ -456,7 +444,12 @@ export class BoardCore {
         lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
       });
     }
+    this.onStateChange();
     this.triggerStockfish();
+  }
+
+  public getBoard(): Api {
+    return this.board;
   }
 
   public getMaterialCount() {
@@ -557,10 +550,7 @@ export class BoardCore {
   }
 
   public getFen(): string {
-    if (!this.cachedFen) {
-      this.cachedFen = makeFen(this.pos.toSetup());
-    }
-    return this.cachedFen;
+    return makeFen(this.pos.toSetup());
   }
 
   public getPlacementFen(): string {
@@ -678,7 +668,6 @@ export class BoardCore {
       role,
       color: piece.color === 'w' ? 'white' : 'black',
     });
-    this.cachedFen = null;
     this.updateGameState();
     return true;
   }
@@ -690,14 +679,12 @@ export class BoardCore {
         this.board.set({ selected: undefined });
       }
       this.pos.board.take(sq);
-      this.cachedFen = null;
       this.updateGameState();
     }
   }
 
   public loadPgn(pgnStr: string): void {
     this.pos = this.pgnTreeManager.loadPgn(pgnStr);
-    this.cachedFen = null;
     this.historyViewerManager.resetState();
     this.onStateChange();
     this.updateGameState();
@@ -728,7 +715,6 @@ export class BoardCore {
       this.safeLoadFen(fen);
     } else {
       this.pos = Chess.default();
-      this.cachedFen = null;
       this.pgnTreeManager.resetTree(this.pos);
     }
     this.exerciseManager.resetSoloHistory();
@@ -827,7 +813,6 @@ export class BoardCore {
     if (!success) return false;
 
     this.pos = this.pgnTreeManager.syncGamePosToCurrentNode();
-    this.cachedFen = null;
 
     const newPly = targetPly + 1;
     const activePath = this.pgnTreeManager.getActivePath();
@@ -853,7 +838,6 @@ export class BoardCore {
     const success = this.pgnTreeManager.deleteVariation(idx, targetPly);
     if (success) {
       this.pos = this.pgnTreeManager.syncGamePosToCurrentNode();
-      this.cachedFen = null;
       const activePath = this.pgnTreeManager.getActivePath();
       if (this.historyViewerManager.isViewingHistory()) {
         const viewingPly = Math.min(targetPly, activePath.length);
@@ -878,7 +862,6 @@ export class BoardCore {
     const success = this.pgnTreeManager.promoteVariation(idx, targetPly);
     if (success) {
       this.pos = this.pgnTreeManager.syncGamePosToCurrentNode();
-      this.cachedFen = null;
       const activePath = this.pgnTreeManager.getActivePath();
       const newPly = targetPly + 1;
       if (this.historyViewerManager.isViewingHistory()) {
