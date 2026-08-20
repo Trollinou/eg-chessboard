@@ -25,8 +25,8 @@ export interface AnnotationContext {
 
 export class AnnotationManager {
   private currentPreservedShapes: DrawShape[] = [];
-  public isDrawingUpdate = false;
-  public isProgrammaticShapeUpdate = false;
+  private isDrawingUpdate = false;
+  private isProgrammaticShapeUpdate = false;
 
   public getPreservedShapes(): DrawShape[] {
     return this.currentPreservedShapes;
