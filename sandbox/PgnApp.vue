@@ -372,8 +372,8 @@ async function copyPgnToClipboard() {
         <div v-if="variations.length > 0" class="glass-card variations-card">
           <h2>🌿 Variantes alternatives à ce coup ({{ variations.length }})</h2>
           <div class="variations-list">
-            <div v-for="v in variations" :key="v.index" class="variation-item-row">
-              <button :class="['var-btn', { active: v.isMainline }]" @click="selectVar(v.index)">
+            <div v-for="v in variations" :key="`${v.index}-${v.san}`" class="variation-item-row">
+              <button :class="['var-btn', { active: v.isActive }]" @click="selectVar(v.index)">
                 {{ v.san }} <span v-if="v.isMainline" class="mainline-tag">(Ligne Principale)</span>
               </button>
 
