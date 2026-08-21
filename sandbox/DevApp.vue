@@ -4,8 +4,10 @@ import TheChessboard from '../src/vue/TheChessboard.vue';
 import type { Key } from '@lichess-org/chessground/types';
 import type { DrawShape } from '@lichess-org/chessground/draw';
 import type { BoardCore, StockfishConfig } from '../src/BoardCore';
+import { AVAILABLE_PIECE_SETS, type PieceSet } from '../src/types';
 import PgnApp from './PgnApp.vue';
 
+const selectedPieceSet = ref<PieceSet>('staunton');
 const activeTab = ref<'stockfish' | 'pgn' | 'solo' | 'editor'>('stockfish');
 
 // Editor / Diagram Test Mode State
@@ -387,6 +389,18 @@ const formatMove = (move: string, index: number) => {
           📖 Lecteur & Éditeur PGN
         </button>
       </div>
+      <div class="theme-selector" style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+        <label for="piece-set-select" style="font-size: 0.85rem; color: #a1a1aa;">🎨 Style de pièces :</label>
+        <select
+          id="piece-set-select"
+          v-model="selectedPieceSet"
+          style="background: #18181b; color: #e4e4e7; border: 1px solid #3f3f46; border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer;"
+        >
+          <option v-for="set in AVAILABLE_PIECE_SETS" :key="set" :value="set">
+            {{ set.toUpperCase() }}
+          </option>
+        </select>
+      </div>
     </header>
 
     <main v-if="activeTab === 'stockfish'" class="app-layout">
@@ -396,6 +410,7 @@ const formatMove = (move: string, index: number) => {
           <TheChessboard
             :player-color="playerColor"
             :stockfish-config="stockfishConfig"
+            :piece-set="selectedPieceSet"
             @board-created="onBoardCreated"
             @move="onMove"
             @check="syncState"
@@ -524,6 +539,7 @@ const formatMove = (move: string, index: number) => {
             :solo-mode="true"
             :preserve-shapes-on-position-change="true"
             :diagram="soloDiagram"
+            :piece-set="selectedPieceSet"
             @board-created="onSoloBoardCreated"
             @move="onSoloMove"
           />
@@ -659,6 +675,7 @@ const formatMove = (move: string, index: number) => {
             mode="editor"
             :free-mode="true"
             :preserve-shapes-on-position-change="editorPreserveShapes"
+            :piece-set="selectedPieceSet"
             @board-created="onEditorBoardCreated"
             @square-click="onEditorSquareClick"
             @shapes-change="onEditorShapesChange"
@@ -848,7 +865,7 @@ const formatMove = (move: string, index: number) => {
       </section>
     </main>
 
-    <PgnApp v-else />
+    <PgnApp v-else :piece-set="selectedPieceSet" />
   </div>
 </template>
 

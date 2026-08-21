@@ -1,5 +1,17 @@
 export type BoardMode = 'editor' | 'game' | 'study';
 
+export const AVAILABLE_PIECE_SETS = [
+  'staunton',
+  'merida',
+  'alpha',
+  'cburnett',
+  'cardinal',
+  'dubrovny',
+  'maestro',
+  'staunty',
+] as const;
+export type PieceSet = (typeof AVAILABLE_PIECE_SETS)[number] | (string & {});
+
 export interface Move {
   from: string;
   to: string;

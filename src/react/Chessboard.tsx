@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import type { Config } from '@lichess-org/chessground/config';
 import type { DrawShape } from '@lichess-org/chessground/draw';
-import type { Move, BoardMode } from '../types';
+import type { Move, BoardMode, PieceSet } from '../types';
+import { AVAILABLE_PIECE_SETS } from '../types';
 import {
   BoardCore,
   type BoardCoreState,
@@ -15,6 +16,8 @@ export {
   type ChessDiagram,
   type Move,
   type BoardMode,
+  type PieceSet,
+  AVAILABLE_PIECE_SETS,
 };
 import { PromotionDialog } from './components/PromotionDialog';
 
@@ -27,6 +30,7 @@ export interface ChessboardProps {
   readOnly?: boolean;
   fitContainer?: boolean;
   preserveShapesOnPositionChange?: boolean;
+  pieceSet?: PieceSet;
   stockfishConfig?: StockfishConfig;
   diagram?: ChessDiagram;
   onBoardCreated?: (api: BoardCore) => void;
@@ -51,6 +55,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   readOnly = false,
   fitContainer = false,
   preserveShapesOnPositionChange = false,
+  pieceSet = 'staunton',
   stockfishConfig = {},
   diagram,
   onBoardCreated,
@@ -76,6 +81,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     soloMode,
     readOnly,
     preserveShapesOnPositionChange,
+    pieceSet,
     promotionDialogState: { isEnabled: false },
     historyViewerState: { isEnabled: false },
     currentComment: '',
@@ -85,6 +91,14 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     isCheck: false,
     isGameOver: false,
   });
+
+  useEffect(() => {
+    if (coreRef.current && pieceSet) {
+      coreRef.current.setPieceSet(pieceSet);
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setState((prev) => ({ ...prev, pieceSet }));
+  }, [pieceSet]);
 
   useEffect(() => {
     if (coreRef.current && mode) {
@@ -143,6 +157,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
           soloMode: coreState.soloMode,
           readOnly: coreState.readOnly,
           preserveShapesOnPositionChange: coreState.preserveShapesOnPositionChange,
+          pieceSet: coreState.pieceSet,
           promotionDialogState: { ...coreState.promotionDialogState },
           historyViewerState: { ...coreState.historyViewerState },
           currentComment: coreState.currentComment,
@@ -220,9 +235,11 @@ export const Chessboard: React.FC<ChessboardProps> = ({
 
   return (
     <section
-      className={`main-wrap ${state.promotionDialogState.isEnabled ? 'disabledBoard' : ''} ${
-        state.historyViewerState.isEnabled ? 'viewingHistory' : ''
-      } ${fitContainer ? 'fit-container' : ''}`}
+      className={`main-wrap piece-set-${state.pieceSet || 'staunton'} ${
+        state.promotionDialogState.isEnabled ? 'disabledBoard' : ''
+      } ${state.historyViewerState.isEnabled ? 'viewingHistory' : ''} ${
+        fitContainer ? 'fit-container' : ''
+      }`}
     >
       <div className="main-board">
         {state.promotionDialogState.isEnabled && (

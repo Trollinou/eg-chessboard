@@ -37,6 +37,7 @@ C'est le paramètre fondamental qui définit la **finalité** du composant :
 | **`soloMode`** | `boolean` | `false` | Conserve le trait pour la couleur jouée après chaque coup. Utilisé pour les **exercices d'apprentissage solo** (ex: déplacer la même pièce 4 fois de suite). |
 | **`readOnly`** | `boolean` | `false` | Mode lecture seule en mode `study`. Si `true` (Lecteur PGN), la navigation est libre mais les pièces ne modifient pas l'arbre et les formes sont éphémères. Si `false` (Éditeur PGN), les coups créent des sous-variantes et les formes/commentaires sont enregistrés dans le PGN. |
 | **`preserveShapesOnPositionChange`** | `boolean` | `false` | Garde les flèches et cercles affichés même lorsque les pièces bougent. Utilisé pour **maintenir les consignes visuelles d'un exercice**. *(Inutile si `mode="editor"` car automatique)*. |
+| **`pieceSet`** | `PieceSet` | `'staunton'` | Style graphique des pièces (`'staunton'`, `'merida'`, `'alpha'`, `'cburnett'`, `'cardinal'`, `'dubrovny'`, `'maestro'`, `'staunty'`). |
 | **`playerColor`** | `'white' \| 'black' \| 'both'` | `undefined` | Restreint les pièces déplaçables par l'utilisateur. Exemple : `'white'` empêche l'utilisateur d'attraper les pièces noires. |
 | **`fitContainer`** | `boolean` | `false` | Étend l'échiquier à 100% de la hauteur/largeur de son conteneur parent (supprime les ratios fixes). |
 
@@ -47,6 +48,13 @@ Contrôle le Web Worker Stockfish (WASM) :
 - **Si omis ou `{}`** : Aucun Worker créé (performance optimale).
 - **Partie contre l'IA** : `blackMode: 'elo', blackElo: 1500` (l'ordinateur joue les Noirs à 1500 ELO).
 - **Conseil / Suggestion (Hint)** : `whiteMode: 'hint'` (émets l'événement `@stockfish-hint` sans jouer le coup automatiquement).
+
+---
+
+### D. Le Style Graphique : `pieceSet` & `AVAILABLE_PIECE_SETS`
+Permet de changer l'apparence des pièces à chaud :
+- **8 styles vectoriels inclus** : `'staunton'` *(défaut)*, `'merida'`, `'alpha'`, `'cburnett'`, `'cardinal'`, `'dubrovny'`, `'maestro'`, `'staunty'`.
+- La liste complète est exportée sous `AVAILABLE_PIECE_SETS` pour alimenter directement vos sélecteurs d'options UI.
 
 ---
 
@@ -173,3 +181,55 @@ const stockfishConfig: StockfishConfig = {
   onCheckmate={(color) => alert(`Échec et mat ! Les ${color === 'white' ? 'Noirs' : 'Blancs'} ont gagné.`)}
 />
 ```
+
+---
+
+### Recette 7 : Sélecteur de Jeu de Pièces & Changement Dynamique
+*Besoin : Permettre à l'utilisateur de choisir le thème de pièces parmi les 8 modèles disponibles.*
+
+```vue
+<!-- Vue 3 -->
+<script setup lang="ts">
+import { ref } from 'vue';
+import TheChessboard, { AVAILABLE_PIECE_SETS, type PieceSet } from 'eg-chessboard/vue';
+
+const selectedPieceSet = ref<PieceSet>('cburnett');
+</script>
+
+<template>
+  <div>
+    <select v-model="selectedPieceSet">
+      <option v-for="set in AVAILABLE_PIECE_SETS" :key="set" :value="set">
+        {{ set }}
+      </option>
+    </select>
+
+    <TheChessboard :piece-set="selectedPieceSet" />
+  </div>
+</template>
+```
+
+```tsx
+// React
+import React, { useState } from 'react';
+import { Chessboard, AVAILABLE_PIECE_SETS, type PieceSet } from 'eg-chessboard/react';
+
+export const CustomPieceSetBoard: React.FC = () => {
+  const [pieceSet, setPieceSet] = useState<PieceSet>('cburnett');
+
+  return (
+    <div>
+      <select value={pieceSet} onChange={(e) => setPieceSet(e.target.value as PieceSet)}>
+        {AVAILABLE_PIECE_SETS.map((set) => (
+          <option key={set} value={set}>
+            {set}
+          </option>
+        ))}
+      </select>
+
+      <Chessboard pieceSet={pieceSet} />
+    </div>
+  );
+};
+```
+

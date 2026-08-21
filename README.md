@@ -155,6 +155,7 @@ Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une
 | `readOnly` | `boolean` | `false` | Mode lecture seule (Lecteur vs Éditeur PGN). En `readOnly: true`, les coups ne modifient pas le PGN et les formes dessinées sont éphémères. En `readOnly: false`, les coups créent des variantes et les formes/commentaires sont enregistrés dans le PGN. |
 | `fitContainer` | `boolean` | `false` | Étend l'échiquier à 100% de la hauteur/largeur du conteneur parent (supprime les ratios fixes). |
 | `preserveShapesOnPositionChange` | `boolean` | `false` | Conserve les formes/flèches dessinées lors de la pose ou suppression de pièces (implicite si `mode='editor'`). |
+| `pieceSet` | `PieceSet` | `'staunton'` | Style graphique du jeu de pièces (`'staunton'`, `'merida'`, `'alpha'`, `'cburnett'`, `'cardinal'`, `'dubrovny'`, `'maestro'`, `'staunty'`). |
 | `stockfishConfig`| `StockfishConfig` | `{}` | Configuration du moteur de jeu et d'analyse Stockfish. |
 | `diagram` | `ChessDiagram` | `undefined` | Position FEN et annotations graphiques (flèches/cercles) d'initialisation. |
 
@@ -205,6 +206,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `getHistoryViewerState()`| `Readonly<HistoryViewerState>` | État de la navigation dans l'historique PGN. |
 | `isViewingHistory()` | `boolean` | Indique si l'utilisateur consulte un coup antérieur dans l'historique. |
 | `isReadOnly()` | `boolean` | Indique si le mode lecture seule est actuellement actif. |
+| `getPieceSet()` | `PieceSet` | Retourne le jeu de pièces actuellement actif. |
 | `getState()` | `Readonly<BoardCoreState>` | Retourne l'état réactif global du Core. |
 | `getCapturedPieces()` | `{ white: string[], black: string[] }` | Liste des pièces capturées par chaque couleur. |
 | `getMaterialCount()` | `{ white: number, black: number, diff: number }` | Décompte du matériel et différentiel. |
@@ -228,6 +230,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `putPiece(piece, square)`| `piece: Piece, square: Key \| string` | Dépose une pièce sur une case. |
 | `removePiece(square)` | `square: Key \| string` | Supprime la pièce située sur la case. |
 | `closePromotionDialog()`| `none` | Ferme le dialogue de sélection de promotion. |
+| `setPieceSet(pieceSet)` | `pieceSet: PieceSet` | Définit le style visuel des pièces (`'staunton'`, `'merida'`, `'alpha'`, etc.) et notifie les wrappers. |
 | `setPlayerColor(color)` | `color: 'white' \| 'black' \| 'both'` | Modifie dynamiquement la couleur du joueur autorisée aux déplacements. |
 | `setFreeMode(freeMode)` | `freeMode: boolean` | Active/désactive le mode libre. |
 | `setSoloMode(soloMode)` | `soloMode: boolean` | Active/désactive le mode solo. |
@@ -312,9 +315,10 @@ import type {
   VariationInfo,
   PgnTreeNode,
   Key, 
-  DrawShape 
+  DrawShape,
+  PieceSet
 } from 'eg-chessboard';
-import { getFinalFenFromPgn } from 'eg-chessboard';
+import { getFinalFenFromPgn, AVAILABLE_PIECE_SETS } from 'eg-chessboard';
 ```
 
 ### `BoardCoreState`
@@ -324,6 +328,7 @@ export interface BoardCoreState {
   showThreats: boolean;
   mode?: 'editor' | 'game' | 'study';
   playerColor?: 'white' | 'black' | 'both';
+  pieceSet?: PieceSet;
   freeMode?: boolean;
   soloMode?: boolean;
   readOnly?: boolean;
@@ -399,6 +404,35 @@ export interface ChessDiagram {
   fen: string;           // FEN de la position
   shapes?: DrawShape[];  // Flèches et cercles associés
 }
+```
+
+---
+
+## 🎭 Jeux de pièces (Piece Sets)
+
+`eg-chessboard` intègre **8 jeux de pièces vectoriels (SVG)** libres de droits, utilisables via la prop `pieceSet` ou `core.setPieceSet()` :
+
+| Nom | Style | Licence / Origine |
+| :--- | :--- | :--- |
+| **`staunton`** *(défaut)* | Staunton réaliste avec effet 3D, dégradés et reflets | Libre |
+| **`merida`** | Standard classique des diagrammes et manuels d'échecs | Libre |
+| **`alpha`** | Contours nets et fort contraste (Eric Bentzen) | CC-BY-SA |
+| **`cburnett`** | Design vectoriel moderne flat (Colin Burnett / Lichess) | GPL / CC-BY-SA |
+| **`cardinal`** | Style tournoi traditionnel élancé et élégant | GPL / CC-BY-SA |
+| **`dubrovny`** | Inspiré des célèbres pièces des Olympiades de Dubrovnik 1950 | CC-BY-SA |
+| **`maestro`** | Style traditionnel européen robuste | CC-BY-SA |
+| **`staunty`** | Variante Staunton contemporaine épurée | CC-BY-SA |
+
+Exemple d'utilisation en Vue 3 / React :
+
+```vue
+<!-- Vue 3 -->
+<TheChessboard piece-set="cburnett" />
+```
+
+```tsx
+// React
+<Chessboard pieceSet="merida" />
 ```
 
 ---

@@ -5,7 +5,7 @@ import type { Color, Key, MoveMetadata } from '@lichess-org/chessground/types';
 import type { DrawShape } from '@lichess-org/chessground/draw';
 
 import { getFinalFenFromPgn } from './BoardHelper';
-import type { Move, VariationInfo, PgnTreeNode, BoardMode } from './types';
+import type { Move, VariationInfo, PgnTreeNode, BoardMode, PieceSet } from './types';
 
 import { DomainEventBus } from './core/DomainEventBus';
 import { GameSession } from './core/GameSession';
@@ -22,6 +22,7 @@ export interface BoardCoreState {
   soloMode?: boolean;
   readOnly?: boolean;
   preserveShapesOnPositionChange?: boolean;
+  pieceSet?: PieceSet;
   promotionDialogState: {
     isEnabled: boolean;
     color?: Color;
@@ -75,6 +76,8 @@ export class BoardCore {
     if (initialConfig.movable?.color !== undefined) {
       this.state.playerColor = initialConfig.movable.color as 'white' | 'black' | 'both';
     }
+
+    this.state.pieceSet = this.state.pieceSet ?? 'staunton';
 
     this.applyModeDefaults();
 
@@ -563,6 +566,15 @@ export class BoardCore {
 
   public getPgnInfo(): Record<string, string> {
     return this.session.getPgnInfo();
+  }
+
+  public setPieceSet(pieceSet: PieceSet): void {
+    this.state.pieceSet = pieceSet;
+    this.onStateChange();
+  }
+
+  public getPieceSet(): PieceSet {
+    return this.state.pieceSet ?? 'staunton';
   }
 
   public setReadOnly(readOnly: boolean): void {

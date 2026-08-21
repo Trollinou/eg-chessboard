@@ -5,14 +5,14 @@ export {
   type StockfishConfig,
   type ChessDiagram,
 } from '../BoardCore';
-export type { Move, BoardMode } from '../types';
+export { AVAILABLE_PIECE_SETS, type Move, type BoardMode, type PieceSet } from '../types';
 </script>
 
 <script setup lang="ts">
 import { ref, shallowRef, onMounted, onUnmounted, reactive, watch } from 'vue';
 import type { Config } from '@lichess-org/chessground/config';
 import type { DrawShape } from '@lichess-org/chessground/draw';
-import type { Move, BoardMode } from '../types';
+import type { Move, BoardMode, PieceSet } from '../types';
 import {
   BoardCore,
   type BoardCoreState,
@@ -31,6 +31,7 @@ const props = withDefaults(
     readOnly?: boolean;
     fitContainer?: boolean;
     preserveShapesOnPositionChange?: boolean;
+    pieceSet?: PieceSet;
     stockfishConfig?: StockfishConfig;
     diagram?: ChessDiagram;
   }>(),
@@ -42,6 +43,7 @@ const props = withDefaults(
     readOnly: false,
     fitContainer: false,
     preserveShapesOnPositionChange: false,
+    pieceSet: 'staunton',
     stockfishConfig: () => ({}),
   }
 );
@@ -71,6 +73,7 @@ const state = reactive<BoardCoreState>({
   soloMode: props.soloMode,
   readOnly: props.readOnly,
   preserveShapesOnPositionChange: props.preserveShapesOnPositionChange,
+  pieceSet: props.pieceSet,
   promotionDialogState: { isEnabled: false },
   historyViewerState: { isEnabled: false },
   currentComment: '',
@@ -132,6 +135,17 @@ watch(
     state.preserveShapesOnPositionChange = newVal;
     if (core.value) {
       core.value.setPreserveShapesOnPositionChange(newVal);
+    }
+  }
+);
+
+// Watch for pieceSet changes
+watch(
+  () => props.pieceSet,
+  (newVal) => {
+    state.pieceSet = newVal;
+    if (core.value && newVal) {
+      core.value.setPieceSet(newVal);
     }
   }
 );
@@ -250,11 +264,14 @@ defineExpose({
 <template>
   <section
     class="main-wrap"
-    :class="{
-      disabledBoard: state.promotionDialogState.isEnabled,
-      viewingHistory: state.historyViewerState.isEnabled,
-      'fit-container': props.fitContainer,
-    }"
+    :class="[
+      `piece-set-${state.pieceSet || 'staunton'}`,
+      {
+        disabledBoard: state.promotionDialogState.isEnabled,
+        viewingHistory: state.historyViewerState.isEnabled,
+        'fit-container': props.fitContainer,
+      },
+    ]"
   >
     <div class="main-board">
       <PromotionDialog

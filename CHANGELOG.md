@@ -8,6 +8,22 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ### Ajouté & Corrigé
 
+- **Support Multi-Jeux de Pièces (8 thèmes vectoriels SVG modulaires)** :
+  - Intégration de **8 styles de pièces vectoriels complets** (96 fichiers SVG au total) dans `src/assets/pieces/` :
+    - `staunton` (Staunton réaliste 3D - style par défaut)
+    - `merida` (Standard classique des diagrammes et manuels)
+    - `alpha` (Eric Bentzen - fort contraste et contours nets)
+    - `cburnett` (Colin Burnett - flat design moderne de Lichess)
+    - `cardinal` (Style tournoi traditionnel élégant)
+    - `dubrovny` (Inspiré des pièces des Olympiades de Dubrovnik 1950)
+    - `maestro` (Style traditionnel européen robuste)
+    - `staunty` (Variante Staunton contemporaine épurée)
+  - Ajout de la prop `pieceSet?: PieceSet` sur les composants Vue 3 (`<TheChessboard piece-set="..." />`) et React (`<Chessboard pieceSet="..." />`).
+  - Ajout des méthodes publiques `core.setPieceSet(pieceSet)` et `core.getPieceSet()`, avec intégration dans l'état réactif `state.pieceSet` (`BoardCoreState`).
+  - Export des constantes `AVAILABLE_PIECE_SETS` et du type `PieceSet` à la racine de la bibliothèque pour introspection et sélecteurs d'options UI.
+  - Règles CSS dynamiques `.piece-set-${pieceSet}` appliquées harmonieusement sur le plateau de jeu et dans la boîte de dialogue de promotion.
+  - Ajout d'un sélecteur interactif de jeu de pièces dans la sandbox de développement.
+
 - **Optimisation du bundle CSS autonome (`dist/eg-chessboard.css`)** :
   - Nettoyage et optimisation SVGO des 12 SVGs vectoriels originaux (suppression des métadonnées d'éditeurs Inkscape/Sodipodi, optimisation des chemins et encodage Data-URI direct).
   - Préservation intégrale et à 100% du design visuel original des pièces (dégradés, ombres portées, filtres et reflets 3D).
