@@ -8,8 +8,8 @@ export {
 } from './BoardCore';
 export type { Key } from '@lichess-org/chessground/types';
 export type { DrawShape } from '@lichess-org/chessground/draw';
-export type { Move, VariationInfo, PgnTreeNode, BoardMode, PieceSet } from './types';
-export { AVAILABLE_PIECE_SETS } from './types';
+export type { Move, VariationInfo, PgnTreeNode, BoardMode, PieceSet, BoardTheme } from './types';
+export { AVAILABLE_PIECE_SETS, AVAILABLE_BOARD_THEMES } from './types';
 export {
   possibleMoves,
   isPromotion,

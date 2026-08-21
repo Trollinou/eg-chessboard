@@ -5,14 +5,21 @@ export {
   type StockfishConfig,
   type ChessDiagram,
 } from '../BoardCore';
-export { AVAILABLE_PIECE_SETS, type Move, type BoardMode, type PieceSet } from '../types';
+export {
+  AVAILABLE_PIECE_SETS,
+  AVAILABLE_BOARD_THEMES,
+  type Move,
+  type BoardMode,
+  type PieceSet,
+  type BoardTheme,
+} from '../types';
 </script>
 
 <script setup lang="ts">
 import { ref, shallowRef, onMounted, onUnmounted, reactive, watch } from 'vue';
 import type { Config } from '@lichess-org/chessground/config';
 import type { DrawShape } from '@lichess-org/chessground/draw';
-import type { Move, BoardMode, PieceSet } from '../types';
+import type { Move, BoardMode, PieceSet, BoardTheme } from '../types';
 import {
   BoardCore,
   type BoardCoreState,
@@ -32,6 +39,7 @@ const props = withDefaults(
     fitContainer?: boolean;
     preserveShapesOnPositionChange?: boolean;
     pieceSet?: PieceSet;
+    boardTheme?: BoardTheme;
     stockfishConfig?: StockfishConfig;
     diagram?: ChessDiagram;
   }>(),
@@ -44,6 +52,7 @@ const props = withDefaults(
     fitContainer: false,
     preserveShapesOnPositionChange: false,
     pieceSet: 'staunton',
+    boardTheme: 'brown',
     stockfishConfig: () => ({}),
   }
 );
@@ -74,6 +83,7 @@ const state = reactive<BoardCoreState>({
   readOnly: props.readOnly,
   preserveShapesOnPositionChange: props.preserveShapesOnPositionChange,
   pieceSet: props.pieceSet,
+  boardTheme: props.boardTheme,
   promotionDialogState: { isEnabled: false },
   historyViewerState: { isEnabled: false },
   currentComment: '',
@@ -146,6 +156,17 @@ watch(
     state.pieceSet = newVal;
     if (core.value && newVal) {
       core.value.setPieceSet(newVal);
+    }
+  }
+);
+
+// Watch for boardTheme changes
+watch(
+  () => props.boardTheme,
+  (newVal) => {
+    state.boardTheme = newVal;
+    if (core.value && newVal) {
+      core.value.setBoardTheme(newVal);
     }
   }
 );
@@ -266,6 +287,7 @@ defineExpose({
     class="main-wrap"
     :class="[
       `piece-set-${state.pieceSet || 'staunton'}`,
+      `board-theme-${state.boardTheme || 'brown'}`,
       {
         disabledBoard: state.promotionDialogState.isEnabled,
         viewingHistory: state.historyViewerState.isEnabled,

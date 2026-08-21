@@ -8,6 +8,22 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ### Ajouté & Corrigé
 
+- **Support Multi-Thèmes d'Échiquier & Coordonnées Dynamiques (8 thèmes vectoriels SVG)** :
+  - Intégration de **8 thèmes d'arrière-plan vectoriels (SVG 8x8)** pour l'échiquier :
+    - `brown` (Bois clair / noisette classique Lichess - style par défaut)
+    - `blue` (Bleu ciel / acier moderne)
+    - `green` (Vert tournoi officiel / feutre)
+    - `ic` (Style Lichess IC doux et contrasté)
+    - `grey` (Gris moderne / ardoise)
+    - `purple` (Violet / lilas contemporain)
+    - `wood` (Bois noyer chaud)
+    - `maple` (Érable naturel doré)
+  - **Contraste automatique des coordonnées (rangées 1-8 et colonnes a-h)** : variables CSS `--board-coord-light` et `--board-coord-dark` scopées par thème garantissant une lisibilité optimale sur les cases claires et sombres.
+  - Ajout de la prop `boardTheme?: BoardTheme` sur les composants Vue 3 (`<TheChessboard board-theme="..." />`) et React (`<Chessboard boardTheme="..." />`).
+  - Ajout des méthodes publiques `core.setBoardTheme(theme)` et `core.getBoardTheme()`, et intégration dans l'état réactif `state.boardTheme` (`BoardCoreState`).
+  - Export des constantes `AVAILABLE_BOARD_THEMES` et du type `BoardTheme` à la racine de la bibliothèque pour les sélecteurs UI.
+  - Ajout d'un sélecteur interactif de thème d'échiquier dans la sandbox.
+
 - **Support Multi-Jeux de Pièces (8 thèmes vectoriels SVG modulaires)** :
   - Intégration de **8 styles de pièces vectoriels complets** (96 fichiers SVG au total) dans `src/assets/pieces/` :
     - `staunton` (Staunton réaliste 3D - style par défaut)

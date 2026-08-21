@@ -12,6 +12,18 @@ export const AVAILABLE_PIECE_SETS = [
 ] as const;
 export type PieceSet = (typeof AVAILABLE_PIECE_SETS)[number] | (string & {});
 
+export const AVAILABLE_BOARD_THEMES = [
+  'brown',
+  'blue',
+  'green',
+  'ic',
+  'grey',
+  'purple',
+  'wood',
+  'maple',
+] as const;
+export type BoardTheme = (typeof AVAILABLE_BOARD_THEMES)[number] | (string & {});
+
 export interface Move {
   from: string;
   to: string;

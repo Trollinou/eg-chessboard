@@ -38,6 +38,7 @@ C'est le paramètre fondamental qui définit la **finalité** du composant :
 | **`readOnly`** | `boolean` | `false` | Mode lecture seule en mode `study`. Si `true` (Lecteur PGN), la navigation est libre mais les pièces ne modifient pas l'arbre et les formes sont éphémères. Si `false` (Éditeur PGN), les coups créent des sous-variantes et les formes/commentaires sont enregistrés dans le PGN. |
 | **`preserveShapesOnPositionChange`** | `boolean` | `false` | Garde les flèches et cercles affichés même lorsque les pièces bougent. Utilisé pour **maintenir les consignes visuelles d'un exercice**. *(Inutile si `mode="editor"` car automatique)*. |
 | **`pieceSet`** | `PieceSet` | `'staunton'` | Style graphique des pièces (`'staunton'`, `'merida'`, `'alpha'`, `'cburnett'`, `'cardinal'`, `'dubrovny'`, `'maestro'`, `'staunty'`). |
+| **`boardTheme`** | `BoardTheme` | `'brown'` | Thème d'arrière-plan de l'échiquier et contraste des coordonnées (`'brown'`, `'blue'`, `'green'`, `'ic'`, `'grey'`, `'purple'`, `'wood'`, `'maple'`). |
 | **`playerColor`** | `'white' \| 'black' \| 'both'` | `undefined` | Restreint les pièces déplaçables par l'utilisateur. Exemple : `'white'` empêche l'utilisateur d'attraper les pièces noires. |
 | **`fitContainer`** | `boolean` | `false` | Étend l'échiquier à 100% de la hauteur/largeur de son conteneur parent (supprime les ratios fixes). |
 
@@ -51,10 +52,18 @@ Contrôle le Web Worker Stockfish (WASM) :
 
 ---
 
-### D. Le Style Graphique : `pieceSet` & `AVAILABLE_PIECE_SETS`
+### D. Le Style Graphique des Pièces : `pieceSet` & `AVAILABLE_PIECE_SETS`
 Permet de changer l'apparence des pièces à chaud :
 - **8 styles vectoriels inclus** : `'staunton'` *(défaut)*, `'merida'`, `'alpha'`, `'cburnett'`, `'cardinal'`, `'dubrovny'`, `'maestro'`, `'staunty'`.
 - La liste complète est exportée sous `AVAILABLE_PIECE_SETS` pour alimenter directement vos sélecteurs d'options UI.
+
+---
+
+### E. Le Thème de l'Échiquier : `boardTheme` & `AVAILABLE_BOARD_THEMES`
+Permet de personnaliser le fond du plateau et les couleurs des coordonnées :
+- **8 thèmes vectoriels inclus** : `'brown'` *(défaut)*, `'blue'`, `'green'`, `'ic'`, `'grey'`, `'purple'`, `'wood'`, `'maple'`.
+- La liste complète est exportée sous `AVAILABLE_BOARD_THEMES`.
+- Les coordonnées (1-8, a-h) adaptent automatiquement leurs contrastes clairs/sombres en fonction du thème choisi.
 
 ---
 
@@ -232,4 +241,56 @@ export const CustomPieceSetBoard: React.FC = () => {
   );
 };
 ```
+
+---
+
+### Recette 8 : Sélecteur de Thème d'Échiquier & Ambiance
+*Besoin : Personnaliser le visuel de l'échiquier et les couleurs des coordonnées.*
+
+```vue
+<!-- Vue 3 -->
+<script setup lang="ts">
+import { ref } from 'vue';
+import TheChessboard, { AVAILABLE_BOARD_THEMES, type BoardTheme } from 'eg-chessboard/vue';
+
+const selectedTheme = ref<BoardTheme>('green');
+</script>
+
+<template>
+  <div>
+    <select v-model="selectedTheme">
+      <option v-for="theme in AVAILABLE_BOARD_THEMES" :key="theme" :value="theme">
+        {{ theme }}
+      </option>
+    </select>
+
+    <TheChessboard :board-theme="selectedTheme" />
+  </div>
+</template>
+```
+
+```tsx
+// React
+import React, { useState } from 'react';
+import { Chessboard, AVAILABLE_BOARD_THEMES, type BoardTheme } from 'eg-chessboard/react';
+
+export const ThemedBoard: React.FC = () => {
+  const [boardTheme, setBoardTheme] = useState<BoardTheme>('green');
+
+  return (
+    <div>
+      <select value={boardTheme} onChange={(e) => setBoardTheme(e.target.value as BoardTheme)}>
+        {AVAILABLE_BOARD_THEMES.map((theme) => (
+          <option key={theme} value={theme}>
+            {{ theme }}
+          </option>
+        ))}
+      </select>
+
+      <Chessboard boardTheme={boardTheme} />
+    </div>
+  );
+};
+```
+
 

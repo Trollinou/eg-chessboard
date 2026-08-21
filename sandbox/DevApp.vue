@@ -4,10 +4,16 @@ import TheChessboard from '../src/vue/TheChessboard.vue';
 import type { Key } from '@lichess-org/chessground/types';
 import type { DrawShape } from '@lichess-org/chessground/draw';
 import type { BoardCore, StockfishConfig } from '../src/BoardCore';
-import { AVAILABLE_PIECE_SETS, type PieceSet } from '../src/types';
+import {
+  AVAILABLE_PIECE_SETS,
+  AVAILABLE_BOARD_THEMES,
+  type PieceSet,
+  type BoardTheme,
+} from '../src/types';
 import PgnApp from './PgnApp.vue';
 
 const selectedPieceSet = ref<PieceSet>('staunton');
+const selectedBoardTheme = ref<BoardTheme>('brown');
 const activeTab = ref<'stockfish' | 'pgn' | 'solo' | 'editor'>('stockfish');
 
 // Editor / Diagram Test Mode State
@@ -389,17 +395,31 @@ const formatMove = (move: string, index: number) => {
           📖 Lecteur & Éditeur PGN
         </button>
       </div>
-      <div class="theme-selector" style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
-        <label for="piece-set-select" style="font-size: 0.85rem; color: #a1a1aa;">🎨 Style de pièces :</label>
-        <select
-          id="piece-set-select"
-          v-model="selectedPieceSet"
-          style="background: #18181b; color: #e4e4e7; border: 1px solid #3f3f46; border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer;"
-        >
-          <option v-for="set in AVAILABLE_PIECE_SETS" :key="set" :value="set">
-            {{ set.toUpperCase() }}
-          </option>
-        </select>
+      <div class="theme-selector" style="margin-left: auto; display: flex; align-items: center; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label for="piece-set-select" style="font-size: 0.85rem; color: #a1a1aa;">🎨 Pièces :</label>
+          <select
+            id="piece-set-select"
+            v-model="selectedPieceSet"
+            style="background: #18181b; color: #e4e4e7; border: 1px solid #3f3f46; border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer;"
+          >
+            <option v-for="set in AVAILABLE_PIECE_SETS" :key="set" :value="set">
+              {{ set.toUpperCase() }}
+            </option>
+          </select>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label for="board-theme-select" style="font-size: 0.85rem; color: #a1a1aa;">🏁 Échiquier :</label>
+          <select
+            id="board-theme-select"
+            v-model="selectedBoardTheme"
+            style="background: #18181b; color: #e4e4e7; border: 1px solid #3f3f46; border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer;"
+          >
+            <option v-for="theme in AVAILABLE_BOARD_THEMES" :key="theme" :value="theme">
+              {{ theme.toUpperCase() }}
+            </option>
+          </select>
+        </div>
       </div>
     </header>
 
@@ -411,6 +431,7 @@ const formatMove = (move: string, index: number) => {
             :player-color="playerColor"
             :stockfish-config="stockfishConfig"
             :piece-set="selectedPieceSet"
+            :board-theme="selectedBoardTheme"
             @board-created="onBoardCreated"
             @move="onMove"
             @check="syncState"
@@ -540,6 +561,7 @@ const formatMove = (move: string, index: number) => {
             :preserve-shapes-on-position-change="true"
             :diagram="soloDiagram"
             :piece-set="selectedPieceSet"
+            :board-theme="selectedBoardTheme"
             @board-created="onSoloBoardCreated"
             @move="onSoloMove"
           />
@@ -676,6 +698,7 @@ const formatMove = (move: string, index: number) => {
             :free-mode="true"
             :preserve-shapes-on-position-change="editorPreserveShapes"
             :piece-set="selectedPieceSet"
+            :board-theme="selectedBoardTheme"
             @board-created="onEditorBoardCreated"
             @square-click="onEditorSquareClick"
             @shapes-change="onEditorShapesChange"
@@ -865,7 +888,11 @@ const formatMove = (move: string, index: number) => {
       </section>
     </main>
 
-    <PgnApp v-else :piece-set="selectedPieceSet" />
+    <PgnApp
+      v-else
+      :piece-set="selectedPieceSet"
+      :board-theme="selectedBoardTheme"
+    />
   </div>
 </template>
 

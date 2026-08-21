@@ -2,14 +2,16 @@
 import { ref } from 'vue';
 import TheChessboard from '../src/vue/TheChessboard.vue';
 import type { BoardCore } from '../src/BoardCore';
-import type { VariationInfo, PieceSet } from '../src/types';
+import type { VariationInfo, PieceSet, BoardTheme } from '../src/types';
 
 const props = withDefaults(
   defineProps<{
     pieceSet?: PieceSet;
+    boardTheme?: BoardTheme;
   }>(),
   {
     pieceSet: 'staunton',
+    boardTheme: 'brown',
   }
 );
 
@@ -293,6 +295,7 @@ async function copyPgnToClipboard() {
             :read-only="isReadOnly"
             :free-mode="false"
             :piece-set="props.pieceSet"
+            :board-theme="props.boardTheme"
             @board-created="onBoardCreated"
             @move="syncState"
           />

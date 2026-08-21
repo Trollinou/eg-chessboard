@@ -156,6 +156,7 @@ Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une
 | `fitContainer` | `boolean` | `false` | Étend l'échiquier à 100% de la hauteur/largeur du conteneur parent (supprime les ratios fixes). |
 | `preserveShapesOnPositionChange` | `boolean` | `false` | Conserve les formes/flèches dessinées lors de la pose ou suppression de pièces (implicite si `mode='editor'`). |
 | `pieceSet` | `PieceSet` | `'staunton'` | Style graphique du jeu de pièces (`'staunton'`, `'merida'`, `'alpha'`, `'cburnett'`, `'cardinal'`, `'dubrovny'`, `'maestro'`, `'staunty'`). |
+| `boardTheme` | `BoardTheme` | `'brown'` | Thème d'arrière-plan de l'échiquier et contraste des coordonnées (`'brown'`, `'blue'`, `'green'`, `'ic'`, `'grey'`, `'purple'`, `'wood'`, `'maple'`). |
 | `stockfishConfig`| `StockfishConfig` | `{}` | Configuration du moteur de jeu et d'analyse Stockfish. |
 | `diagram` | `ChessDiagram` | `undefined` | Position FEN et annotations graphiques (flèches/cercles) d'initialisation. |
 
@@ -207,6 +208,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `isViewingHistory()` | `boolean` | Indique si l'utilisateur consulte un coup antérieur dans l'historique. |
 | `isReadOnly()` | `boolean` | Indique si le mode lecture seule est actuellement actif. |
 | `getPieceSet()` | `PieceSet` | Retourne le jeu de pièces actuellement actif. |
+| `getBoardTheme()` | `BoardTheme` | Retourne le thème d'échiquier actuellement actif. |
 | `getState()` | `Readonly<BoardCoreState>` | Retourne l'état réactif global du Core. |
 | `getCapturedPieces()` | `{ white: string[], black: string[] }` | Liste des pièces capturées par chaque couleur. |
 | `getMaterialCount()` | `{ white: number, black: number, diff: number }` | Décompte du matériel et différentiel. |
@@ -231,6 +233,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `removePiece(square)` | `square: Key \| string` | Supprime la pièce située sur la case. |
 | `closePromotionDialog()`| `none` | Ferme le dialogue de sélection de promotion. |
 | `setPieceSet(pieceSet)` | `pieceSet: PieceSet` | Définit le style visuel des pièces (`'staunton'`, `'merida'`, `'alpha'`, etc.) et notifie les wrappers. |
+| `setBoardTheme(theme)` | `theme: BoardTheme` | Définit le thème d'arrière-plan de l'échiquier et les couleurs de contraste des coordonnées. |
 | `setPlayerColor(color)` | `color: 'white' \| 'black' \| 'both'` | Modifie dynamiquement la couleur du joueur autorisée aux déplacements. |
 | `setFreeMode(freeMode)` | `freeMode: boolean` | Active/désactive le mode libre. |
 | `setSoloMode(soloMode)` | `soloMode: boolean` | Active/désactive le mode solo. |
@@ -316,9 +319,10 @@ import type {
   PgnTreeNode,
   Key, 
   DrawShape,
-  PieceSet
+  PieceSet,
+  BoardTheme
 } from 'eg-chessboard';
-import { getFinalFenFromPgn, AVAILABLE_PIECE_SETS } from 'eg-chessboard';
+import { getFinalFenFromPgn, AVAILABLE_PIECE_SETS, AVAILABLE_BOARD_THEMES } from 'eg-chessboard';
 ```
 
 ### `BoardCoreState`
@@ -329,6 +333,7 @@ export interface BoardCoreState {
   mode?: 'editor' | 'game' | 'study';
   playerColor?: 'white' | 'black' | 'both';
   pieceSet?: PieceSet;
+  boardTheme?: BoardTheme;
   freeMode?: boolean;
   soloMode?: boolean;
   readOnly?: boolean;
@@ -433,6 +438,35 @@ Exemple d'utilisation en Vue 3 / React :
 ```tsx
 // React
 <Chessboard pieceSet="merida" />
+```
+
+---
+
+## 🏁 Thèmes d'Échiquier (Board Themes)
+
+`eg-chessboard` intègre **8 thèmes d'arrière-plan vectoriels** avec calcul automatique du contraste des coordonnées (rangées et colonnes) :
+
+| Thème | Cases Claires | Cases Sombres | Rendu / Style |
+| :--- | :--- | :--- | :--- |
+| **`brown`** *(défaut)* | `#f0d9b5` | `#b58863` | Classique Lichess / Bois clair traditionnel |
+| **`blue`** | `#dee3e6` | `#8ca2ad` | Bleu ciel / Bleu acier moderne |
+| **`green`** | `#ffffdd` | `#86a666` | Vert tournoi officiel / Feutre |
+| **`ic`** | `#ece9d8` | `#c4cfa3` | Style Lichess IC (doux et contrasté) |
+| **`grey`** | `#e0e0e0` | `#8a8a8a` | Gris moderne / Ardoise |
+| **`purple`** | `#edeed1` | `#7d5ea3` | Violet / Lilas contemporain |
+| **`wood`** | `#d2b48c` | `#8b5a2b` | Bois noyer chaud |
+| **`maple`** | `#f3dfc1` | `#ba7b46` | Érable naturel doré |
+
+Exemple d'utilisation en Vue 3 / React :
+
+```vue
+<!-- Vue 3 -->
+<TheChessboard board-theme="green" piece-set="cburnett" />
+```
+
+```tsx
+// React
+<Chessboard boardTheme="blue" pieceSet="merida" />
 ```
 
 ---
