@@ -1,3 +1,8 @@
+import { makeFen } from 'chessops/fen';
+import { DomainEventBus } from './DomainEventBus';
+import { GameSession } from './GameSession';
+import type { Move } from '../types';
+
 export type StockfishMode = 'disabled' | 'hint' | 'elo';
 
 export interface StockfishConfig {
@@ -14,44 +19,29 @@ export class StockfishManager {
   private whiteWorker: Worker | null = null;
   private blackWorker: Worker | null = null;
   private stockfishConfig: StockfishConfig = {};
-  /**
-   * Dernier coup suggéré (hint) par Stockfish en notation UCI (ex: "e2e4").
-   */
   public lastSuggestedMove = '';
 
-  private onHint: (bestMove: string) => void;
-  private onMove: (move: { from: string; to: string; promotion?: string }) => void;
-
   constructor(
+    private eventBus: DomainEventBus,
+    private session: GameSession,
     stockfishConfig: StockfishConfig = {},
-    onHint: (bestMove: string) => void,
-    onMove: (move: { from: string; to: string; promotion?: string }) => void
+    private onPlayEngineMove?: (move: { from: string; to: string; promotion?: string }) => void
   ) {
     this.stockfishConfig = stockfishConfig;
-    this.onHint = onHint;
-    this.onMove = onMove;
   }
 
   public getConfig(): StockfishConfig {
     return { ...this.stockfishConfig };
   }
 
-  public updateStockfishConfig(
-    config: StockfishConfig,
-    isFreeMode: boolean,
-    isGameOver: boolean,
-    turn: 'white' | 'black',
-    getEnginePositionCommand: () => string
-  ): void {
+  public updateStockfishConfig(config: StockfishConfig, isFreeMode: boolean): void {
     this.stockfishConfig = { ...this.stockfishConfig, ...config };
     this.initStockfish(isFreeMode);
-    this.triggerStockfish(isFreeMode, isGameOver, turn, getEnginePositionCommand);
+    this.triggerStockfish(isFreeMode);
   }
 
   public initStockfish(isFreeMode: boolean): void {
-    console.log('[StockfishManager] initStockfish called. Config:', this.stockfishConfig);
     if (isFreeMode) {
-      console.log('[StockfishManager] initStockfish aborted: freeMode is active');
       this.terminateStockfish();
       return;
     }
@@ -98,12 +88,11 @@ export class StockfishManager {
         worker.postMessage('setoption name Hash value 256');
       }
       return worker;
-    } else {
-      if (currentWorker) {
-        currentWorker.terminate();
-      }
-      return null;
     }
+    if (currentWorker) {
+      currentWorker.terminate();
+    }
+    return null;
   }
 
   public terminateStockfish(): void {
@@ -117,70 +106,64 @@ export class StockfishManager {
     }
   }
 
-  public triggerStockfish(
-    isFreeMode: boolean,
-    isGameOver: boolean,
-    turn: 'white' | 'black',
-    getEnginePositionCommand: () => string
-  ): void {
-    if (isFreeMode || isGameOver) {
-      console.log('[StockfishManager] triggerStockfish ignored: freeMode or game over');
-      this.terminateStockfish();
-      return;
-    }
-
-    const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
-
-    if (!mode || mode === 'disabled') {
-      return;
-    }
-
-    const movetime = this.stockfishConfig.stockfishMoveTime || 1000;
-    console.log(
-      '[StockfishManager] triggerStockfish. Turn:',
-      turn,
-      'Mode:',
-      mode,
-      'MoveTime:',
-      movetime
-    );
-
-    const worker = turn === 'white' ? this.whiteWorker : this.blackWorker;
-    if (worker) {
-      const positionCmd = getEnginePositionCommand();
-      console.log(
-        `[StockfishManager] Sending to ${turn === 'white' ? 'White' : 'Black'} Worker:`,
-        positionCmd,
-        `go movetime ${movetime}`
-      );
-      worker.postMessage(positionCmd);
-      worker.postMessage(`go movetime ${movetime}`);
-    }
-  }
-
   private handleWhiteMessage(line: string): void {
-    this.handleEngineMessage(line, this.stockfishConfig.whiteMode);
+    this.handleEngineOutput(line, this.stockfishConfig.whiteMode);
   }
 
   private handleBlackMessage(line: string): void {
-    this.handleEngineMessage(line, this.stockfishConfig.blackMode);
+    this.handleEngineOutput(line, this.stockfishConfig.blackMode);
   }
 
-  private handleEngineMessage(line: string, mode: StockfishMode | undefined): void {
+  private handleEngineOutput(line: string, mode?: StockfishMode): void {
+    if (typeof line !== 'string') return;
+
     if (line.startsWith('bestmove')) {
       const parts = line.split(' ');
       const bestMove = parts[1];
       if (bestMove && bestMove !== '(none)') {
+        this.lastSuggestedMove = bestMove;
         if (mode === 'hint') {
-          this.lastSuggestedMove = bestMove;
-          this.onHint(bestMove);
-        } else if (mode === 'elo') {
-          const from = bestMove.slice(0, 2);
-          const to = bestMove.slice(2, 4);
-          const promotion = bestMove.length > 4 ? bestMove.charAt(4) : undefined;
-          this.onMove({ from, to, promotion });
+          this.eventBus.emit('stockfish-hint', { bestMove });
+        } else if (mode === 'elo' && this.onPlayEngineMove) {
+          const from = bestMove.substring(0, 2);
+          const to = bestMove.substring(2, 4);
+          const promotion = bestMove.length > 4 ? bestMove.substring(4, 5) : undefined;
+          this.onPlayEngineMove({ from, to, promotion });
         }
       }
     }
+  }
+
+  public triggerStockfish(isFreeMode: boolean): void {
+    if (isFreeMode || this.session.getIsGameOver()) {
+      return;
+    }
+
+    const turn = this.session.getTurnColor();
+    const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
+    const worker = turn === 'white' ? this.whiteWorker : this.blackWorker;
+
+    if (!worker || !mode || mode === 'disabled') {
+      return;
+    }
+
+    const cmd = this.getEnginePositionCommand();
+    const moveTime = this.stockfishConfig.stockfishMoveTime || 1000;
+
+    worker.postMessage(cmd);
+    worker.postMessage(`go movetime ${moveTime}`);
+  }
+
+  private getEnginePositionCommand(): string {
+    const rootFen = makeFen(this.session.getRootPos().toSetup());
+    const isStandardStart = rootFen === 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const baseCmd = isStandardStart ? 'position startpos' : `position fen ${rootFen}`;
+
+    const history = this.session.getHistory(true) as Move[];
+    const movesStr = history
+      .map((m) => m.from + m.to + (m.promotion ? m.promotion.toLowerCase() : ''))
+      .join(' ');
+
+    return movesStr ? `${baseCmd} moves ${movesStr}` : baseCmd;
   }
 }

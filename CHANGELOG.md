@@ -17,6 +17,17 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
   - Ajout de `playerColor?: 'white' | 'black' | 'both'` directement dans l'interface réactive `BoardCoreState`.
   - Mise à jour réactive automatique de `state.playerColor` lors des appels à `core.setPlayerColor()`, `core.setConfig()` ou modification de prop (`playerColor` / `boardConfig.movable.color`), notifiant automatiquement `onStateChange()`.
   - Intégration de `playerColor` dans l'état réactif initial des wrappers React (`useState`) et Vue 3 (`reactive`).
+- **Refactoring Architectural Majeur & Découplage par Domaines (4 modules)** :
+  - Restructuration et division par 2 de la taille de `BoardCore.ts` (~490 lignes au lieu de 956), transformé en une véritable Façade mince sans logique métier résiduelle.
+  - Remplacement des contextes massifs (`MoveManagerContext`, `BoardConfigContext`, `AnnotationContext`) par un **`DomainEventBus` typé** éliminant toutes les dépendances circulaires et passages de closures.
+  - Consolidation des 10 sous-managers en **4 services de domaine autonomes** :
+    - `GameSession` : Moteur de session et PGN pur sans dépendance DOM (fusion de `PgnTreeManager`, `HistoryViewerManager` et validation/exécution des coups de `MoveManager`).
+    - `BoardAdapter` : Gestion de l'instance Chessground, des événements DOM, de la synchronisation bidirectionnelle (`syncGameFromBoard`, `updateGameState`) et des promotions (fusion de `DomHandler`, `BoardConfigBuilder`, `PromotionManager`).
+    - `AnnotationService` : Centralisation du cycle de vie des formes (`DrawShape`), des menaces et des balises PGN `[%cal]`/`[%cpl]`.
+    - `StockfishManager` & `ExerciseManager` : Services satellites modernisés avec injection de dépendances directe par constructeur.
+  - Suppression des 7 anciens fichiers de sous-managers redondants.
+  - **Immutabilité garantie** : `getState()` retourne désormais systématiquement un snapshot gelé (`Object.freeze`) avec copies profondes des sous-états (`promotionDialogState`, `historyViewerState`), garantissant une étanchéité totale face aux mutations par effet de bord depuis React et Vue 3.
+  - **Fiabilisation de l'IA Stockfish** : Élimination des envois intempestifs de commandes `stop` sur worker inactif, déduplication des émissions d'événements de mouvement, et normalisation des coups UCI.
 - **Détection de la Triple Répétition & Règle des 50 coups (`chessops`)** :
   - Implémentation de `PgnTreeManager.isThreefoldRepetition` exploitant `equalsIgnoreMoves` de `chessops/chess` pour comparer l'identité exacte des positions successives le long de la branche active.
   - Branchement réel de `BoardCore.getIsThreefoldRepetition()` (qui retournait précédemment `false`).

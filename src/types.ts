@@ -31,6 +31,7 @@ export interface VariationInfo {
   fen: string;
   move: Move;
   isMainline: boolean;
+  isActive?: boolean;
   comments?: string[];
 }
 

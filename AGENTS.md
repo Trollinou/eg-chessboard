@@ -23,18 +23,15 @@ Pour éviter les divergences de comportement entre le modèle _pull/immutabilit�
 2. **Mutations Interdites depuis la Vue** : Aucun wrapper (React ou Vue) ne doit modifier directement l'objet `state` ou ses sous-propriétés (ex: `state.promotionDialogState`). Toute modification doit passer par une méthode publique de `BoardCore`.
 3. **Flux Unidirectionnel avec Événements** : Le cœur notifie les wrappers de tout changement d'état interne via un mécanisme d'écoute (`onStateChange`). Le wrapper React met alors à jour son `useState` (via le getter public `core.getState()`), et le wrapper Vue met à jour sa référence réactive.
 4. **Pas de Fuite d'Abstraction** : L'accès aux propriétés privées par contournement de typage (ex: `coreRef.current['state']`) est strictly interdit. Toutes les lectures d'état se font via les getters publics (`getState()`, `getCurrentComment()`, `getHistoryViewerState()`, `isViewingHistory()`, etc.).
-5. **Décomposition Modulaire sous `src/core/`** : `BoardCore` agit comme une **Façade** conservant l'API publique inchangée et déléguant les traitements internes à ses 10 sub-managers dédiés :
-   - `DomHandler` : Gestion des événements DOM (pointer/mouse/touch) et calcul dynamique de la géométrie de la grille et des cases.
-   - `StockfishManager` : Cycle de vie, gestion UCI et messages des Web Workers Stockfish.
+5. **Décomposition Modulaire & Façade sous `src/core/`** : `BoardCore` agit comme une **Façade fine** conservant l'API publique inchangée et orchestrant les 4 domaines spécialisés via un bus d'événements de domaine interne (`DomainEventBus`) :
+   - `GameSession` : Moteur de session pur (sans dépendance DOM). Centralise l'arbre PGN (`Node<PgnNodeMeta>`), la navigation dans l'historique (`viewHistory`, `viewNext`, `viewPrevious`, `viewStart`), la validation et l'exécution des coups (Lecteur vs Éditeur avec sous-variantes), et l'arbitrage (mat, pat, nulle, 50 coups, triple répétition).
+   - `BoardAdapter` : Intégration graphique Chessground (`Api`) et DOM. Gère les calculs de cases et de géométrie, les écouteurs de pointeur/redimensionnement, les dialogues de promotion, et la synchronisation bidirectionnelle (`updateGameState`, `syncGameFromBoard`).
+   - `AnnotationService` : Gestion centralisée des formes graphiques (flèches `[%cal]`, cercles `[%cpl]`), des menaces (`drawThreats`), et distinction entre annotations persistantes (mode `editor`) et éphémères (mode `game`/`study` en `readOnly`).
+   - `StockfishManager` : Cycle de vie, gestion UCI et communication Web Workers Stockfish.
    - `ExerciseManager` : Restrictions de coups (`restrictMovesToPieces`), détection d'attaques et historique solo.
-   - `AnnotationManager` : Formes dessinées, menaces, balises PGN `[%cal]`/`[%cpl]` et synchronisation des événements de tracé (`handleDrawableChange`, `updateCommentAndShapes`).
-   - `PgnTreeManager` : Arbre PGN (`Node<PgnNodeMeta>`), nœuds de sous-variantes, parsing SAN et sérialisation.
-   - `HistoryViewerManager` : Navigation pas-à-pas dans l'historique (`viewHistory`, `viewNext`, `viewPrevious`, `viewStart`), états d'affichage et résolution centralisée du ply courant (`getCurrentViewingPly`).
-   - `FenManager` : Parsing FEN tolérant, repli manuel et utilitaires de position / matériel (`getMaterialCount`, `getCapturedPieces`, `getGameOverReason`).
-   - `PromotionManager` : Détection automatique des promotions (rangées 1 & 8 en mode libre/éditeur) et gestion des promesses de dialogues.
-   - `MoveManager` : Exécution des coups (SAN/POJO), synchronisation avec l'arbre PGN et gestion des événements de mouvement.
-   - `BoardConfigBuilder` : Construction de la configuration Chessground et synchronisation réactive de l'état graphique/logique (`updateGameState`, `syncGameFromBoard`).
-   - `pieceMapping` : Module de constantes partagées (`roleToPieceSymbol`, `pieceSymbolToRole`) et utilitaire centralisé `buildMovePojo` pour la construction d'objets `Move` à partir d'un coup chessops parsé. Évite la duplication de ces maps et de la logique de construction dans les sous-managers.
+   - `DomainEventBus` : Bus d'événements de domaine typé découplant les sous-systèmes sans références circulaires.
+   - `FenManager` & `pieceMapping` : Modules utilitaires purs (parsing FEN tolérant, placement, calculs de matériel/captures, construction de POJOs `Move`).
+6. **Immutabilité de l'état exposé (`getState()`)** : `BoardCore.getState()` retourne systématiquement un snapshot gelé (`Object.freeze`) avec copies profondes des sous-états (`promotionDialogState`, `historyViewerState`) pour prévenir toute mutation par effet de bord depuis les wrappers React et Vue 3.
 
 ---
 
