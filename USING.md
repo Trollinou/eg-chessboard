@@ -1,4 +1,4 @@
-# 📚 Guide d'Utilisation & Anti-Sèche : `eg-chessboard` (v1.3.1)
+# 📚 Guide d'Utilisation & Anti-Sèche : `eg-chessboard` (v1.6.0)
 
 Ce document est votre **anti-sèche d'utilisation**. Il vous permet de retrouver instantanément les réglages et snippets de code prêts à l'emploi selon chaque cas d'usage dans vos applications **Vue 3**, **React** ou **WordPress Gutenberg**.
 

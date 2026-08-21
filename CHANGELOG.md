@@ -6,7 +6,9 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
-### Ajouté & Corrigé
+## [1.6.0] - 2026-08-21
+
+### Ajouté & Amélioré
 
 - **Support Multi-Thèmes d'Échiquier & Coordonnées Dynamiques (8 thèmes vectoriels SVG)** :
   - Intégration de **8 thèmes d'arrière-plan vectoriels (SVG 8x8)** pour l'échiquier :
