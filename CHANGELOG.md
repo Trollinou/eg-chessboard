@@ -6,6 +6,15 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-08-25
+
+### Corrigé
+
+- **Isolation de l'auto-décoration DOM dans `BoardAdapter`** :
+  - Détection contextuelle de l'environnement de montage : l'auto-décoration n'altère plus la hiérarchie parentale lorsque l'échiquier est déjà encapsulé dans les wrappers Vue (`<TheChessboard>`) ou React (`<Chessboard>`).
+  - Résolution d'un conflit de classes `.main-board` imbriquées qui altérait le ratio d'aspect 1:1 de l'échiquier et la grille des pièces dans les composants de framework.
+  - Maintien de l'auto-décoration sécurisée pour les conteneurs Vanilla JS autonomes.
+
 ## [1.6.2] - 2026-08-25
 
 ### Corrigé & Amélioré
