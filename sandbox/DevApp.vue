@@ -395,25 +395,48 @@ const formatMove = (move: string, index: number) => {
           📖 Lecteur & Éditeur PGN
         </button>
       </div>
-      <div class="theme-selector" style="margin-left: auto; display: flex; align-items: center; gap: 16px;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label for="piece-set-select" style="font-size: 0.85rem; color: #a1a1aa;">🎨 Pièces :</label>
+      <div
+        class="theme-selector"
+        style="margin-left: auto; display: flex; align-items: center; gap: 16px"
+      >
+        <div style="display: flex; align-items: center; gap: 8px">
+          <label for="piece-set-select" style="font-size: 0.85rem; color: #a1a1aa"
+            >🎨 Pièces :</label
+          >
           <select
             id="piece-set-select"
             v-model="selectedPieceSet"
-            style="background: #18181b; color: #e4e4e7; border: 1px solid #3f3f46; border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer;"
+            style="
+              background: #18181b;
+              color: #e4e4e7;
+              border: 1px solid #3f3f46;
+              border-radius: 6px;
+              padding: 4px 8px;
+              font-size: 0.85rem;
+              cursor: pointer;
+            "
           >
             <option v-for="set in AVAILABLE_PIECE_SETS" :key="set" :value="set">
               {{ set.toUpperCase() }}
             </option>
           </select>
         </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label for="board-theme-select" style="font-size: 0.85rem; color: #a1a1aa;">🏁 Échiquier :</label>
+        <div style="display: flex; align-items: center; gap: 8px">
+          <label for="board-theme-select" style="font-size: 0.85rem; color: #a1a1aa"
+            >🏁 Échiquier :</label
+          >
           <select
             id="board-theme-select"
             v-model="selectedBoardTheme"
-            style="background: #18181b; color: #e4e4e7; border: 1px solid #3f3f46; border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer;"
+            style="
+              background: #18181b;
+              color: #e4e4e7;
+              border: 1px solid #3f3f46;
+              border-radius: 6px;
+              padding: 4px 8px;
+              font-size: 0.85rem;
+              cursor: pointer;
+            "
           >
             <option v-for="theme in AVAILABLE_BOARD_THEMES" :key="theme" :value="theme">
               {{ theme.toUpperCase() }}
@@ -888,11 +911,7 @@ const formatMove = (move: string, index: number) => {
       </section>
     </main>
 
-    <PgnApp
-      v-else
-      :piece-set="selectedPieceSet"
-      :board-theme="selectedBoardTheme"
-    />
+    <PgnApp v-else :piece-set="selectedPieceSet" :board-theme="selectedBoardTheme" />
   </div>
 </template>
 

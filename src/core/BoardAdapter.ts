@@ -6,7 +6,7 @@ import type { DrawShape } from '@lichess-org/chessground/draw';
 import { parseSquare } from 'chessops';
 import { makeFen } from 'chessops/fen';
 
-import type { BoardMode, Move } from '../types';
+import type { BoardMode, Move, PieceSet, BoardTheme } from '../types';
 import { possibleMoves, isPromotion, shortToLongColor } from '../BoardHelper';
 import { roleToPieceSymbol, pieceSymbolToRole, FILES } from './pieceMapping';
 import { FenManager } from './FenManager';
@@ -46,9 +46,12 @@ export class BoardAdapter {
     private exerciseManager: ExerciseManager,
     private getOptions: () => BoardAdapterOptions,
     private promptPromotionDialog: (color: Color) => Promise<string>,
-    initialConfig: Config = {}
+    initialConfig: Config = {},
+    pieceSet: PieceSet = 'cburnett',
+    boardTheme: BoardTheme = 'brown'
   ) {
     this.element = element;
+    this.autoDecorateDom(pieceSet, boardTheme);
     this.initBoard(initialConfig);
     this.bindDomEvents();
 
@@ -61,6 +64,44 @@ export class BoardAdapter {
         this.updateGameState({ updateFen: false });
       }
     });
+  }
+
+  public autoDecorateDom(pieceSet: PieceSet = 'cburnett', boardTheme: BoardTheme = 'brown'): void {
+    if (!this.element.classList.contains('main-board')) {
+      this.element.classList.add('main-board');
+    }
+
+    const parent = this.element.parentElement;
+    const target = parent || this.element;
+
+    if (parent && !parent.classList.contains('main-wrap')) {
+      parent.classList.add('main-wrap');
+    }
+
+    const currentClasses = Array.from(target.classList);
+    const pieceSetClass = currentClasses.find((c) => c.startsWith('piece-set-'));
+    if (!pieceSetClass) {
+      target.classList.add(`piece-set-${pieceSet}`);
+    }
+
+    const boardThemeClass = currentClasses.find((c) => c.startsWith('board-theme-'));
+    if (!boardThemeClass) {
+      target.classList.add(`board-theme-${boardTheme}`);
+    }
+  }
+
+  public updateDomThemeClasses(pieceSet: PieceSet, boardTheme: BoardTheme): void {
+    const parent = this.element.parentElement;
+    const target = parent || this.element;
+
+    Array.from(target.classList).forEach((c) => {
+      if (c.startsWith('piece-set-') || c.startsWith('board-theme-')) {
+        target.classList.remove(c);
+      }
+    });
+
+    target.classList.add(`piece-set-${pieceSet}`);
+    target.classList.add(`board-theme-${boardTheme}`);
   }
 
   public getElement(): HTMLElement {

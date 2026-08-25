@@ -193,7 +193,7 @@ cg-container {
    Board Themes : Color Variables & Coordinates Contrast
    ========================================================================== */
 .board-theme-brown,
-.main-wrap:not([class*="board-theme-"]) {
+.main-wrap:not([class*='board-theme-']) {
   --board-coord-light: #f0d9b5;
   --board-coord-dark: #946f51;
 }
@@ -235,7 +235,7 @@ cg-container {
    ========================================================================== */
 cg-board,
 .board-theme-brown cg-board,
-.main-wrap:not([class*="board-theme-"]) cg-board {
+.main-wrap:not([class*='board-theme-']) cg-board {
   top: 0;
   left: 0;
   -webkit-user-select: none;
@@ -376,102 +376,66 @@ piece {
 }
 
 /* ==========================================================================
-   Piece Sets : Staunton (Default)
+   Piece Sets : Staunton
    ========================================================================== */
 .piece-set-staunton piece.pawn.white,
 .piece-set-staunton .promotion-dialog .pawn.white,
-.piece-set-staunton .promotion-piece-btn.pawn.white,
-.main-wrap:not([class*="piece-set-"]) piece.pawn.white,
-.main-wrap:not([class*="piece-set-"]) .promotion-dialog .pawn.white,
-.main-wrap:not([class*="piece-set-"]) .promotion-piece-btn.pawn.white {
+.piece-set-staunton .promotion-piece-btn.pawn.white {
   background-image: url('./assets/pieces/staunton/wP.svg');
 }
 .piece-set-staunton piece.bishop.white,
 .piece-set-staunton .promotion-dialog .bishop.white,
-.piece-set-staunton .promotion-piece-btn.bishop.white,
-.main-wrap:not([class*="piece-set-"]) piece.bishop.white,
-.main-wrap:not([class*="piece-set-"]) .promotion-dialog .bishop.white,
-.main-wrap:not([class*="piece-set-"]) .promotion-piece-btn.bishop.white {
+.piece-set-staunton .promotion-piece-btn.bishop.white {
   background-image: url('./assets/pieces/staunton/wB.svg');
 }
 .piece-set-staunton piece.knight.white,
 .piece-set-staunton .promotion-dialog .knight.white,
-.piece-set-staunton .promotion-piece-btn.knight.white,
-.main-wrap:not([class*="piece-set-"]) piece.knight.white,
-.main-wrap:not([class*="piece-set-"]) .promotion-dialog .knight.white,
-.main-wrap:not([class*="piece-set-"]) .promotion-piece-btn.knight.white {
+.piece-set-staunton .promotion-piece-btn.knight.white {
   background-image: url('./assets/pieces/staunton/wN.svg');
 }
 .piece-set-staunton piece.rook.white,
 .piece-set-staunton .promotion-dialog .rook.white,
-.piece-set-staunton .promotion-piece-btn.rook.white,
-.main-wrap:not([class*="piece-set-"]) piece.rook.white,
-.main-wrap:not([class*="piece-set-"]) .promotion-dialog .rook.white,
-.main-wrap:not([class*="piece-set-"]) .promotion-piece-btn.rook.white {
+.piece-set-staunton .promotion-piece-btn.rook.white {
   background-image: url('./assets/pieces/staunton/wR.svg');
 }
 .piece-set-staunton piece.queen.white,
 .piece-set-staunton .promotion-dialog .queen.white,
-.piece-set-staunton .promotion-piece-btn.queen.white,
-.main-wrap:not([class*="piece-set-"]) piece.queen.white,
-.main-wrap:not([class*="piece-set-"]) .promotion-dialog .queen.white,
-.main-wrap:not([class*="piece-set-"]) .promotion-piece-btn.queen.white {
+.piece-set-staunton .promotion-piece-btn.queen.white {
   background-image: url('./assets/pieces/staunton/wQ.svg');
 }
 .piece-set-staunton piece.king.white,
 .piece-set-staunton .promotion-dialog .king.white,
-.piece-set-staunton .promotion-piece-btn.king.white,
-.main-wrap:not([class*="piece-set-"]) piece.king.white,
-.main-wrap:not([class*="piece-set-"]) .promotion-dialog .king.white,
-.main-wrap:not([class*="piece-set-"]) .promotion-piece-btn.king.white {
+.piece-set-staunton .promotion-piece-btn.king.white {
   background-image: url('./assets/pieces/staunton/wK.svg');
 }
 .piece-set-staunton piece.pawn.black,
 .piece-set-staunton .promotion-dialog .pawn.black,
-.piece-set-staunton .promotion-piece-btn.pawn.black,
-.main-wrap:not([class*="piece-set-"]) piece.pawn.black,
-.main-wrap:not([class*="piece-set-"]) .promotion-dialog .pawn.black,
-.main-wrap:not([class*="piece-set-"]) .promotion-piece-btn.pawn.black {
+.piece-set-staunton .promotion-piece-btn.pawn.black {
   background-image: url('./assets/pieces/staunton/bP.svg');
 }
 .piece-set-staunton piece.bishop.black,
 .piece-set-staunton .promotion-dialog .bishop.black,
-.piece-set-staunton .promotion-piece-btn.bishop.black,
-.main-wrap:not([class*="piece-set-"]) piece.bishop.black,
-.main-wrap:not([class*="piece-set-"]) .promotion-dialog .bishop.black,
-.main-wrap:not([class*="piece-set-"]) .promotion-piece-btn.bishop.black {
+.piece-set-staunton .promotion-piece-btn.bishop.black {
   background-image: url('./assets/pieces/staunton/bB.svg');
 }
 .piece-set-staunton piece.knight.black,
 .piece-set-staunton .promotion-dialog .knight.black,
-.piece-set-staunton .promotion-piece-btn.knight.black,
-.main-wrap:not([class*="piece-set-"]) piece.knight.black,
-.main-wrap:not([class*="piece-set-"]) .promotion-dialog .knight.black,
-.main-wrap:not([class*="piece-set-"]) .promotion-piece-btn.knight.black {
+.piece-set-staunton .promotion-piece-btn.knight.black {
   background-image: url('./assets/pieces/staunton/bN.svg');
 }
 .piece-set-staunton piece.rook.black,
 .piece-set-staunton .promotion-dialog .rook.black,
-.piece-set-staunton .promotion-piece-btn.rook.black,
-.main-wrap:not([class*="piece-set-"]) piece.rook.black,
-.main-wrap:not([class*="piece-set-"]) .promotion-dialog .rook.black,
-.main-wrap:not([class*="piece-set-"]) .promotion-piece-btn.rook.black {
+.piece-set-staunton .promotion-piece-btn.rook.black {
   background-image: url('./assets/pieces/staunton/bR.svg');
 }
 .piece-set-staunton piece.queen.black,
 .piece-set-staunton .promotion-dialog .queen.black,
-.piece-set-staunton .promotion-piece-btn.queen.black,
-.main-wrap:not([class*="piece-set-"]) piece.queen.black,
-.main-wrap:not([class*="piece-set-"]) .promotion-dialog .queen.black,
-.main-wrap:not([class*="piece-set-"]) .promotion-piece-btn.queen.black {
+.piece-set-staunton .promotion-piece-btn.queen.black {
   background-image: url('./assets/pieces/staunton/bQ.svg');
 }
 .piece-set-staunton piece.king.black,
 .piece-set-staunton .promotion-dialog .king.black,
-.piece-set-staunton .promotion-piece-btn.king.black,
-.main-wrap:not([class*="piece-set-"]) piece.king.black,
-.main-wrap:not([class*="piece-set-"]) .promotion-dialog .king.black,
-.main-wrap:not([class*="piece-set-"]) .promotion-piece-btn.king.black {
+.piece-set-staunton .promotion-piece-btn.king.black {
   background-image: url('./assets/pieces/staunton/bK.svg');
 }
 
@@ -604,66 +568,114 @@ piece {
 }
 
 /* ==========================================================================
-   Piece Sets : CBurnett
+   Piece Sets : CBurnett (Default Fallback)
    ========================================================================== */
+piece.pawn.white,
 .piece-set-cburnett piece.pawn.white,
 .piece-set-cburnett .promotion-dialog .pawn.white,
-.piece-set-cburnett .promotion-piece-btn.pawn.white {
+.piece-set-cburnett .promotion-piece-btn.pawn.white,
+.main-wrap:not([class*='piece-set-']) piece.pawn.white,
+.main-wrap:not([class*='piece-set-']) .promotion-dialog .pawn.white,
+.main-wrap:not([class*='piece-set-']) .promotion-piece-btn.pawn.white {
   background-image: url('./assets/pieces/cburnett/wP.svg');
 }
+piece.bishop.white,
 .piece-set-cburnett piece.bishop.white,
 .piece-set-cburnett .promotion-dialog .bishop.white,
-.piece-set-cburnett .promotion-piece-btn.bishop.white {
+.piece-set-cburnett .promotion-piece-btn.bishop.white,
+.main-wrap:not([class*='piece-set-']) piece.bishop.white,
+.main-wrap:not([class*='piece-set-']) .promotion-dialog .bishop.white,
+.main-wrap:not([class*='piece-set-']) .promotion-piece-btn.bishop.white {
   background-image: url('./assets/pieces/cburnett/wB.svg');
 }
+piece.knight.white,
 .piece-set-cburnett piece.knight.white,
 .piece-set-cburnett .promotion-dialog .knight.white,
-.piece-set-cburnett .promotion-piece-btn.knight.white {
+.piece-set-cburnett .promotion-piece-btn.knight.white,
+.main-wrap:not([class*='piece-set-']) piece.knight.white,
+.main-wrap:not([class*='piece-set-']) .promotion-dialog .knight.white,
+.main-wrap:not([class*='piece-set-']) .promotion-piece-btn.knight.white {
   background-image: url('./assets/pieces/cburnett/wN.svg');
 }
+piece.rook.white,
 .piece-set-cburnett piece.rook.white,
 .piece-set-cburnett .promotion-dialog .rook.white,
-.piece-set-cburnett .promotion-piece-btn.rook.white {
+.piece-set-cburnett .promotion-piece-btn.rook.white,
+.main-wrap:not([class*='piece-set-']) piece.rook.white,
+.main-wrap:not([class*='piece-set-']) .promotion-dialog .rook.white,
+.main-wrap:not([class*='piece-set-']) .promotion-piece-btn.rook.white {
   background-image: url('./assets/pieces/cburnett/wR.svg');
 }
+piece.queen.white,
 .piece-set-cburnett piece.queen.white,
 .piece-set-cburnett .promotion-dialog .queen.white,
-.piece-set-cburnett .promotion-piece-btn.queen.white {
+.piece-set-cburnett .promotion-piece-btn.queen.white,
+.main-wrap:not([class*='piece-set-']) piece.queen.white,
+.main-wrap:not([class*='piece-set-']) .promotion-dialog .queen.white,
+.main-wrap:not([class*='piece-set-']) .promotion-piece-btn.queen.white {
   background-image: url('./assets/pieces/cburnett/wQ.svg');
 }
+piece.king.white,
 .piece-set-cburnett piece.king.white,
 .piece-set-cburnett .promotion-dialog .king.white,
-.piece-set-cburnett .promotion-piece-btn.king.white {
+.piece-set-cburnett .promotion-piece-btn.king.white,
+.main-wrap:not([class*='piece-set-']) piece.king.white,
+.main-wrap:not([class*='piece-set-']) .promotion-dialog .king.white,
+.main-wrap:not([class*='piece-set-']) .promotion-piece-btn.king.white {
   background-image: url('./assets/pieces/cburnett/wK.svg');
 }
+piece.pawn.black,
 .piece-set-cburnett piece.pawn.black,
 .piece-set-cburnett .promotion-dialog .pawn.black,
-.piece-set-cburnett .promotion-piece-btn.pawn.black {
+.piece-set-cburnett .promotion-piece-btn.pawn.black,
+.main-wrap:not([class*='piece-set-']) piece.pawn.black,
+.main-wrap:not([class*='piece-set-']) .promotion-dialog .pawn.black,
+.main-wrap:not([class*='piece-set-']) .promotion-piece-btn.pawn.black {
   background-image: url('./assets/pieces/cburnett/bP.svg');
 }
+piece.bishop.black,
 .piece-set-cburnett piece.bishop.black,
 .piece-set-cburnett .promotion-dialog .bishop.black,
-.piece-set-cburnett .promotion-piece-btn.bishop.black {
+.piece-set-cburnett .promotion-piece-btn.bishop.black,
+.main-wrap:not([class*='piece-set-']) piece.bishop.black,
+.main-wrap:not([class*='piece-set-']) .promotion-dialog .bishop.black,
+.main-wrap:not([class*='piece-set-']) .promotion-piece-btn.bishop.black {
   background-image: url('./assets/pieces/cburnett/bB.svg');
 }
+piece.knight.black,
 .piece-set-cburnett piece.knight.black,
 .piece-set-cburnett .promotion-dialog .knight.black,
-.piece-set-cburnett .promotion-piece-btn.knight.black {
+.piece-set-cburnett .promotion-piece-btn.knight.black,
+.main-wrap:not([class*='piece-set-']) piece.knight.black,
+.main-wrap:not([class*='piece-set-']) .promotion-dialog .knight.black,
+.main-wrap:not([class*='piece-set-']) .promotion-piece-btn.knight.black {
   background-image: url('./assets/pieces/cburnett/bN.svg');
 }
+piece.rook.black,
 .piece-set-cburnett piece.rook.black,
 .piece-set-cburnett .promotion-dialog .rook.black,
-.piece-set-cburnett .promotion-piece-btn.rook.black {
+.piece-set-cburnett .promotion-piece-btn.rook.black,
+.main-wrap:not([class*='piece-set-']) piece.rook.black,
+.main-wrap:not([class*='piece-set-']) .promotion-dialog .rook.black,
+.main-wrap:not([class*='piece-set-']) .promotion-piece-btn.rook.black {
   background-image: url('./assets/pieces/cburnett/bR.svg');
 }
+piece.queen.black,
 .piece-set-cburnett piece.queen.black,
 .piece-set-cburnett .promotion-dialog .queen.black,
-.piece-set-cburnett .promotion-piece-btn.queen.black {
+.piece-set-cburnett .promotion-piece-btn.queen.black,
+.main-wrap:not([class*='piece-set-']) piece.queen.black,
+.main-wrap:not([class*='piece-set-']) .promotion-dialog .queen.black,
+.main-wrap:not([class*='piece-set-']) .promotion-piece-btn.queen.black {
   background-image: url('./assets/pieces/cburnett/bQ.svg');
 }
+piece.king.black,
 .piece-set-cburnett piece.king.black,
 .piece-set-cburnett .promotion-dialog .king.black,
-.piece-set-cburnett .promotion-piece-btn.king.black {
+.piece-set-cburnett .promotion-piece-btn.king.black,
+.main-wrap:not([class*='piece-set-']) piece.king.black,
+.main-wrap:not([class*='piece-set-']) .promotion-dialog .king.black,
+.main-wrap:not([class*='piece-set-']) .promotion-piece-btn.king.black {
   background-image: url('./assets/pieces/cburnett/bK.svg');
 }
 
@@ -1050,5 +1062,3 @@ piece {
 .piece-set-firi .promotion-piece-btn.king.black {
   background-image: url('./assets/pieces/firi/bK.svg');
 }
-
-

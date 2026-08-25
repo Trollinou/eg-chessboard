@@ -78,7 +78,7 @@ export class BoardCore {
       this.state.playerColor = initialConfig.movable.color as 'white' | 'black' | 'both';
     }
 
-    this.state.pieceSet = this.state.pieceSet ?? 'staunton';
+    this.state.pieceSet = this.state.pieceSet ?? 'cburnett';
     this.state.boardTheme = this.state.boardTheme ?? 'brown';
 
     this.applyModeDefaults();
@@ -112,7 +112,9 @@ export class BoardCore {
         preserveShapesOnPositionChange: this.state.preserveShapesOnPositionChange,
       }),
       (color) => this.promptPromotion(color),
-      initialConfig
+      initialConfig,
+      this.state.pieceSet,
+      this.state.boardTheme
     );
 
     // 3. Register EventBus Listeners to dispatch Framework/Host Callbacks
@@ -572,15 +574,17 @@ export class BoardCore {
 
   public setPieceSet(pieceSet: PieceSet): void {
     this.state.pieceSet = pieceSet;
+    this.adapter.updateDomThemeClasses(pieceSet, this.getBoardTheme());
     this.onStateChange();
   }
 
   public getPieceSet(): PieceSet {
-    return this.state.pieceSet ?? 'staunton';
+    return this.state.pieceSet ?? 'cburnett';
   }
 
   public setBoardTheme(boardTheme: BoardTheme): void {
     this.state.boardTheme = boardTheme;
+    this.adapter.updateDomThemeClasses(this.getPieceSet(), boardTheme);
     this.onStateChange();
   }
 
