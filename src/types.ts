@@ -7,6 +7,8 @@ export const AVAILABLE_PIECE_SETS = [
   'cburnett',
   'cardinal',
   'dubrovny',
+  'fantasy',
+  'firi',
   'maestro',
   'staunty',
 ] as const;
@@ -20,6 +22,7 @@ export const AVAILABLE_BOARD_THEMES = [
   'grey',
   'purple',
   'wood',
+  'wood3',
   'maple',
 ] as const;
 export type BoardTheme = (typeof AVAILABLE_BOARD_THEMES)[number] | (string & {});

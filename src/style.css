@@ -221,6 +221,10 @@ cg-container {
   --board-coord-light: #f5e2c8;
   --board-coord-dark: #6b401b;
 }
+.board-theme-wood3 {
+  --board-coord-light: #f5e2c8;
+  --board-coord-dark: #6b401b;
+}
 .board-theme-maple {
   --board-coord-light: #fdf2e2;
   --board-coord-dark: #8a5426;
@@ -257,6 +261,9 @@ cg-board,
 }
 .board-theme-wood cg-board {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' xmlns:x='http://www.w3.org/1999/xlink' shape-rendering='crispEdges' viewBox='0 0 8 8'%3E%3Cg id='a'%3E%3Cg id='b'%3E%3Cg id='c'%3E%3Cg id='d'%3E%3Cpath id='e' fill='%23d2b48c' d='M0 0h1v1H0z'/%3E%3Cuse x:href='%23e' x='1' y='1' href='%23e'/%3E%3Cpath id='f' fill='%238b5a2b' d='M0 1h1v1H0z'/%3E%3Cuse x:href='%23f' x='1' y='-1' href='%23f'/%3E%3C/g%3E%3Cuse x:href='%23d' x='2' href='%23d'/%3E%3C/g%3E%3Cuse x:href='%23c' x='4' href='%23c'/%3E%3C/g%3E%3Cuse x:href='%23b' y='2' href='%23b'/%3E%3C/g%3E%3Cuse x:href='%23a' y='4' href='%23a'/%3E%3C/svg%3E");
+}
+.board-theme-wood3 cg-board {
+  background-image: url('./assets/boards/wood3.jpg');
 }
 .board-theme-maple cg-board {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' xmlns:x='http://www.w3.org/1999/xlink' shape-rendering='crispEdges' viewBox='0 0 8 8'%3E%3Cg id='a'%3E%3Cg id='b'%3E%3Cg id='c'%3E%3Cg id='d'%3E%3Cpath id='e' fill='%23f3dfc1' d='M0 0h1v1H0z'/%3E%3Cuse x:href='%23e' x='1' y='1' href='%23e'/%3E%3Cpath id='f' fill='%23ba7b46' d='M0 1h1v1H0z'/%3E%3Cuse x:href='%23f' x='1' y='-1' href='%23f'/%3E%3C/g%3E%3Cuse x:href='%23d' x='2' href='%23d'/%3E%3C/g%3E%3Cuse x:href='%23c' x='4' href='%23c'/%3E%3C/g%3E%3Cuse x:href='%23b' y='2' href='%23b'/%3E%3C/g%3E%3Cuse x:href='%23a' y='4' href='%23a'/%3E%3C/svg%3E");
@@ -914,6 +921,134 @@ piece {
 .piece-set-staunty .promotion-dialog .king.black,
 .piece-set-staunty .promotion-piece-btn.king.black {
   background-image: url('./assets/pieces/staunty/bK.svg');
+}
+
+/* ==========================================================================
+   Piece Sets : Fantasy
+   ========================================================================== */
+.piece-set-fantasy piece.pawn.white,
+.piece-set-fantasy .promotion-dialog .pawn.white,
+.piece-set-fantasy .promotion-piece-btn.pawn.white {
+  background-image: url('./assets/pieces/fantasy/wP.svg');
+}
+.piece-set-fantasy piece.bishop.white,
+.piece-set-fantasy .promotion-dialog .bishop.white,
+.piece-set-fantasy .promotion-piece-btn.bishop.white {
+  background-image: url('./assets/pieces/fantasy/wB.svg');
+}
+.piece-set-fantasy piece.knight.white,
+.piece-set-fantasy .promotion-dialog .knight.white,
+.piece-set-fantasy .promotion-piece-btn.knight.white {
+  background-image: url('./assets/pieces/fantasy/wN.svg');
+}
+.piece-set-fantasy piece.rook.white,
+.piece-set-fantasy .promotion-dialog .rook.white,
+.piece-set-fantasy .promotion-piece-btn.rook.white {
+  background-image: url('./assets/pieces/fantasy/wR.svg');
+}
+.piece-set-fantasy piece.queen.white,
+.piece-set-fantasy .promotion-dialog .queen.white,
+.piece-set-fantasy .promotion-piece-btn.queen.white {
+  background-image: url('./assets/pieces/fantasy/wQ.svg');
+}
+.piece-set-fantasy piece.king.white,
+.piece-set-fantasy .promotion-dialog .king.white,
+.piece-set-fantasy .promotion-piece-btn.king.white {
+  background-image: url('./assets/pieces/fantasy/wK.svg');
+}
+.piece-set-fantasy piece.pawn.black,
+.piece-set-fantasy .promotion-dialog .pawn.black,
+.piece-set-fantasy .promotion-piece-btn.pawn.black {
+  background-image: url('./assets/pieces/fantasy/bP.svg');
+}
+.piece-set-fantasy piece.bishop.black,
+.piece-set-fantasy .promotion-dialog .bishop.black,
+.piece-set-fantasy .promotion-piece-btn.bishop.black {
+  background-image: url('./assets/pieces/fantasy/bB.svg');
+}
+.piece-set-fantasy piece.knight.black,
+.piece-set-fantasy .promotion-dialog .knight.black,
+.piece-set-fantasy .promotion-piece-btn.knight.black {
+  background-image: url('./assets/pieces/fantasy/bN.svg');
+}
+.piece-set-fantasy piece.rook.black,
+.piece-set-fantasy .promotion-dialog .rook.black,
+.piece-set-fantasy .promotion-piece-btn.rook.black {
+  background-image: url('./assets/pieces/fantasy/bR.svg');
+}
+.piece-set-fantasy piece.queen.black,
+.piece-set-fantasy .promotion-dialog .queen.black,
+.piece-set-fantasy .promotion-piece-btn.queen.black {
+  background-image: url('./assets/pieces/fantasy/bQ.svg');
+}
+.piece-set-fantasy piece.king.black,
+.piece-set-fantasy .promotion-dialog .king.black,
+.piece-set-fantasy .promotion-piece-btn.king.black {
+  background-image: url('./assets/pieces/fantasy/bK.svg');
+}
+
+/* ==========================================================================
+   Piece Sets : Firi
+   ========================================================================== */
+.piece-set-firi piece.pawn.white,
+.piece-set-firi .promotion-dialog .pawn.white,
+.piece-set-firi .promotion-piece-btn.pawn.white {
+  background-image: url('./assets/pieces/firi/wP.svg');
+}
+.piece-set-firi piece.bishop.white,
+.piece-set-firi .promotion-dialog .bishop.white,
+.piece-set-firi .promotion-piece-btn.bishop.white {
+  background-image: url('./assets/pieces/firi/wB.svg');
+}
+.piece-set-firi piece.knight.white,
+.piece-set-firi .promotion-dialog .knight.white,
+.piece-set-firi .promotion-piece-btn.knight.white {
+  background-image: url('./assets/pieces/firi/wN.svg');
+}
+.piece-set-firi piece.rook.white,
+.piece-set-firi .promotion-dialog .rook.white,
+.piece-set-firi .promotion-piece-btn.rook.white {
+  background-image: url('./assets/pieces/firi/wR.svg');
+}
+.piece-set-firi piece.queen.white,
+.piece-set-firi .promotion-dialog .queen.white,
+.piece-set-firi .promotion-piece-btn.queen.white {
+  background-image: url('./assets/pieces/firi/wQ.svg');
+}
+.piece-set-firi piece.king.white,
+.piece-set-firi .promotion-dialog .king.white,
+.piece-set-firi .promotion-piece-btn.king.white {
+  background-image: url('./assets/pieces/firi/wK.svg');
+}
+.piece-set-firi piece.pawn.black,
+.piece-set-firi .promotion-dialog .pawn.black,
+.piece-set-firi .promotion-piece-btn.pawn.black {
+  background-image: url('./assets/pieces/firi/bP.svg');
+}
+.piece-set-firi piece.bishop.black,
+.piece-set-firi .promotion-dialog .bishop.black,
+.piece-set-firi .promotion-piece-btn.bishop.black {
+  background-image: url('./assets/pieces/firi/bB.svg');
+}
+.piece-set-firi piece.knight.black,
+.piece-set-firi .promotion-dialog .knight.black,
+.piece-set-firi .promotion-piece-btn.knight.black {
+  background-image: url('./assets/pieces/firi/bN.svg');
+}
+.piece-set-firi piece.rook.black,
+.piece-set-firi .promotion-dialog .rook.black,
+.piece-set-firi .promotion-piece-btn.rook.black {
+  background-image: url('./assets/pieces/firi/bR.svg');
+}
+.piece-set-firi piece.queen.black,
+.piece-set-firi .promotion-dialog .queen.black,
+.piece-set-firi .promotion-piece-btn.queen.black {
+  background-image: url('./assets/pieces/firi/bQ.svg');
+}
+.piece-set-firi piece.king.black,
+.piece-set-firi .promotion-dialog .king.black,
+.piece-set-firi .promotion-piece-btn.king.black {
+  background-image: url('./assets/pieces/firi/bK.svg');
 }
 
 

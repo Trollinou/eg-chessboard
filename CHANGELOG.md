@@ -6,6 +6,16 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-08-25
+
+### Ajouté & Amélioré
+
+- **Nouveaux Jeux de Pièces & Thème de Plateau (Lichess Wood 3, Fantasy & Firi)** :
+  - **Arrière-plan d'échiquier `wood3`** : Intégration de la texture photoréaliste HD en bois veiné (Lichess Wood 3) avec calcul des coordonnées contrastées.
+  - **Jeu de pièces `fantasy`** : 12 pièces vectorielles SVG au style médiéval et fantastique illustré.
+  - **Jeu de pièces `firi`** : 12 pièces vectorielles SVG aux lignes ultra-fines, modernes et épurées.
+  - Ajout dans `AVAILABLE_PIECE_SETS` (`'fantasy'`, `'firi'`) et `AVAILABLE_BOARD_THEMES` (`'wood3'`).
+
 ## [1.6.0] - 2026-08-21
 
 ### Ajouté & Amélioré

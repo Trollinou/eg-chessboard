@@ -155,8 +155,8 @@ Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une
 | `readOnly` | `boolean` | `false` | Mode lecture seule (Lecteur vs Éditeur PGN). En `readOnly: true`, les coups ne modifient pas le PGN et les formes dessinées sont éphémères. En `readOnly: false`, les coups créent des variantes et les formes/commentaires sont enregistrés dans le PGN. |
 | `fitContainer` | `boolean` | `false` | Étend l'échiquier à 100% de la hauteur/largeur du conteneur parent (supprime les ratios fixes). |
 | `preserveShapesOnPositionChange` | `boolean` | `false` | Conserve les formes/flèches dessinées lors de la pose ou suppression de pièces (implicite si `mode='editor'`). |
-| `pieceSet` | `PieceSet` | `'staunton'` | Style graphique du jeu de pièces (`'staunton'`, `'merida'`, `'alpha'`, `'cburnett'`, `'cardinal'`, `'dubrovny'`, `'maestro'`, `'staunty'`). |
-| `boardTheme` | `BoardTheme` | `'brown'` | Thème d'arrière-plan de l'échiquier et contraste des coordonnées (`'brown'`, `'blue'`, `'green'`, `'ic'`, `'grey'`, `'purple'`, `'wood'`, `'maple'`). |
+| `pieceSet` | `PieceSet` | `'staunton'` | Style graphique du jeu de pièces (`'staunton'`, `'merida'`, `'alpha'`, `'cburnett'`, `'cardinal'`, `'dubrovny'`, `'fantasy'`, `'firi'`, `'maestro'`, `'staunty'`). |
+| `boardTheme` | `BoardTheme` | `'brown'` | Thème d'arrière-plan de l'échiquier et contraste des coordonnées (`'brown'`, `'blue'`, `'green'`, `'ic'`, `'grey'`, `'purple'`, `'wood'`, `'wood3'`, `'maple'`). |
 | `stockfishConfig`| `StockfishConfig` | `{}` | Configuration du moteur de jeu et d'analyse Stockfish. |
 | `diagram` | `ChessDiagram` | `undefined` | Position FEN et annotations graphiques (flèches/cercles) d'initialisation. |
 
@@ -415,7 +415,7 @@ export interface ChessDiagram {
 
 ## 🎭 Jeux de pièces (Piece Sets)
 
-`eg-chessboard` intègre **8 jeux de pièces vectoriels (SVG)** libres de droits, utilisables via la prop `pieceSet` ou `core.setPieceSet()` :
+`eg-chessboard` intègre **10 jeux de pièces vectoriels (SVG)** libres de droits, utilisables via la prop `pieceSet` ou `core.setPieceSet()` :
 
 | Nom | Style | Licence / Origine |
 | :--- | :--- | :--- |
@@ -425,6 +425,8 @@ export interface ChessDiagram {
 | **`cburnett`** | Design vectoriel moderne flat (Colin Burnett / Lichess) | GPL / CC-BY-SA |
 | **`cardinal`** | Style tournoi traditionnel élancé et élégant | GPL / CC-BY-SA |
 | **`dubrovny`** | Inspiré des célèbres pièces des Olympiades de Dubrovnik 1950 | CC-BY-SA |
+| **`fantasy`** | Style médiéval / fantastique illustré expressif | CC-BY-SA |
+| **`firi`** | Lignes épurées, modernes et ultra-fines | CC-BY-SA |
 | **`maestro`** | Style traditionnel européen robuste | CC-BY-SA |
 | **`staunty`** | Variante Staunton contemporaine épurée | CC-BY-SA |
 
@@ -432,19 +434,19 @@ Exemple d'utilisation en Vue 3 / React :
 
 ```vue
 <!-- Vue 3 -->
-<TheChessboard piece-set="cburnett" />
+<TheChessboard piece-set="fantasy" />
 ```
 
 ```tsx
 // React
-<Chessboard pieceSet="merida" />
+<Chessboard pieceSet="firi" />
 ```
 
 ---
 
 ## 🏁 Thèmes d'Échiquier (Board Themes)
 
-`eg-chessboard` intègre **8 thèmes d'arrière-plan vectoriels** avec calcul automatique du contraste des coordonnées (rangées et colonnes) :
+`eg-chessboard` intègre **9 thèmes d'arrière-plan** (vectoriels et textures HD) avec calcul automatique du contraste des coordonnées (rangées et colonnes) :
 
 | Thème | Cases Claires | Cases Sombres | Rendu / Style |
 | :--- | :--- | :--- | :--- |
@@ -454,19 +456,20 @@ Exemple d'utilisation en Vue 3 / React :
 | **`ic`** | `#ece9d8` | `#c4cfa3` | Style Lichess IC (doux et contrasté) |
 | **`grey`** | `#e0e0e0` | `#8a8a8a` | Gris moderne / Ardoise |
 | **`purple`** | `#edeed1` | `#7d5ea3` | Violet / Lilas contemporain |
-| **`wood`** | `#d2b48c` | `#8b5a2b` | Bois noyer chaud |
+| **`wood`** | `#d2b48c` | `#8b5a2b` | Bois noyer chaud (vectoriel) |
+| **`wood3`** | Texture HD | Texture HD | Bois veiné photoréaliste (Lichess Wood 3) |
 | **`maple`** | `#f3dfc1` | `#ba7b46` | Érable naturel doré |
 
 Exemple d'utilisation en Vue 3 / React :
 
 ```vue
 <!-- Vue 3 -->
-<TheChessboard board-theme="green" piece-set="cburnett" />
+<TheChessboard board-theme="wood3" piece-set="fantasy" />
 ```
 
 ```tsx
 // React
-<Chessboard boardTheme="blue" pieceSet="merida" />
+<Chessboard boardTheme="wood3" pieceSet="firi" />
 ```
 
 ---
