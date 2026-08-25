@@ -6,6 +6,17 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-08-25
+
+### Corrigé & Amélioré
+
+- **Repli universel des pièces (`cburnett`) & Auto-décoration DOM Vanilla JS** :
+  - **Fallback CSS universel** : Ajout de sélecteurs génériques sans classe parent restrictive (`piece.<role>.<color>`, `.main-wrap:not([class*="piece-set-"])`) ciblant le jeu de pièces `cburnett`, assurant l'affichage immédiat des pièces même sur un conteneur HTML brut non stylé.
+  - **Fond d'échiquier par défaut (`brown`)** : Maintien et sécurisation du thème `brown` sur `cg-board` et `.main-wrap:not([class*="board-theme-"])`.
+  - **Auto-décoration DOM dans `BoardAdapter`** : Détection et injection automatique des classes essentielles (`.main-board`, `.main-wrap`, `.piece-set-cburnett`, `.board-theme-brown`) lors de l'instanciation de `BoardCore` sur un élément DOM Vanilla JS.
+  - **Synchronisation dynamique des classes DOM** : `core.setPieceSet()` et `core.setBoardTheme()` mettent désormais à jour directement et de manière réactive les classes CSS appliquées sur le conteneur DOM.
+  - **Alignement des valeurs par défaut de `BoardCore`** : `pieceSet` est désormais initialisé par défaut à `'cburnett'`.
+
 ## [1.6.1] - 2026-08-25
 
 ### Ajouté & Amélioré
