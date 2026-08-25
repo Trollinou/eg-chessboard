@@ -376,67 +376,67 @@ piece {
 }
 
 /* ==========================================================================
-   Piece Sets : Staunton
+   Piece Sets : Tatiana
    ========================================================================== */
-.piece-set-staunton piece.pawn.white,
-.piece-set-staunton .promotion-dialog .pawn.white,
-.piece-set-staunton .promotion-piece-btn.pawn.white {
-  background-image: url('./assets/pieces/staunton/wP.svg');
+.piece-set-tatiana piece.pawn.white,
+.piece-set-tatiana .promotion-dialog .pawn.white,
+.piece-set-tatiana .promotion-piece-btn.pawn.white {
+  background-image: url('./assets/pieces/tatiana/wP.svg');
 }
-.piece-set-staunton piece.bishop.white,
-.piece-set-staunton .promotion-dialog .bishop.white,
-.piece-set-staunton .promotion-piece-btn.bishop.white {
-  background-image: url('./assets/pieces/staunton/wB.svg');
+.piece-set-tatiana piece.bishop.white,
+.piece-set-tatiana .promotion-dialog .bishop.white,
+.piece-set-tatiana .promotion-piece-btn.bishop.white {
+  background-image: url('./assets/pieces/tatiana/wB.svg');
 }
-.piece-set-staunton piece.knight.white,
-.piece-set-staunton .promotion-dialog .knight.white,
-.piece-set-staunton .promotion-piece-btn.knight.white {
-  background-image: url('./assets/pieces/staunton/wN.svg');
+.piece-set-tatiana piece.knight.white,
+.piece-set-tatiana .promotion-dialog .knight.white,
+.piece-set-tatiana .promotion-piece-btn.knight.white {
+  background-image: url('./assets/pieces/tatiana/wN.svg');
 }
-.piece-set-staunton piece.rook.white,
-.piece-set-staunton .promotion-dialog .rook.white,
-.piece-set-staunton .promotion-piece-btn.rook.white {
-  background-image: url('./assets/pieces/staunton/wR.svg');
+.piece-set-tatiana piece.rook.white,
+.piece-set-tatiana .promotion-dialog .rook.white,
+.piece-set-tatiana .promotion-piece-btn.rook.white {
+  background-image: url('./assets/pieces/tatiana/wR.svg');
 }
-.piece-set-staunton piece.queen.white,
-.piece-set-staunton .promotion-dialog .queen.white,
-.piece-set-staunton .promotion-piece-btn.queen.white {
-  background-image: url('./assets/pieces/staunton/wQ.svg');
+.piece-set-tatiana piece.queen.white,
+.piece-set-tatiana .promotion-dialog .queen.white,
+.piece-set-tatiana .promotion-piece-btn.queen.white {
+  background-image: url('./assets/pieces/tatiana/wQ.svg');
 }
-.piece-set-staunton piece.king.white,
-.piece-set-staunton .promotion-dialog .king.white,
-.piece-set-staunton .promotion-piece-btn.king.white {
-  background-image: url('./assets/pieces/staunton/wK.svg');
+.piece-set-tatiana piece.king.white,
+.piece-set-tatiana .promotion-dialog .king.white,
+.piece-set-tatiana .promotion-piece-btn.king.white {
+  background-image: url('./assets/pieces/tatiana/wK.svg');
 }
-.piece-set-staunton piece.pawn.black,
-.piece-set-staunton .promotion-dialog .pawn.black,
-.piece-set-staunton .promotion-piece-btn.pawn.black {
-  background-image: url('./assets/pieces/staunton/bP.svg');
+.piece-set-tatiana piece.pawn.black,
+.piece-set-tatiana .promotion-dialog .pawn.black,
+.piece-set-tatiana .promotion-piece-btn.pawn.black {
+  background-image: url('./assets/pieces/tatiana/bP.svg');
 }
-.piece-set-staunton piece.bishop.black,
-.piece-set-staunton .promotion-dialog .bishop.black,
-.piece-set-staunton .promotion-piece-btn.bishop.black {
-  background-image: url('./assets/pieces/staunton/bB.svg');
+.piece-set-tatiana piece.bishop.black,
+.piece-set-tatiana .promotion-dialog .bishop.black,
+.piece-set-tatiana .promotion-piece-btn.bishop.black {
+  background-image: url('./assets/pieces/tatiana/bB.svg');
 }
-.piece-set-staunton piece.knight.black,
-.piece-set-staunton .promotion-dialog .knight.black,
-.piece-set-staunton .promotion-piece-btn.knight.black {
-  background-image: url('./assets/pieces/staunton/bN.svg');
+.piece-set-tatiana piece.knight.black,
+.piece-set-tatiana .promotion-dialog .knight.black,
+.piece-set-tatiana .promotion-piece-btn.knight.black {
+  background-image: url('./assets/pieces/tatiana/bN.svg');
 }
-.piece-set-staunton piece.rook.black,
-.piece-set-staunton .promotion-dialog .rook.black,
-.piece-set-staunton .promotion-piece-btn.rook.black {
-  background-image: url('./assets/pieces/staunton/bR.svg');
+.piece-set-tatiana piece.rook.black,
+.piece-set-tatiana .promotion-dialog .rook.black,
+.piece-set-tatiana .promotion-piece-btn.rook.black {
+  background-image: url('./assets/pieces/tatiana/bR.svg');
 }
-.piece-set-staunton piece.queen.black,
-.piece-set-staunton .promotion-dialog .queen.black,
-.piece-set-staunton .promotion-piece-btn.queen.black {
-  background-image: url('./assets/pieces/staunton/bQ.svg');
+.piece-set-tatiana piece.queen.black,
+.piece-set-tatiana .promotion-dialog .queen.black,
+.piece-set-tatiana .promotion-piece-btn.queen.black {
+  background-image: url('./assets/pieces/tatiana/bQ.svg');
 }
-.piece-set-staunton piece.king.black,
-.piece-set-staunton .promotion-dialog .king.black,
-.piece-set-staunton .promotion-piece-btn.king.black {
-  background-image: url('./assets/pieces/staunton/bK.svg');
+.piece-set-tatiana piece.king.black,
+.piece-set-tatiana .promotion-dialog .king.black,
+.piece-set-tatiana .promotion-piece-btn.king.black {
+  background-image: url('./assets/pieces/tatiana/bK.svg');
 }
 
 /* ==========================================================================

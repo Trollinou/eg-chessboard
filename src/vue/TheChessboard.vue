@@ -51,7 +51,7 @@ const props = withDefaults(
     readOnly: false,
     fitContainer: false,
     preserveShapesOnPositionChange: false,
-    pieceSet: 'staunton',
+    pieceSet: 'cburnett',
     boardTheme: 'brown',
     stockfishConfig: () => ({}),
   }
@@ -286,7 +286,7 @@ defineExpose({
   <section
     class="main-wrap"
     :class="[
-      `piece-set-${state.pieceSet || 'staunton'}`,
+      `piece-set-${state.pieceSet || 'cburnett'}`,
       `board-theme-${state.boardTheme || 'brown'}`,
       {
         disabledBoard: state.promotionDialogState.isEnabled,

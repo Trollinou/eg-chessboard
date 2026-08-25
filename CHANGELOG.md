@@ -6,6 +6,17 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.6.4] - 2026-08-25
+
+### Modifié & Ajouté
+
+- **Intégration du jeu de pièces Tatiana & Remplacement du doublon Staunton** :
+  - Remplacement du set de pièces dupliqué `staunton` (identique au design `maestro`) par le jeu de pièces vectoriel officiel **`tatiana`** de Lichess (`src/assets/pieces/tatiana/`).
+  - Conservation de **`maestro`** dans le catalogue des pièces (`AVAILABLE_PIECE_SETS`).
+- **Standardisation du style par défaut (`cburnett` / `brown`)** :
+  - Alignement des wrappers React (`<Chessboard>`) et Vue 3 (`<TheChessboard>`) ainsi que du bac à sable pour utiliser par défaut le couple standard **`cburnett`** (pièces) et **`brown`** (échiquier), conforme aux standards Lichess.
+  - Mise à jour de la documentation technique (`README.md`, `USING.md`, `AGENTS.md`).
+
 ## [1.6.3] - 2026-08-25
 
 ### Corrigé

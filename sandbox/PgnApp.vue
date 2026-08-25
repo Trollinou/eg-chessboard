@@ -10,7 +10,7 @@ const props = withDefaults(
     boardTheme?: BoardTheme;
   }>(),
   {
-    pieceSet: 'staunton',
+    pieceSet: 'cburnett',
     boardTheme: 'brown',
   }
 );

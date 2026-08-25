@@ -12,7 +12,7 @@ import {
 } from '../src/types';
 import PgnApp from './PgnApp.vue';
 
-const selectedPieceSet = ref<PieceSet>('staunton');
+const selectedPieceSet = ref<PieceSet>('cburnett');
 const selectedBoardTheme = ref<BoardTheme>('brown');
 const activeTab = ref<'stockfish' | 'pgn' | 'solo' | 'editor'>('stockfish');
 

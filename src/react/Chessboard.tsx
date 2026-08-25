@@ -58,7 +58,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   readOnly = false,
   fitContainer = false,
   preserveShapesOnPositionChange = false,
-  pieceSet = 'staunton',
+  pieceSet = 'cburnett',
   boardTheme = 'brown',
   stockfishConfig = {},
   diagram,
@@ -249,7 +249,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
 
   return (
     <section
-      className={`main-wrap piece-set-${state.pieceSet || 'staunton'} board-theme-${state.boardTheme || 'brown'} ${
+      className={`main-wrap piece-set-${state.pieceSet || 'cburnett'} board-theme-${state.boardTheme || 'brown'} ${
         state.promotionDialogState.isEnabled ? 'disabledBoard' : ''
       } ${state.historyViewerState.isEnabled ? 'viewingHistory' : ''} ${
         fitContainer ? 'fit-container' : ''
