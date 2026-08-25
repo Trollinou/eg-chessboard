@@ -67,41 +67,41 @@ export class BoardAdapter {
   }
 
   public autoDecorateDom(pieceSet: PieceSet = 'cburnett', boardTheme: BoardTheme = 'brown'): void {
-    if (!this.element.classList.contains('main-board')) {
-      this.element.classList.add('main-board');
-    }
-
+    // If element is already wrapped in .main-board or has .main-board, do not mutate parent wrapper
     const parent = this.element.parentElement;
-    const target = parent || this.element;
+    const isAlreadyStructured =
+      this.element.classList.contains('main-board') ||
+      parent?.classList.contains('main-board') ||
+      parent?.classList.contains('main-wrap');
 
-    if (parent && !parent.classList.contains('main-wrap')) {
-      parent.classList.add('main-wrap');
-    }
-
-    const currentClasses = Array.from(target.classList);
-    const pieceSetClass = currentClasses.find((c) => c.startsWith('piece-set-'));
-    if (!pieceSetClass) {
-      target.classList.add(`piece-set-${pieceSet}`);
-    }
-
-    const boardThemeClass = currentClasses.find((c) => c.startsWith('board-theme-'));
-    if (!boardThemeClass) {
-      target.classList.add(`board-theme-${boardTheme}`);
+    if (!isAlreadyStructured) {
+      this.element.classList.add('main-board');
+      if (!Array.from(this.element.classList).some((c) => c.startsWith('piece-set-'))) {
+        this.element.classList.add(`piece-set-${pieceSet}`);
+      }
+      if (!Array.from(this.element.classList).some((c) => c.startsWith('board-theme-'))) {
+        this.element.classList.add(`board-theme-${boardTheme}`);
+      }
     }
   }
 
   public updateDomThemeClasses(pieceSet: PieceSet, boardTheme: BoardTheme): void {
+    // Update theme classes on wrapper or standalone element without touching Vue/React controlled root
     const parent = this.element.parentElement;
-    const target = parent || this.element;
+    const isInsideComponent = parent?.classList.contains('main-board');
 
-    Array.from(target.classList).forEach((c) => {
-      if (c.startsWith('piece-set-') || c.startsWith('board-theme-')) {
-        target.classList.remove(c);
-      }
-    });
-
-    target.classList.add(`piece-set-${pieceSet}`);
-    target.classList.add(`board-theme-${boardTheme}`);
+    // In Vue/React wrappers, the framework manages classes on .main-wrap directly.
+    // In standalone Vanilla JS mode, we update the classes on the element directly.
+    if (!isInsideComponent) {
+      const target = this.element;
+      Array.from(target.classList).forEach((c) => {
+        if (c.startsWith('piece-set-') || c.startsWith('board-theme-')) {
+          target.classList.remove(c);
+        }
+      });
+      target.classList.add(`piece-set-${pieceSet}`);
+      target.classList.add(`board-theme-${boardTheme}`);
+    }
   }
 
   public getElement(): HTMLElement {
