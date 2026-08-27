@@ -591,17 +591,21 @@ export class GameSession {
       this.currentNode = mainline[mainline.length - 1];
     }
     this.pos = this.syncGamePosToCurrentNode();
-    this.resetHistoryState();
 
-    this.eventBus.emit('turn-changed', {
-      turnColor: this.getTurnColor(),
-      ply: this.getCurrentPlyNumber(),
-    });
-    this.eventBus.emit('position-changed', {
-      fen: this.getFen(),
-      posUpdated: true,
-    });
-    this.eventBus.emit('state-changed');
+    if (mainline.length > 0) {
+      this.viewStart();
+    } else {
+      this.resetHistoryState();
+      this.eventBus.emit('turn-changed', {
+        turnColor: this.getTurnColor(),
+        ply: this.getCurrentPlyNumber(),
+      });
+      this.eventBus.emit('position-changed', {
+        fen: this.getFen(),
+        posUpdated: true,
+      });
+      this.eventBus.emit('state-changed');
+    }
   }
 
   public getPgn(): string {

@@ -6,7 +6,13 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
-## [1.6.5] - 2026-08-27
+## [1.6.6] - 2026-08-27
+
+### Corrigé & Amélioré
+
+- **Positionnement automatique sur la FEN initiale au chargement PGN** :
+  - Déclenchement automatique de `viewStart()` dans `GameSession.loadPgn()` lorsqu'une partie avec des coups est chargée, permettant d'afficher immédiatement la position de départ (ply 0).
+  - Protection de la vue historique dans `BoardCore.loadPgn()` pour éviter d'écraser la FEN et les formes initiales (`startingComments`) avec le dernier coup de la partie.
 
 ### Corrigé & Amélioré
 

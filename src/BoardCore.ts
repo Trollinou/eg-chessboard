@@ -559,10 +559,12 @@ export class BoardCore {
 
   public loadPgn(pgnStr: string): void {
     this.session.loadPgn(pgnStr);
-    this.adapter.updateGameState({ updateFen: true });
-    const lastMove = this.getLastMove();
-    if (lastMove) {
-      this.board.set({ lastMove: [lastMove.from as Key, lastMove.to as Key] });
+    if (!this.session.isViewingHistory()) {
+      this.adapter.updateGameState({ updateFen: true });
+      const lastMove = this.getLastMove();
+      if (lastMove) {
+        this.board.set({ lastMove: [lastMove.from as Key, lastMove.to as Key] });
+      }
     }
     this.stockfishManager.initStockfish(!!this.state.freeMode);
     this.stockfishManager.triggerStockfish(!!this.state.freeMode);
