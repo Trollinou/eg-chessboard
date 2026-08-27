@@ -234,21 +234,21 @@ export class AnnotationService {
       }
     }
 
-    const cplRegex = /\[%cpl\s+([^\]]+)\]/g;
-    let cplMatch;
-    while ((cplMatch = cplRegex.exec(commentStr)) !== null) {
-      const list = cplMatch[1].split(',');
+    const cslRegex = /\[%(?:csl|cpl)\s+([^\]]+)\]/gi;
+    let cslMatch;
+    while ((cslMatch = cslRegex.exec(commentStr)) !== null) {
+      const list = cslMatch[1].split(',');
       for (const item of list) {
         const trimmed = item.trim();
         if (trimmed.length >= 3) {
           const brush = this.getBrushName(trimmed[0].toLowerCase());
-          const orig = trimmed.substring(1, 3) as Key;
+          const orig = trimmed.substring(1, 3).toLowerCase() as Key;
           shapes.push({ orig, brush });
         }
       }
     }
 
-    text = text.replace(/\[%(cal|cpl)\s+[^\]]+\]/g, '').trim();
+    text = text.replace(/\[%(?:cal|csl|cpl)\s+[^\]]+\]/gi, '').trim();
 
     return { text, shapes };
   }
@@ -256,14 +256,14 @@ export class AnnotationService {
   public shapesToPgnComment(shapes: DrawShape[]): string {
     if (shapes.length === 0) return '';
     const cal: string[] = [];
-    const cpl: string[] = [];
+    const csl: string[] = [];
 
     for (const s of shapes) {
       const brushChar = this.getBrushChar(s.brush || 'green');
       if (s.orig && s.dest) {
         cal.push(`${brushChar}${s.orig}${s.dest}`);
       } else if (s.orig) {
-        cpl.push(`${brushChar}${s.orig}`);
+        csl.push(`${brushChar}${s.orig}`);
       }
     }
 
@@ -271,8 +271,8 @@ export class AnnotationService {
     if (cal.length > 0) {
       annotation += `[%cal ${cal.join(',')}]`;
     }
-    if (cpl.length > 0) {
-      annotation += `[%cpl ${cpl.join(',')}]`;
+    if (csl.length > 0) {
+      annotation += `[%csl ${csl.join(',')}]`;
     }
     return annotation;
   }

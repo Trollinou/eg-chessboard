@@ -6,6 +6,15 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+### Corrigé & Amélioré
+
+- **Standardisation des annotations de cases colorées (`[%csl ...]`) & compatibilité (`[%cpl ...]`)** :
+  - Support de la balise Lichess standard `[%csl ...]` (*Colored Squares List*) et maintien de la compatibilité avec `[%cpl ...]` lors du parsing dans `AnnotationService.parseComment()`.
+  - Sérialisation standardisée en `[%csl ...]` dans `AnnotationService.shapesToPgnComment()`.
+- **Rattachement des commentaires et annotations initiales (ply 0)** :
+  - Transmission des commentaires racines du jeu (`game.comments`) aux `startingComments` du premier coup dans `GameSession.loadPgn()`.
+  - Restitution correcte des annotations graphiques et commentaires textuels lors de la navigation sur la position de départ (`viewStart()` / ply 0).
+
 ## [1.6.4] - 2026-08-25
 
 ### Modifié & Ajouté

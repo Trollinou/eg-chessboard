@@ -25,7 +25,7 @@ Ce document est votre **anti-sèche d'utilisation**. Il vous permet de retrouver
 C'est le paramètre fondamental qui définit la **finalité** du composant :
 - **`mode="game"`** *(défaut)* : Pour **jouer** une partie (humain vs humain ou IA) ou **résoudre** un exercice. Validation stricte des règles par `chessops`.
 - **`mode="editor"`** : Pour **éditer** un diagramme / poser des pièces librement / composer un problème FEN. Tolérance totale aux positions hors-règles.
-- **`mode="study"`** : Pour **analyser** une partie PGN avec sous-variantes `(...)` et commentaires graphiques `[%cal]`/`[%cpl]`.
+- **`mode="study"`** : Pour **analyser** une partie PGN avec sous-variantes `(...)` et commentaires graphiques `[%cal]`/`[%csl]`.
 
 ---
 

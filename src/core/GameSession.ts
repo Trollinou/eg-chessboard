@@ -577,6 +577,14 @@ export class GameSession {
       return meta;
     });
 
+    if (game.comments && game.comments.length > 0 && this.rootNode.children.length > 0) {
+      const firstChild = this.rootNode.children[0];
+      firstChild.data.startingComments = [
+        ...(firstChild.data.startingComments || []),
+        ...game.comments,
+      ];
+    }
+
     this.currentNode = this.rootNode;
     const mainline = Array.from(this.rootNode.mainlineNodes());
     if (mainline.length > 0) {

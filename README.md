@@ -13,7 +13,7 @@ La bibliothèque est construite selon le principe de **source de vérité unique
 - **`BoardCore` (TS pur - Façade d'Orchestration Mince)** : Moteur logique agnostique qui orchestre l'état et offre une interface publique unifiée aux wrappers React et Vue 3. L'architecture interne s'organise autour de 4 modules de domaine spécialisés reliés par un bus d'événements interne (`DomainEventBus`) :
   - **`GameSession`** : Moteur de jeu pur (indépendant du DOM). Gère l'arbre PGN (`Node<PgnNodeMeta>`), les sous-variantes, la navigation pas-à-pas dans l'historique, la validation/exécution des coups et l'arbitrage complet (échec, mat, pat, nulle, triple répétition, 50 coups).
   - **`BoardAdapter`** : Pont avec Chessground et le DOM. Gère le cycle de vie de l'échiquier visuel, les interactions utilisateur (clics, drag & drop, redimensionnement), la gestion des dialogues de promotion et la synchronisation bidirectionnelle (`syncGameFromBoard`, `updateGameState`).
-  - **`AnnotationService`** : Gestion centralisée des formes graphiques (flèches, cercles), du calcul dynamique des menaces (`drawThreats`), et de la sérialisation des balises PGN `[%cal]`/`[%cpl]`.
+  - **`AnnotationService`** : Gestion centralisée des formes graphiques (flèches, cercles et cases colorées), du calcul dynamique des menaces (`drawThreats`), et de la sérialisation des balises PGN `[%cal]`/`[%csl]` (avec rétrocompatibilité `[%cpl]`).
   - **`StockfishManager`** : Cycle de vie, protocole UCI et communications asynchrones avec les Web Workers Stockfish (WASM).
   - **`ExerciseManager`** : Restrictions de mouvements (`restrictMovesToPieces`), détection des cases attaquées et historique en mode solo.
   - **`FenManager` & `pieceMapping`** : Utilitaires purs de parsing FEN tolérant, de calcul de matériel et de conversion de structures de données.
@@ -148,7 +148,7 @@ Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une
 | Prop | Type | Par défaut | Description |
 | :--- | :--- | :--- | :--- |
 | `boardConfig` | `Config` | `{}` | Configuration native de l'échiquier Chessground. |
-| `mode` | `'editor' \| 'game' \| 'study'` | `'game'` | Mode métier : `'editor'` (diagrammes, formes sur canvas persistant), `'game'` (partie/exercice, formes éphémères ou de consigne), `'study'` (annotations PGN rattachées aux demi-coups `[%cal]`/`[%cpl]`). |
+| `mode` | `'editor' \| 'game' \| 'study'` | `'game'` | Mode métier : `'editor'` (diagrammes, formes sur canvas persistant), `'game'` (partie/exercice, formes éphémères ou de consigne), `'study'` (annotations PGN rattachées aux demi-coups `[%cal]`/`[%csl]`). |
 | `playerColor` | `'white' \| 'black' \| 'both'` | `undefined` | Couleur(s) autorisée(s) au déplacement pour l'utilisateur. |
 | `freeMode` | `boolean` | `false` | Mode libre : déplace les pièces librement sans validation stricte des règles ni contrainte d'alternance de tour, et resynchronise l'état et la FEN. |
 | `soloMode` | `boolean` | `false` | Mode solo : autorise les déplacements consécutifs du même joueur sans alternance forcée. |
