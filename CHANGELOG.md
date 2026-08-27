@@ -6,6 +6,8 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.6.5] - 2026-08-27
+
 ### Corrigé & Amélioré
 
 - **Standardisation des annotations de cases colorées (`[%csl ...]`) & compatibilité (`[%cpl ...]`)** :
