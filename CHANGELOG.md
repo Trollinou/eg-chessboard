@@ -6,7 +6,13 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
-## [1.6.6] - 2026-08-27
+## [1.6.7] - 2026-08-27
+
+### Corrigé
+
+- **Préservation des formes lors des mises à jour dynamiques de configuration (`BoardCore.setConfig`)** :
+  - Conservation et ré-application des formes actives (`AnnotationService.getShapes()`) lors des appels à `setConfig()` lorsque `drawable.shapes` n'est pas spécifié dans la nouvelle configuration.
+  - Résolution des disparitions de formes provoquées par les déclenchements de watchers de configuration réactive (`boardConfig`) dans les composants hôtes.
 
 ### Corrigé & Amélioré
 

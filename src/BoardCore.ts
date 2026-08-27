@@ -307,6 +307,9 @@ export class BoardCore {
       this.state.playerColor = other.movable.color as 'white' | 'black' | 'both';
       this.onStateChange();
     }
+    const existingShapes = this.annotationService.getShapes(
+      !!this.state.preserveShapesOnPositionChange
+    );
     this.board.set(other);
     if (configFen && !this.isSameFen(configFen)) {
       this.setPosition(configFen);
@@ -314,6 +317,11 @@ export class BoardCore {
     if (other.drawable?.shapes) {
       this.annotationService.applyBoardShapes(
         other.drawable.shapes,
+        !!this.state.preserveShapesOnPositionChange
+      );
+    } else if (existingShapes && existingShapes.length > 0) {
+      this.annotationService.applyBoardShapes(
+        existingShapes,
         !!this.state.preserveShapesOnPositionChange
       );
     }
