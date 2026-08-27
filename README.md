@@ -225,7 +225,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `setPosition(fen)` | `fen: string` | Charge une FEN. Tolère les FENs incomplètes sans crash. |
 | `setDiagram(diagram)` | `diagram: ChessDiagram` | Charge une position FEN et ses formes (flèches/cercles). |
 | `getDiagram()` | `none` | Retourne l'objet `{ fen, shapes }` représentant la position et les dessins actuels. |
-| `loadPgn(pgn)` | `pgn: string` | Charge une partie PGN complète avec toutes ses sous-variantes. |
+| `loadPgn(pgn)` | `pgn: string` | Charge une partie PGN complète avec toutes ses sous-variantes et positionne automatiquement l'échiquier sur la position de départ (ply 0) avec restitution des formes et commentaires initiaux. |
 | `resetBoard()` | `none` | Réinitialise l'échiquier à la position de départ standard. |
 | `undoLastMove()` | `none` | Annule le dernier coup joué et remonte au nœud parent dans l'arbre PGN. |
 | `toggleOrientation()` | `none` | Inverse l'orientation du plateau (Blancs / Noirs). |
