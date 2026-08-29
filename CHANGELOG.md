@@ -6,6 +6,15 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.6.8] - 2026-08-29
+
+### Corrigé & Amélioré
+
+- **Préservation des annotations graphiques (`%csl` / `%cal`) au clic et déplacement de pièces en mode `study`** :
+  - Désactivation de `eraseOnMovablePieceClick` en mode `study` dans `AnnotationService`, `BoardAdapter` et `BoardCore`.
+  - Résolution dynamique du mode courant via `getOptions` dans `AnnotationService` pour éviter toute réinitialisation intempestive de `eraseOnMovablePieceClick` lors du rendu des formes.
+  - Conservation et transfert fluide des commentaires et formes initiales de la racine (`rootComments` / `startingComments`) lors de la saisie d'un premier coup sur une position PGN (ply 0).
+
 ## [1.6.7] - 2026-08-27
 
 ### Corrigé
@@ -14,11 +23,15 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
   - Conservation et ré-application des formes actives (`AnnotationService.getShapes()`) lors des appels à `setConfig()` lorsque `drawable.shapes` n'est pas spécifié dans la nouvelle configuration.
   - Résolution des disparitions de formes provoquées par les déclenchements de watchers de configuration réactive (`boardConfig`) dans les composants hôtes.
 
+## [1.6.6] - 2026-08-27
+
 ### Corrigé & Amélioré
 
 - **Positionnement automatique sur la FEN initiale au chargement PGN** :
   - Déclenchement automatique de `viewStart()` dans `GameSession.loadPgn()` lorsqu'une partie avec des coups est chargée, permettant d'afficher immédiatement la position de départ (ply 0).
   - Protection de la vue historique dans `BoardCore.loadPgn()` pour éviter d'écraser la FEN et les formes initiales (`startingComments`) avec le dernier coup de la partie.
+
+## [1.6.5] - 2026-08-27
 
 ### Corrigé & Amélioré
 

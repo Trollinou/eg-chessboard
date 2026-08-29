@@ -24,6 +24,7 @@ import type { Key, Color } from '@lichess-org/chessground/types';
 import type { Move, PgnNodeMeta, VariationInfo, PgnTreeNode } from '../types';
 import { roleToPieceSymbol, pieceSymbolToRole, buildMovePojo, FILES } from './pieceMapping';
 import { DomainEventBus } from './DomainEventBus';
+import { FenManager } from './FenManager';
 
 export interface HistoryViewerState {
   isEnabled: boolean;
@@ -50,6 +51,7 @@ export class GameSession {
   private headers: Map<string, string> = defaultHeaders();
   private rootNode: Node<PgnNodeMeta> = new Node<PgnNodeMeta>();
   private currentNode: Node<PgnNodeMeta> = this.rootNode;
+  private rootComments: string[] = [];
 
   private historyState: HistoryViewerState = { isEnabled: false };
   private soloHistory: Move[] = [];
@@ -59,6 +61,14 @@ export class GameSession {
   }
 
   // --- Tree & Path Management ---
+
+  public getRootComments(): string[] {
+    return this.rootComments;
+  }
+
+  public setRootComments(comments: string[]): void {
+    this.rootComments = comments;
+  }
 
   public getRootNode(): Node<PgnNodeMeta> {
     return this.rootNode;
@@ -80,6 +90,7 @@ export class GameSession {
     this.headers = defaultHeaders();
     this.rootNode = new Node<PgnNodeMeta>();
     this.currentNode = this.rootNode;
+    this.rootComments = [];
     this.rootPos = startPos ? startPos.clone() : Chess.default();
     const fen = makeFen(this.rootPos.toSetup());
     if (fen !== 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1') {
@@ -358,6 +369,13 @@ export class GameSession {
         fen: movePojo.after,
         move: movePojo,
       });
+      if (currentNode === this.rootNode && this.rootComments.length > 0) {
+        childNode.data.startingComments = [
+          ...(childNode.data.startingComments || []),
+          ...this.rootComments,
+        ];
+        this.rootComments = [];
+      }
       currentNode.children.push(childNode);
     }
     this.setCurrentNode(childNode);
@@ -556,7 +574,17 @@ export class GameSession {
     this.headers = game.headers || defaultHeaders();
 
     const startRes = startingPosition(this.headers);
-    const startPos = startRes.isOk ? startRes.value : Chess.default();
+    let startPos: Chess;
+    if (startRes.isOk) {
+      startPos = startRes.value;
+    } else {
+      const fenHeader = this.headers.get('FEN');
+      if (fenHeader) {
+        startPos = FenManager.safeLoadFen(fenHeader, () => {}).pos;
+      } else {
+        startPos = Chess.default();
+      }
+    }
     this.rootPos = startPos.clone();
 
     const ctx = new TransformContext(startPos.clone());
@@ -577,12 +605,16 @@ export class GameSession {
       return meta;
     });
 
-    if (game.comments && game.comments.length > 0 && this.rootNode.children.length > 0) {
-      const firstChild = this.rootNode.children[0];
-      firstChild.data.startingComments = [
-        ...(firstChild.data.startingComments || []),
-        ...game.comments,
-      ];
+    if (game.comments && game.comments.length > 0) {
+      if (this.rootNode.children.length > 0) {
+        const firstChild = this.rootNode.children[0];
+        firstChild.data.startingComments = [
+          ...(firstChild.data.startingComments || []),
+          ...game.comments,
+        ];
+      } else {
+        this.rootComments = [...game.comments];
+      }
     }
 
     this.currentNode = this.rootNode;
@@ -621,6 +653,7 @@ export class GameSession {
     );
     return makePgn({
       headers: this.headers,
+      comments: this.rootComments.length > 0 ? this.rootComments : undefined,
       moves: pgnTree,
     });
   }

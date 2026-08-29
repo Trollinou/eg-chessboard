@@ -18,7 +18,8 @@ export class AnnotationService {
 
   constructor(
     private eventBus: DomainEventBus,
-    private session: GameSession
+    private session: GameSession,
+    private getOptions?: () => { mode?: BoardMode; preserveShapesOnPositionChange?: boolean }
   ) {}
 
   public setBoard(board: Api | null): void {
@@ -55,17 +56,21 @@ export class AnnotationService {
 
   public applyBoardShapes(
     shapes: DrawShape[],
-    preserveShapesOnPositionChange: boolean,
+    preserveShapesOnPositionChange?: boolean,
     mode?: BoardMode
   ): void {
+    const currentMode = mode ?? this.getOptions?.().mode ?? 'game';
+    const isPreserve =
+      preserveShapesOnPositionChange ??
+      (!!this.getOptions?.().preserveShapesOnPositionChange || currentMode === 'editor');
     this.currentPreservedShapes = shapes;
     this.isProgrammaticShapeUpdate = true;
     if (this.board) {
       this.board.setShapes(shapes);
-      const isGameMode = mode ? mode === 'game' : this.board.state.drawable.defaultSnapToValidMove;
+      const isGameMode = currentMode === 'game';
       this.board.set({
         drawable: {
-          eraseOnMovablePieceClick: !preserveShapesOnPositionChange,
+          eraseOnMovablePieceClick: currentMode === 'study' ? false : !isPreserve,
           defaultSnapToValidMove: isGameMode,
         },
       });
@@ -95,11 +100,11 @@ export class AnnotationService {
         if (shapes.length > 0 || isDrawingInChessground) {
           this.setPreservedShapes(shapes);
         } else if (this.board && this.getPreservedShapes().length > 0) {
-          this.applyBoardShapes(this.getPreservedShapes(), true);
+          this.applyBoardShapes(this.getPreservedShapes(), true, mode);
         }
       } else if (mode === 'game' && shouldPreserve) {
         if (this.board && this.getPreservedShapes().length > 0) {
-          this.applyBoardShapes(this.getPreservedShapes(), true);
+          this.applyBoardShapes(this.getPreservedShapes(), true, mode);
         }
       } else {
         this.setPreservedShapes(shapes);
@@ -131,16 +136,27 @@ export class AnnotationService {
       if (targetNode.data.comments) {
         rawComment = targetNode.data.comments.join(' ');
       }
-    } else if (ply === 0 && path.length > 0 && path[0].data.startingComments) {
-      rawComment = path[0].data.startingComments.join(' ');
+    } else if (ply === 0) {
+      if (
+        path.length > 0 &&
+        path[0].data.startingComments &&
+        path[0].data.startingComments.length > 0
+      ) {
+        rawComment = path[0].data.startingComments.join(' ');
+      } else if (this.session.getRootComments().length > 0) {
+        rawComment = this.session.getRootComments().join(' ');
+      }
     }
 
-    const isPreserve = !!preserveShapesOnPositionChange || mode === 'editor';
+    const currentMode = mode ?? this.getOptions?.().mode ?? 'game';
+    const isPreserve =
+      preserveShapesOnPositionChange ??
+      (!!this.getOptions?.().preserveShapesOnPositionChange || currentMode === 'editor');
 
     if (!rawComment) {
       this.currentComment = '';
       if (!isPreserve && this.board) {
-        this.applyBoardShapes([], false);
+        this.applyBoardShapes([], false, currentMode);
       }
       this.eventBus.emit('comment-changed', { comment: '', ply });
       this.eventBus.emit('state-changed');
@@ -150,7 +166,7 @@ export class AnnotationService {
     const parsed = this.parseComment(rawComment);
     this.currentComment = parsed.text;
     if (!isPreserve && this.board) {
-      this.applyBoardShapes(parsed.shapes, false);
+      this.applyBoardShapes(parsed.shapes, false, currentMode);
     }
     this.eventBus.emit('comment-changed', { comment: parsed.text, ply });
     this.eventBus.emit('state-changed');
@@ -173,6 +189,8 @@ export class AnnotationService {
     if (ply === 0) {
       if (path.length > 0) {
         path[0].data.startingComments = combined ? [combined] : [];
+      } else {
+        this.session.setRootComments(combined ? [combined] : []);
       }
     } else {
       const targetNode = path[ply - 1];
@@ -186,8 +204,11 @@ export class AnnotationService {
     if (isViewingThisPly) {
       this.currentComment = text;
       if (updateBoardShapes) {
-        const isPreserve = !!preserveShapesOnPositionChange || mode === 'editor';
-        this.applyBoardShapes(shapes, isPreserve);
+        const currentMode = mode ?? this.getOptions?.().mode ?? 'game';
+        const isPreserve =
+          preserveShapesOnPositionChange ??
+          (!!this.getOptions?.().preserveShapesOnPositionChange || currentMode === 'editor');
+        this.applyBoardShapes(shapes, isPreserve, currentMode);
       }
       this.eventBus.emit('comment-changed', { comment: text, ply });
       this.eventBus.emit('state-changed');

@@ -147,6 +147,9 @@ export class BoardAdapter {
       defaultSnapToValidMove: userConfig.drawable?.defaultSnapToValidMove ?? isGameMode,
       eraseOnClick:
         (userConfig.drawable as { eraseOnClick?: boolean } | undefined)?.eraseOnClick ?? false,
+      eraseOnMovablePieceClick:
+        userConfig.drawable?.eraseOnMovablePieceClick ??
+        (options.mode === 'study' ? false : !options.preserveShapesOnPositionChange),
       shapes: userConfig.drawable?.shapes ?? this.annotationService.getPreservedShapes(),
       autoShapes: userConfig.drawable?.autoShapes ?? [],
       brushes: userConfig.drawable?.brushes ?? {

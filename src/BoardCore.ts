@@ -86,7 +86,10 @@ export class BoardCore {
     // 1. Core Services with Dependency Injection & EventBus
     this.eventBus = new DomainEventBus();
     this.session = new GameSession(this.eventBus);
-    this.annotationService = new AnnotationService(this.eventBus, this.session);
+    this.annotationService = new AnnotationService(this.eventBus, this.session, () => ({
+      mode: this.state.mode,
+      preserveShapesOnPositionChange: this.state.preserveShapesOnPositionChange,
+    }));
     this.exerciseManager = new ExerciseManager();
 
     this.stockfishManager = new StockfishManager(
@@ -261,7 +264,7 @@ export class BoardCore {
     if (this.board) {
       this.board.set({
         drawable: {
-          eraseOnMovablePieceClick: !preserve,
+          eraseOnMovablePieceClick: this.getMode() === 'study' ? false : !preserve,
           defaultSnapToValidMove: this.getMode() === 'game',
         },
       });
