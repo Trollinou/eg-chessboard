@@ -35,11 +35,23 @@ export default defineConfig(({ command }) => {
     },
     build: {
       target: 'es2021',
+      cssCodeSplit: true,
       lib: {
         entry: {
           index: resolve(import.meta.dirname, 'src/index.ts'),
           vue: resolve(import.meta.dirname, 'src/vue/TheChessboard.vue'),
           react: resolve(import.meta.dirname, 'src/react/Chessboard.tsx'),
+          base: resolve(import.meta.dirname, 'src/styles/base.css'),
+          'pieces/alpha': resolve(import.meta.dirname, 'src/styles/pieces/alpha.css'),
+          'pieces/cardinal': resolve(import.meta.dirname, 'src/styles/pieces/cardinal.css'),
+          'pieces/cburnett': resolve(import.meta.dirname, 'src/styles/pieces/cburnett.css'),
+          'pieces/dubrovny': resolve(import.meta.dirname, 'src/styles/pieces/dubrovny.css'),
+          'pieces/fantasy': resolve(import.meta.dirname, 'src/styles/pieces/fantasy.css'),
+          'pieces/firi': resolve(import.meta.dirname, 'src/styles/pieces/firi.css'),
+          'pieces/maestro': resolve(import.meta.dirname, 'src/styles/pieces/maestro.css'),
+          'pieces/merida': resolve(import.meta.dirname, 'src/styles/pieces/merida.css'),
+          'pieces/staunty': resolve(import.meta.dirname, 'src/styles/pieces/staunty.css'),
+          'pieces/tatiana': resolve(import.meta.dirname, 'src/styles/pieces/tatiana.css'),
         },
         formats: ['es'],
       },
@@ -48,7 +60,12 @@ export default defineConfig(({ command }) => {
         output: {
           entryFileNames: '[name].js',
           chunkFileNames: 'chunks/[name]-[hash].js',
-          assetFileNames: '[name].[ext]',
+          assetFileNames: (assetInfo) => {
+            if (assetInfo.name === 'index.css' || assetInfo.name === 'style.css') {
+              return 'eg-chessboard.css';
+            }
+            return '[name].[ext]';
+          },
           globals: {
             vue: 'Vue',
             react: 'React',

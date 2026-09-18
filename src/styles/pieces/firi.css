@@ -1,0 +1,60 @@
+.piece-set-firi piece.pawn.white,
+.piece-set-firi .promotion-dialog .pawn.white,
+.piece-set-firi .promotion-piece-btn.pawn.white {
+  background-image: url('../../assets/pieces/firi/wP.svg');
+}
+.piece-set-firi piece.bishop.white,
+.piece-set-firi .promotion-dialog .bishop.white,
+.piece-set-firi .promotion-piece-btn.bishop.white {
+  background-image: url('../../assets/pieces/firi/wB.svg');
+}
+.piece-set-firi piece.knight.white,
+.piece-set-firi .promotion-dialog .knight.white,
+.piece-set-firi .promotion-piece-btn.knight.white {
+  background-image: url('../../assets/pieces/firi/wN.svg');
+}
+.piece-set-firi piece.rook.white,
+.piece-set-firi .promotion-dialog .rook.white,
+.piece-set-firi .promotion-piece-btn.rook.white {
+  background-image: url('../../assets/pieces/firi/wR.svg');
+}
+.piece-set-firi piece.queen.white,
+.piece-set-firi .promotion-dialog .queen.white,
+.piece-set-firi .promotion-piece-btn.queen.white {
+  background-image: url('../../assets/pieces/firi/wQ.svg');
+}
+.piece-set-firi piece.king.white,
+.piece-set-firi .promotion-dialog .king.white,
+.piece-set-firi .promotion-piece-btn.king.white {
+  background-image: url('../../assets/pieces/firi/wK.svg');
+}
+.piece-set-firi piece.pawn.black,
+.piece-set-firi .promotion-dialog .pawn.black,
+.piece-set-firi .promotion-piece-btn.pawn.black {
+  background-image: url('../../assets/pieces/firi/bP.svg');
+}
+.piece-set-firi piece.bishop.black,
+.piece-set-firi .promotion-dialog .bishop.black,
+.piece-set-firi .promotion-piece-btn.bishop.black {
+  background-image: url('../../assets/pieces/firi/bB.svg');
+}
+.piece-set-firi piece.knight.black,
+.piece-set-firi .promotion-dialog .knight.black,
+.piece-set-firi .promotion-piece-btn.knight.black {
+  background-image: url('../../assets/pieces/firi/bN.svg');
+}
+.piece-set-firi piece.rook.black,
+.piece-set-firi .promotion-dialog .rook.black,
+.piece-set-firi .promotion-piece-btn.rook.black {
+  background-image: url('../../assets/pieces/firi/bR.svg');
+}
+.piece-set-firi piece.queen.black,
+.piece-set-firi .promotion-dialog .queen.black,
+.piece-set-firi .promotion-piece-btn.queen.black {
+  background-image: url('../../assets/pieces/firi/bQ.svg');
+}
+.piece-set-firi piece.king.black,
+.piece-set-firi .promotion-dialog .king.black,
+.piece-set-firi .promotion-piece-btn.king.black {
+  background-image: url('../../assets/pieces/firi/bK.svg');
+}

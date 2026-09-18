@@ -8,12 +8,27 @@
   "files": [
     "dist"
   ],
+  "sideEffects": [
+    "*.css",
+    "src/index.ts"
+  ],
   "exports": {
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
     "./style.css": "./dist/eg-chessboard.css",
+    "./base.css": "./dist/base.css",
+    "./pieces/alpha.css": "./dist/pieces/alpha.css",
+    "./pieces/cardinal.css": "./dist/pieces/cardinal.css",
+    "./pieces/cburnett.css": "./dist/pieces/cburnett.css",
+    "./pieces/dubrovny.css": "./dist/pieces/dubrovny.css",
+    "./pieces/fantasy.css": "./dist/pieces/fantasy.css",
+    "./pieces/firi.css": "./dist/pieces/firi.css",
+    "./pieces/maestro.css": "./dist/pieces/maestro.css",
+    "./pieces/merida.css": "./dist/pieces/merida.css",
+    "./pieces/staunty.css": "./dist/pieces/staunty.css",
+    "./pieces/tatiana.css": "./dist/pieces/tatiana.css",
     "./vue": {
       "import": "./dist/vue.js",
       "types": "./dist/vue/TheChessboard.vue.d.ts"

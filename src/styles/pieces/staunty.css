@@ -1,0 +1,60 @@
+.piece-set-staunty piece.pawn.white,
+.piece-set-staunty .promotion-dialog .pawn.white,
+.piece-set-staunty .promotion-piece-btn.pawn.white {
+  background-image: url('../../assets/pieces/staunty/wP.svg');
+}
+.piece-set-staunty piece.bishop.white,
+.piece-set-staunty .promotion-dialog .bishop.white,
+.piece-set-staunty .promotion-piece-btn.bishop.white {
+  background-image: url('../../assets/pieces/staunty/wB.svg');
+}
+.piece-set-staunty piece.knight.white,
+.piece-set-staunty .promotion-dialog .knight.white,
+.piece-set-staunty .promotion-piece-btn.knight.white {
+  background-image: url('../../assets/pieces/staunty/wN.svg');
+}
+.piece-set-staunty piece.rook.white,
+.piece-set-staunty .promotion-dialog .rook.white,
+.piece-set-staunty .promotion-piece-btn.rook.white {
+  background-image: url('../../assets/pieces/staunty/wR.svg');
+}
+.piece-set-staunty piece.queen.white,
+.piece-set-staunty .promotion-dialog .queen.white,
+.piece-set-staunty .promotion-piece-btn.queen.white {
+  background-image: url('../../assets/pieces/staunty/wQ.svg');
+}
+.piece-set-staunty piece.king.white,
+.piece-set-staunty .promotion-dialog .king.white,
+.piece-set-staunty .promotion-piece-btn.king.white {
+  background-image: url('../../assets/pieces/staunty/wK.svg');
+}
+.piece-set-staunty piece.pawn.black,
+.piece-set-staunty .promotion-dialog .pawn.black,
+.piece-set-staunty .promotion-piece-btn.pawn.black {
+  background-image: url('../../assets/pieces/staunty/bP.svg');
+}
+.piece-set-staunty piece.bishop.black,
+.piece-set-staunty .promotion-dialog .bishop.black,
+.piece-set-staunty .promotion-piece-btn.bishop.black {
+  background-image: url('../../assets/pieces/staunty/bB.svg');
+}
+.piece-set-staunty piece.knight.black,
+.piece-set-staunty .promotion-dialog .knight.black,
+.piece-set-staunty .promotion-piece-btn.knight.black {
+  background-image: url('../../assets/pieces/staunty/bN.svg');
+}
+.piece-set-staunty piece.rook.black,
+.piece-set-staunty .promotion-dialog .rook.black,
+.piece-set-staunty .promotion-piece-btn.rook.black {
+  background-image: url('../../assets/pieces/staunty/bR.svg');
+}
+.piece-set-staunty piece.queen.black,
+.piece-set-staunty .promotion-dialog .queen.black,
+.piece-set-staunty .promotion-piece-btn.queen.black {
+  background-image: url('../../assets/pieces/staunty/bQ.svg');
+}
+.piece-set-staunty piece.king.black,
+.piece-set-staunty .promotion-dialog .king.black,
+.piece-set-staunty .promotion-piece-btn.king.black {
+  background-image: url('../../assets/pieces/staunty/bK.svg');
+}

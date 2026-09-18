@@ -1,0 +1,60 @@
+.piece-set-merida piece.pawn.white,
+.piece-set-merida .promotion-dialog .pawn.white,
+.piece-set-merida .promotion-piece-btn.pawn.white {
+  background-image: url('../../assets/pieces/merida/wP.svg');
+}
+.piece-set-merida piece.bishop.white,
+.piece-set-merida .promotion-dialog .bishop.white,
+.piece-set-merida .promotion-piece-btn.bishop.white {
+  background-image: url('../../assets/pieces/merida/wB.svg');
+}
+.piece-set-merida piece.knight.white,
+.piece-set-merida .promotion-dialog .knight.white,
+.piece-set-merida .promotion-piece-btn.knight.white {
+  background-image: url('../../assets/pieces/merida/wN.svg');
+}
+.piece-set-merida piece.rook.white,
+.piece-set-merida .promotion-dialog .rook.white,
+.piece-set-merida .promotion-piece-btn.rook.white {
+  background-image: url('../../assets/pieces/merida/wR.svg');
+}
+.piece-set-merida piece.queen.white,
+.piece-set-merida .promotion-dialog .queen.white,
+.piece-set-merida .promotion-piece-btn.queen.white {
+  background-image: url('../../assets/pieces/merida/wQ.svg');
+}
+.piece-set-merida piece.king.white,
+.piece-set-merida .promotion-dialog .king.white,
+.piece-set-merida .promotion-piece-btn.king.white {
+  background-image: url('../../assets/pieces/merida/wK.svg');
+}
+.piece-set-merida piece.pawn.black,
+.piece-set-merida .promotion-dialog .pawn.black,
+.piece-set-merida .promotion-piece-btn.pawn.black {
+  background-image: url('../../assets/pieces/merida/bP.svg');
+}
+.piece-set-merida piece.bishop.black,
+.piece-set-merida .promotion-dialog .bishop.black,
+.piece-set-merida .promotion-piece-btn.bishop.black {
+  background-image: url('../../assets/pieces/merida/bB.svg');
+}
+.piece-set-merida piece.knight.black,
+.piece-set-merida .promotion-dialog .knight.black,
+.piece-set-merida .promotion-piece-btn.knight.black {
+  background-image: url('../../assets/pieces/merida/bN.svg');
+}
+.piece-set-merida piece.rook.black,
+.piece-set-merida .promotion-dialog .rook.black,
+.piece-set-merida .promotion-piece-btn.rook.black {
+  background-image: url('../../assets/pieces/merida/bR.svg');
+}
+.piece-set-merida piece.queen.black,
+.piece-set-merida .promotion-dialog .queen.black,
+.piece-set-merida .promotion-piece-btn.queen.black {
+  background-image: url('../../assets/pieces/merida/bQ.svg');
+}
+.piece-set-merida piece.king.black,
+.piece-set-merida .promotion-dialog .king.black,
+.piece-set-merida .promotion-piece-btn.king.black {
+  background-image: url('../../assets/pieces/merida/bK.svg');
+}
