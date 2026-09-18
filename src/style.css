@@ -1,3 +1,16 @@
+:root {
+  --eg-chessboard-width: 100%;
+  --eg-chessboard-height: 100%;
+  --eg-chessboard-flex: 1;
+  --eg-promo-bg: #f0d9b5;
+  --eg-promo-border-color: #b58863;
+  --eg-promo-shadow: rgba(0, 0, 0, 0.4);
+  --eg-promo-btn-bg: #ffffff;
+  --eg-promo-btn-border-color: #b58863;
+  --eg-promo-btn-hover-bg: #e6c89c;
+  --eg-promo-btn-hover-border: #8b5a2b;
+}
+
 dialog.promotion-dialog,
 .promotion-dialog {
   all: unset;
@@ -6,11 +19,11 @@ dialog.promotion-dialog,
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 1000;
-  background: #f0d9b5;
-  border: clamp(2px, 0.4cqw, 4px) solid #b58863;
+  background: var(--eg-promo-bg, #f0d9b5);
+  border: clamp(2px, 0.4cqw, 4px) solid var(--eg-promo-border-color, #b58863);
   border-radius: clamp(6px, 1.8cqw, 14px);
   padding: calc(100cqw * 0.015) calc(100cqw * 0.02);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 10px 25px var(--eg-promo-shadow, rgba(0, 0, 0, 0.4));
   box-sizing: border-box;
   margin: 0;
   width: max-content;
@@ -29,8 +42,8 @@ dialog.promotion-dialog,
 }
 
 .promotion-piece-btn {
-  background: #ffffff;
-  border: clamp(1px, 0.35cqw, 3px) solid #b58863;
+  background: var(--eg-promo-btn-bg, #ffffff);
+  border: clamp(1px, 0.35cqw, 3px) solid var(--eg-promo-btn-border-color, #b58863);
   border-radius: clamp(4px, 1.5cqw, 10px);
   cursor: pointer;
   width: calc(100cqw / 8 * 0.9);
@@ -46,19 +59,13 @@ dialog.promotion-dialog,
 }
 
 .promotion-piece-btn:hover {
-  background-color: #e6c89c;
-  border-color: #8b5a2b;
+  background-color: var(--eg-promo-btn-hover-bg, #e6c89c);
+  border-color: var(--eg-promo-btn-hover-border, #8b5a2b);
   transform: scale(1.08);
 }
 
 .promotion-piece-btn:active {
   transform: scale(0.95);
-}
-
-:root {
-  --eg-chessboard-width: 100%;
-  --eg-chessboard-height: 100%;
-  --eg-chessboard-flex: 1;
 }
 
 .main-wrap.fit-container {

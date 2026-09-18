@@ -6,6 +6,19 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+### Ajouté & Amélioré
+
+- **Standardisation des CSS Variables pour la promotion** :
+  - Déclaration de variables racine `--eg-promo-*` (`--eg-promo-bg`, `--eg-promo-border-color`, `--eg-promo-btn-bg`, `--eg-promo-btn-hover-bg`, etc.) dans `src/style.css` facilitant la surcharge sans forcer de sélecteurs lourds.
+- **Typage public unifié des événements** :
+  - Définition et exportation des interfaces `BoardEvents` et `PromotionDetail` dans `src/types.ts` et `src/index.ts`.
+  - Extension directe de `BoardEvents` dans `ChessboardProps` (React) et ré-export dans `TheChessboard.vue`.
+- **Optimisation des assets vectoriels SVG** :
+  - Ajout du script `optimize-assets` via `svgo` dans `package.json`.
+  - Minification sans perte des 120 fichiers SVG sous `src/assets/pieces/`.
+- **Alignement et correction de l'environnement de linting** :
+  - Ajout du paquet `@eslint/js` dans les `devDependencies` et verrouillage sur ESLint 9.
+
 ## [1.6.8] - 2026-08-29
 
 ### Corrigé & Amélioré

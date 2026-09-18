@@ -1,3 +1,6 @@
+import type { BoardCore } from './BoardCore';
+import type { DrawShape } from '@lichess-org/chessground/draw';
+
 export type BoardMode = 'editor' | 'game' | 'study';
 
 export const AVAILABLE_PIECE_SETS = [
@@ -68,4 +71,24 @@ export interface PgnTreeNode {
   move?: Move;
   comments?: string[];
   variations: PgnTreeNode[];
+}
+
+export interface PromotionDetail {
+  from: string;
+  to: string;
+  promotedTo: string;
+}
+
+export interface BoardEvents {
+  onBoardCreated?: (api: BoardCore) => void;
+  onMove?: (move: Move) => void;
+  onTurnChange?: (turnColor: 'white' | 'black', ply: number) => void;
+  onCheck?: (color: string) => void;
+  onCheckmate?: (color: string) => void;
+  onStalemate?: () => void;
+  onDraw?: () => void;
+  onPromotion?: (detail: PromotionDetail) => void;
+  onStockfishHint?: (bestMove: string) => void;
+  onSquareClick?: (square: string) => void;
+  onShapesChange?: (shapes: DrawShape[]) => void;
 }

@@ -1,8 +1,16 @@
 import React, { useRef, useEffect, useState } from 'react';
 import type { Config } from '@lichess-org/chessground/config';
 import type { DrawShape } from '@lichess-org/chessground/draw';
-import type { Move, BoardMode, PieceSet, BoardTheme } from '../types';
-import { AVAILABLE_PIECE_SETS, AVAILABLE_BOARD_THEMES } from '../types';
+import {
+  type Move,
+  type BoardMode,
+  type PieceSet,
+  type BoardTheme,
+  type BoardEvents,
+  type PromotionDetail,
+  AVAILABLE_PIECE_SETS,
+  AVAILABLE_BOARD_THEMES,
+} from '../types';
 import {
   BoardCore,
   type BoardCoreState,
@@ -18,12 +26,14 @@ export {
   type BoardMode,
   type PieceSet,
   type BoardTheme,
+  type BoardEvents,
+  type PromotionDetail,
   AVAILABLE_PIECE_SETS,
   AVAILABLE_BOARD_THEMES,
 };
 import { PromotionDialog } from './components/PromotionDialog';
 
-export interface ChessboardProps {
+export interface ChessboardProps extends BoardEvents {
   boardConfig?: Config;
   mode?: BoardMode;
   playerColor?: 'white' | 'black' | 'both';
@@ -36,17 +46,6 @@ export interface ChessboardProps {
   boardTheme?: BoardTheme;
   stockfishConfig?: StockfishConfig;
   diagram?: ChessDiagram;
-  onBoardCreated?: (api: BoardCore) => void;
-  onMove?: (move: Move) => void;
-  onTurnChange?: (turnColor: 'white' | 'black', ply: number) => void;
-  onCheck?: (color: string) => void;
-  onCheckmate?: (color: string) => void;
-  onStalemate?: () => void;
-  onDraw?: () => void;
-  onPromotion?: (detail: { from: string; to: string; promotedTo: string }) => void;
-  onStockfishHint?: (bestMove: string) => void;
-  onSquareClick?: (square: string) => void;
-  onShapesChange?: (shapes: DrawShape[]) => void;
 }
 
 export const Chessboard: React.FC<ChessboardProps> = ({

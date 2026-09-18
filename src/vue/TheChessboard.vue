@@ -12,6 +12,8 @@ export {
   type BoardMode,
   type PieceSet,
   type BoardTheme,
+  type BoardEvents,
+  type PromotionDetail,
 } from '../types';
 </script>
 

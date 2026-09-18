@@ -56,6 +56,9 @@ npm run build
 # Valider la conformité du code et du style
 npm run lint
 npm run format:check
+
+# Optimiser les assets vectoriels SVG
+npm run optimize-assets
 ```
 
 ---
@@ -482,15 +485,25 @@ Pensez à importer le fichier CSS dans votre application :
 import 'eg-chessboard/style.css';
 ```
 
-### Définition des dimensions et conteneur flex (`fitContainer`)
+### Définition des dimensions, conteneur flex (`fitContainer`) et dialogue de promotion
 
-Lorsque l'option `fitContainer` (ou `fit-container`) est activée sur le composant, celui-ci utilise les variables CSS personnalisables ci-dessous :
+La bibliothèque expose des variables CSS personnalisables pour adapter les dimensions et le dialogue de promotion :
 
 ```css
 :root {
+  /* Dimensions & flexibilité */
   --eg-chessboard-width: 100%;
   --eg-chessboard-height: 100%;
   --eg-chessboard-flex: 1;
+
+  /* Dialogue de promotion */
+  --eg-promo-bg: #f0d9b5;
+  --eg-promo-border-color: #b58863;
+  --eg-promo-shadow: rgba(0, 0, 0, 0.4);
+  --eg-promo-btn-bg: #ffffff;
+  --eg-promo-btn-border-color: #b58863;
+  --eg-promo-btn-hover-bg: #e6c89c;
+  --eg-promo-btn-hover-border: #8b5a2b;
 }
 ```
 
