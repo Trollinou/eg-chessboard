@@ -1,0 +1,60 @@
+.piece-set-cardinal piece.pawn.white,
+.piece-set-cardinal .promotion-dialog .pawn.white,
+.piece-set-cardinal .promotion-piece-btn.pawn.white {
+  background-image: url('../../assets/pieces/cardinal/wP.svg');
+}
+.piece-set-cardinal piece.bishop.white,
+.piece-set-cardinal .promotion-dialog .bishop.white,
+.piece-set-cardinal .promotion-piece-btn.bishop.white {
+  background-image: url('../../assets/pieces/cardinal/wB.svg');
+}
+.piece-set-cardinal piece.knight.white,
+.piece-set-cardinal .promotion-dialog .knight.white,
+.piece-set-cardinal .promotion-piece-btn.knight.white {
+  background-image: url('../../assets/pieces/cardinal/wN.svg');
+}
+.piece-set-cardinal piece.rook.white,
+.piece-set-cardinal .promotion-dialog .rook.white,
+.piece-set-cardinal .promotion-piece-btn.rook.white {
+  background-image: url('../../assets/pieces/cardinal/wR.svg');
+}
+.piece-set-cardinal piece.queen.white,
+.piece-set-cardinal .promotion-dialog .queen.white,
+.piece-set-cardinal .promotion-piece-btn.queen.white {
+  background-image: url('../../assets/pieces/cardinal/wQ.svg');
+}
+.piece-set-cardinal piece.king.white,
+.piece-set-cardinal .promotion-dialog .king.white,
+.piece-set-cardinal .promotion-piece-btn.king.white {
+  background-image: url('../../assets/pieces/cardinal/wK.svg');
+}
+.piece-set-cardinal piece.pawn.black,
+.piece-set-cardinal .promotion-dialog .pawn.black,
+.piece-set-cardinal .promotion-piece-btn.pawn.black {
+  background-image: url('../../assets/pieces/cardinal/bP.svg');
+}
+.piece-set-cardinal piece.bishop.black,
+.piece-set-cardinal .promotion-dialog .bishop.black,
+.piece-set-cardinal .promotion-piece-btn.bishop.black {
+  background-image: url('../../assets/pieces/cardinal/bB.svg');
+}
+.piece-set-cardinal piece.knight.black,
+.piece-set-cardinal .promotion-dialog .knight.black,
+.piece-set-cardinal .promotion-piece-btn.knight.black {
+  background-image: url('../../assets/pieces/cardinal/bN.svg');
+}
+.piece-set-cardinal piece.rook.black,
+.piece-set-cardinal .promotion-dialog .rook.black,
+.piece-set-cardinal .promotion-piece-btn.rook.black {
+  background-image: url('../../assets/pieces/cardinal/bR.svg');
+}
+.piece-set-cardinal piece.queen.black,
+.piece-set-cardinal .promotion-dialog .queen.black,
+.piece-set-cardinal .promotion-piece-btn.queen.black {
+  background-image: url('../../assets/pieces/cardinal/bQ.svg');
+}
+.piece-set-cardinal piece.king.black,
+.piece-set-cardinal .promotion-dialog .king.black,
+.piece-set-cardinal .promotion-piece-btn.king.black {
+  background-image: url('../../assets/pieces/cardinal/bK.svg');
+}

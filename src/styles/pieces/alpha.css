@@ -1,0 +1,60 @@
+.piece-set-alpha piece.pawn.white,
+.piece-set-alpha .promotion-dialog .pawn.white,
+.piece-set-alpha .promotion-piece-btn.pawn.white {
+  background-image: url('../../assets/pieces/alpha/wP.svg');
+}
+.piece-set-alpha piece.bishop.white,
+.piece-set-alpha .promotion-dialog .bishop.white,
+.piece-set-alpha .promotion-piece-btn.bishop.white {
+  background-image: url('../../assets/pieces/alpha/wB.svg');
+}
+.piece-set-alpha piece.knight.white,
+.piece-set-alpha .promotion-dialog .knight.white,
+.piece-set-alpha .promotion-piece-btn.knight.white {
+  background-image: url('../../assets/pieces/alpha/wN.svg');
+}
+.piece-set-alpha piece.rook.white,
+.piece-set-alpha .promotion-dialog .rook.white,
+.piece-set-alpha .promotion-piece-btn.rook.white {
+  background-image: url('../../assets/pieces/alpha/wR.svg');
+}
+.piece-set-alpha piece.queen.white,
+.piece-set-alpha .promotion-dialog .queen.white,
+.piece-set-alpha .promotion-piece-btn.queen.white {
+  background-image: url('../../assets/pieces/alpha/wQ.svg');
+}
+.piece-set-alpha piece.king.white,
+.piece-set-alpha .promotion-dialog .king.white,
+.piece-set-alpha .promotion-piece-btn.king.white {
+  background-image: url('../../assets/pieces/alpha/wK.svg');
+}
+.piece-set-alpha piece.pawn.black,
+.piece-set-alpha .promotion-dialog .pawn.black,
+.piece-set-alpha .promotion-piece-btn.pawn.black {
+  background-image: url('../../assets/pieces/alpha/bP.svg');
+}
+.piece-set-alpha piece.bishop.black,
+.piece-set-alpha .promotion-dialog .bishop.black,
+.piece-set-alpha .promotion-piece-btn.bishop.black {
+  background-image: url('../../assets/pieces/alpha/bB.svg');
+}
+.piece-set-alpha piece.knight.black,
+.piece-set-alpha .promotion-dialog .knight.black,
+.piece-set-alpha .promotion-piece-btn.knight.black {
+  background-image: url('../../assets/pieces/alpha/bN.svg');
+}
+.piece-set-alpha piece.rook.black,
+.piece-set-alpha .promotion-dialog .rook.black,
+.piece-set-alpha .promotion-piece-btn.rook.black {
+  background-image: url('../../assets/pieces/alpha/bR.svg');
+}
+.piece-set-alpha piece.queen.black,
+.piece-set-alpha .promotion-dialog .queen.black,
+.piece-set-alpha .promotion-piece-btn.queen.black {
+  background-image: url('../../assets/pieces/alpha/bQ.svg');
+}
+.piece-set-alpha piece.king.black,
+.piece-set-alpha .promotion-dialog .king.black,
+.piece-set-alpha .promotion-piece-btn.king.black {
+  background-image: url('../../assets/pieces/alpha/bK.svg');
+}

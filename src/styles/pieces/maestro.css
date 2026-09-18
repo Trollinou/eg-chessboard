@@ -1,0 +1,60 @@
+.piece-set-maestro piece.pawn.white,
+.piece-set-maestro .promotion-dialog .pawn.white,
+.piece-set-maestro .promotion-piece-btn.pawn.white {
+  background-image: url('../../assets/pieces/maestro/wP.svg');
+}
+.piece-set-maestro piece.bishop.white,
+.piece-set-maestro .promotion-dialog .bishop.white,
+.piece-set-maestro .promotion-piece-btn.bishop.white {
+  background-image: url('../../assets/pieces/maestro/wB.svg');
+}
+.piece-set-maestro piece.knight.white,
+.piece-set-maestro .promotion-dialog .knight.white,
+.piece-set-maestro .promotion-piece-btn.knight.white {
+  background-image: url('../../assets/pieces/maestro/wN.svg');
+}
+.piece-set-maestro piece.rook.white,
+.piece-set-maestro .promotion-dialog .rook.white,
+.piece-set-maestro .promotion-piece-btn.rook.white {
+  background-image: url('../../assets/pieces/maestro/wR.svg');
+}
+.piece-set-maestro piece.queen.white,
+.piece-set-maestro .promotion-dialog .queen.white,
+.piece-set-maestro .promotion-piece-btn.queen.white {
+  background-image: url('../../assets/pieces/maestro/wQ.svg');
+}
+.piece-set-maestro piece.king.white,
+.piece-set-maestro .promotion-dialog .king.white,
+.piece-set-maestro .promotion-piece-btn.king.white {
+  background-image: url('../../assets/pieces/maestro/wK.svg');
+}
+.piece-set-maestro piece.pawn.black,
+.piece-set-maestro .promotion-dialog .pawn.black,
+.piece-set-maestro .promotion-piece-btn.pawn.black {
+  background-image: url('../../assets/pieces/maestro/bP.svg');
+}
+.piece-set-maestro piece.bishop.black,
+.piece-set-maestro .promotion-dialog .bishop.black,
+.piece-set-maestro .promotion-piece-btn.bishop.black {
+  background-image: url('../../assets/pieces/maestro/bB.svg');
+}
+.piece-set-maestro piece.knight.black,
+.piece-set-maestro .promotion-dialog .knight.black,
+.piece-set-maestro .promotion-piece-btn.knight.black {
+  background-image: url('../../assets/pieces/maestro/bN.svg');
+}
+.piece-set-maestro piece.rook.black,
+.piece-set-maestro .promotion-dialog .rook.black,
+.piece-set-maestro .promotion-piece-btn.rook.black {
+  background-image: url('../../assets/pieces/maestro/bR.svg');
+}
+.piece-set-maestro piece.queen.black,
+.piece-set-maestro .promotion-dialog .queen.black,
+.piece-set-maestro .promotion-piece-btn.queen.black {
+  background-image: url('../../assets/pieces/maestro/bQ.svg');
+}
+.piece-set-maestro piece.king.black,
+.piece-set-maestro .promotion-dialog .king.black,
+.piece-set-maestro .promotion-piece-btn.king.black {
+  background-image: url('../../assets/pieces/maestro/bK.svg');
+}

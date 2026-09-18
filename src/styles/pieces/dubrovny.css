@@ -1,0 +1,60 @@
+.piece-set-dubrovny piece.pawn.white,
+.piece-set-dubrovny .promotion-dialog .pawn.white,
+.piece-set-dubrovny .promotion-piece-btn.pawn.white {
+  background-image: url('../../assets/pieces/dubrovny/wP.svg');
+}
+.piece-set-dubrovny piece.bishop.white,
+.piece-set-dubrovny .promotion-dialog .bishop.white,
+.piece-set-dubrovny .promotion-piece-btn.bishop.white {
+  background-image: url('../../assets/pieces/dubrovny/wB.svg');
+}
+.piece-set-dubrovny piece.knight.white,
+.piece-set-dubrovny .promotion-dialog .knight.white,
+.piece-set-dubrovny .promotion-piece-btn.knight.white {
+  background-image: url('../../assets/pieces/dubrovny/wN.svg');
+}
+.piece-set-dubrovny piece.rook.white,
+.piece-set-dubrovny .promotion-dialog .rook.white,
+.piece-set-dubrovny .promotion-piece-btn.rook.white {
+  background-image: url('../../assets/pieces/dubrovny/wR.svg');
+}
+.piece-set-dubrovny piece.queen.white,
+.piece-set-dubrovny .promotion-dialog .queen.white,
+.piece-set-dubrovny .promotion-piece-btn.queen.white {
+  background-image: url('../../assets/pieces/dubrovny/wQ.svg');
+}
+.piece-set-dubrovny piece.king.white,
+.piece-set-dubrovny .promotion-dialog .king.white,
+.piece-set-dubrovny .promotion-piece-btn.king.white {
+  background-image: url('../../assets/pieces/dubrovny/wK.svg');
+}
+.piece-set-dubrovny piece.pawn.black,
+.piece-set-dubrovny .promotion-dialog .pawn.black,
+.piece-set-dubrovny .promotion-piece-btn.pawn.black {
+  background-image: url('../../assets/pieces/dubrovny/bP.svg');
+}
+.piece-set-dubrovny piece.bishop.black,
+.piece-set-dubrovny .promotion-dialog .bishop.black,
+.piece-set-dubrovny .promotion-piece-btn.bishop.black {
+  background-image: url('../../assets/pieces/dubrovny/bB.svg');
+}
+.piece-set-dubrovny piece.knight.black,
+.piece-set-dubrovny .promotion-dialog .knight.black,
+.piece-set-dubrovny .promotion-piece-btn.knight.black {
+  background-image: url('../../assets/pieces/dubrovny/bN.svg');
+}
+.piece-set-dubrovny piece.rook.black,
+.piece-set-dubrovny .promotion-dialog .rook.black,
+.piece-set-dubrovny .promotion-piece-btn.rook.black {
+  background-image: url('../../assets/pieces/dubrovny/bR.svg');
+}
+.piece-set-dubrovny piece.queen.black,
+.piece-set-dubrovny .promotion-dialog .queen.black,
+.piece-set-dubrovny .promotion-piece-btn.queen.black {
+  background-image: url('../../assets/pieces/dubrovny/bQ.svg');
+}
+.piece-set-dubrovny piece.king.black,
+.piece-set-dubrovny .promotion-dialog .king.black,
+.piece-set-dubrovny .promotion-piece-btn.king.black {
+  background-image: url('../../assets/pieces/dubrovny/bK.svg');
+}

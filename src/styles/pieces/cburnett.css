@@ -1,0 +1,60 @@
+.piece-set-cburnett piece.pawn.white,
+.piece-set-cburnett .promotion-dialog .pawn.white,
+.piece-set-cburnett .promotion-piece-btn.pawn.white {
+  background-image: url('../../assets/pieces/cburnett/wP.svg');
+}
+.piece-set-cburnett piece.bishop.white,
+.piece-set-cburnett .promotion-dialog .bishop.white,
+.piece-set-cburnett .promotion-piece-btn.bishop.white {
+  background-image: url('../../assets/pieces/cburnett/wB.svg');
+}
+.piece-set-cburnett piece.knight.white,
+.piece-set-cburnett .promotion-dialog .knight.white,
+.piece-set-cburnett .promotion-piece-btn.knight.white {
+  background-image: url('../../assets/pieces/cburnett/wN.svg');
+}
+.piece-set-cburnett piece.rook.white,
+.piece-set-cburnett .promotion-dialog .rook.white,
+.piece-set-cburnett .promotion-piece-btn.rook.white {
+  background-image: url('../../assets/pieces/cburnett/wR.svg');
+}
+.piece-set-cburnett piece.queen.white,
+.piece-set-cburnett .promotion-dialog .queen.white,
+.piece-set-cburnett .promotion-piece-btn.queen.white {
+  background-image: url('../../assets/pieces/cburnett/wQ.svg');
+}
+.piece-set-cburnett piece.king.white,
+.piece-set-cburnett .promotion-dialog .king.white,
+.piece-set-cburnett .promotion-piece-btn.king.white {
+  background-image: url('../../assets/pieces/cburnett/wK.svg');
+}
+.piece-set-cburnett piece.pawn.black,
+.piece-set-cburnett .promotion-dialog .pawn.black,
+.piece-set-cburnett .promotion-piece-btn.pawn.black {
+  background-image: url('../../assets/pieces/cburnett/bP.svg');
+}
+.piece-set-cburnett piece.bishop.black,
+.piece-set-cburnett .promotion-dialog .bishop.black,
+.piece-set-cburnett .promotion-piece-btn.bishop.black {
+  background-image: url('../../assets/pieces/cburnett/bB.svg');
+}
+.piece-set-cburnett piece.knight.black,
+.piece-set-cburnett .promotion-dialog .knight.black,
+.piece-set-cburnett .promotion-piece-btn.knight.black {
+  background-image: url('../../assets/pieces/cburnett/bN.svg');
+}
+.piece-set-cburnett piece.rook.black,
+.piece-set-cburnett .promotion-dialog .rook.black,
+.piece-set-cburnett .promotion-piece-btn.rook.black {
+  background-image: url('../../assets/pieces/cburnett/bR.svg');
+}
+.piece-set-cburnett piece.queen.black,
+.piece-set-cburnett .promotion-dialog .queen.black,
+.piece-set-cburnett .promotion-piece-btn.queen.black {
+  background-image: url('../../assets/pieces/cburnett/bQ.svg');
+}
+.piece-set-cburnett piece.king.black,
+.piece-set-cburnett .promotion-dialog .king.black,
+.piece-set-cburnett .promotion-piece-btn.king.black {
+  background-image: url('../../assets/pieces/cburnett/bK.svg');
+}

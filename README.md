@@ -53,12 +53,35 @@ npm run dev
 # Compiler la bibliothèque (génère les bundles JS/Vue/React et les types .d.ts)
 npm run build
 
+# Exécuter les tests unitaires automatisés (Vitest)
+npm run test
+npm run test:watch
+
 # Valider la conformité du code et du style
 npm run lint
 npm run format:check
 
 # Optimiser les assets vectoriels SVG
 npm run optimize-assets
+```
+
+---
+
+## 🎨 Import des Styles CSS (2 Stratégies)
+
+La bibliothèque offre deux modes de chargement des styles pour s'adapter à vos besoins de performance :
+
+### Option A : Import Tout-en-un (Rapide / Historique)
+Charge la structure et l'ensemble des 10 jeux de pièces inclus (~460 kB) :
+```typescript
+import 'eg-chessboard/style.css';
+```
+
+### Option B : Import Modulaire Granulaire (Recommandé en Production)
+Charge uniquement la structure de base (~105 kB) et le(s) jeu(x) de pièces utilisé(s) (~12 à 30 kB par thème) :
+```typescript
+import 'eg-chessboard/base.css';
+import 'eg-chessboard/pieces/cburnett.css'; // ou alpha, cardinal, dubrovny, fantasy, firi, maestro, merida, staunty, tatiana
 ```
 
 ---

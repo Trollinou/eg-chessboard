@@ -8,8 +8,17 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ### Ajouté & Amélioré
 
+- **Découpage modulaire du CSS & exports granulaires** :
+  - Scission de `style.css` en `src/styles/base.css` et 10 fichiers de thèmes indépendants `src/styles/pieces/*.css`.
+  - Exposition de sous-chemins d'importation dans `package.json` (`eg-chessboard/base.css`, `eg-chessboard/pieces/*.css`) permettant de réduire le coût CSS de 466 kB à ~117 kB pour les applications consommatrices.
+  - Maintien du bundle tout-en-un `eg-chessboard/style.css` pour une rétrocompatibilité complète à 100%.
+  - Déclaration du champ `"sideEffects": ["*.css", "src/index.ts"]` pour un tree-shaking optimal dans les bundlers hôtes.
+- **Suite de tests unitaires automatisés avec Vitest** :
+  - Mise en place de Vitest et couverture complète de la logique métier sans DOM : `GameSession`, `FenManager`, `BoardHelper`, `pieceMapping` (29 tests unitaires).
+- **Optimisation de la réactivité des wrappers React & Vue 3** :
+  - Suppression des `setState` et mutations directes redondantes dans les effets/watchers, délégation unifiée et sans doublon de re-render via `BoardCore.onStateChange`.
 - **Standardisation des CSS Variables pour la promotion** :
-  - Déclaration de variables racine `--eg-promo-*` (`--eg-promo-bg`, `--eg-promo-border-color`, `--eg-promo-btn-bg`, `--eg-promo-btn-hover-bg`, etc.) dans `src/style.css` facilitant la surcharge sans forcer de sélecteurs lourds.
+  - Déclaration de variables racine `--eg-promo-*` (`--eg-promo-bg`, `--eg-promo-border-color`, `--eg-promo-btn-bg`, `--eg-promo-btn-hover-bg`, etc.) facilitant la surcharge sans forcer de sélecteurs lourds.
 - **Typage public unifié des événements** :
   - Définition et exportation des interfaces `BoardEvents` et `PromotionDetail` dans `src/types.ts` et `src/index.ts`.
   - Extension directe de `BoardEvents` dans `ChessboardProps` (React) et ré-export dans `TheChessboard.vue`.
