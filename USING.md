@@ -56,6 +56,9 @@ Contrôle le Web Worker Stockfish (WASM) :
 Permet de changer l'apparence des pièces à chaud :
 - **10 styles vectoriels inclus** : `'cburnett'` *(défaut)*, `'maestro'`, `'merida'`, `'alpha'`, `'cardinal'`, `'dubrovny'`, `'fantasy'`, `'firi'`, `'tatiana'`, `'staunty'`.
 - La liste complète est exportée sous `AVAILABLE_PIECE_SETS` pour alimenter directement vos sélecteurs d'options UI.
+- **Optimisation des imports CSS** :
+  - *Tout-en-un (par défaut)* : `import 'eg-chessboard/style.css';`
+  - *Granulaire (plus léger)* : `import 'eg-chessboard/base.css';` + `import 'eg-chessboard/pieces/cburnett.css';`
 
 ---
 
