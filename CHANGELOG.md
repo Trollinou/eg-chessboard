@@ -6,6 +6,8 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.6.9] - 2026-09-18
+
 ### Ajouté & Amélioré
 
 - **Découpage modulaire du CSS & exports granulaires** :
