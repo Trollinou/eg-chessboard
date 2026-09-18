@@ -100,7 +100,6 @@ const state = reactive<BoardCoreState>({
 watch(
   () => props.mode,
   (newVal) => {
-    state.mode = newVal;
     if (core.value && newVal) {
       core.value.setMode(newVal);
     }
@@ -111,7 +110,6 @@ watch(
 watch(
   () => props.readOnly,
   (newVal) => {
-    state.readOnly = newVal;
     if (core.value && newVal !== undefined) {
       core.value.setReadOnly(newVal);
     }
@@ -122,8 +120,7 @@ watch(
 watch(
   () => props.freeMode,
   (newVal) => {
-    state.freeMode = newVal;
-    if (core.value) {
+    if (core.value && newVal !== undefined) {
       core.value.setFreeMode(newVal);
     }
   }
@@ -133,8 +130,7 @@ watch(
 watch(
   () => props.soloMode,
   (newVal) => {
-    state.soloMode = newVal;
-    if (core.value) {
+    if (core.value && newVal !== undefined) {
       core.value.setSoloMode(newVal);
     }
   }
@@ -144,8 +140,7 @@ watch(
 watch(
   () => props.preserveShapesOnPositionChange,
   (newVal) => {
-    state.preserveShapesOnPositionChange = newVal;
-    if (core.value) {
+    if (core.value && newVal !== undefined) {
       core.value.setPreserveShapesOnPositionChange(newVal);
     }
   }
@@ -155,7 +150,6 @@ watch(
 watch(
   () => props.pieceSet,
   (newVal) => {
-    state.pieceSet = newVal;
     if (core.value && newVal) {
       core.value.setPieceSet(newVal);
     }
@@ -166,7 +160,6 @@ watch(
 watch(
   () => props.boardTheme,
   (newVal) => {
-    state.boardTheme = newVal;
     if (core.value && newVal) {
       core.value.setBoardTheme(newVal);
     }
