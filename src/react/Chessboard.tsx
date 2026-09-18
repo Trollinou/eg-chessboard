@@ -100,56 +100,42 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     if (coreRef.current && pieceSet) {
       coreRef.current.setPieceSet(pieceSet);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState((prev) => ({ ...prev, pieceSet }));
   }, [pieceSet]);
 
   useEffect(() => {
     if (coreRef.current && boardTheme) {
       coreRef.current.setBoardTheme(boardTheme);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState((prev) => ({ ...prev, boardTheme }));
   }, [boardTheme]);
 
   useEffect(() => {
     if (coreRef.current && mode) {
       coreRef.current.setMode(mode);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState((prev) => ({ ...prev, mode }));
   }, [mode]);
 
   useEffect(() => {
-    if (coreRef.current) {
+    if (coreRef.current && readOnly !== undefined) {
       coreRef.current.setReadOnly(readOnly);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState((prev) => ({ ...prev, readOnly }));
   }, [readOnly]);
 
   useEffect(() => {
-    if (coreRef.current) {
+    if (coreRef.current && freeMode !== undefined) {
       coreRef.current.setFreeMode(freeMode);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState((prev) => ({ ...prev, freeMode }));
   }, [freeMode]);
 
   useEffect(() => {
-    if (coreRef.current) {
+    if (coreRef.current && soloMode !== undefined) {
       coreRef.current.setSoloMode(soloMode);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState((prev) => ({ ...prev, soloMode }));
   }, [soloMode]);
 
   useEffect(() => {
-    if (coreRef.current) {
+    if (coreRef.current && preserveShapesOnPositionChange !== undefined) {
       coreRef.current.setPreserveShapesOnPositionChange(preserveShapesOnPositionChange);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState((prev) => ({ ...prev, preserveShapesOnPositionChange }));
   }, [preserveShapesOnPositionChange]);
 
   useEffect(() => {
