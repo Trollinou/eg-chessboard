@@ -6,6 +6,8 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.6.10] - 2026-10-01
+
 ### Ajouté & Amélioré
 
 - **Optimisation des assets CSS & Vectorisation SVG du thème `wood3`** :
