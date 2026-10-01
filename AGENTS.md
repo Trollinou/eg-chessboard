@@ -94,8 +94,15 @@ Le risque majeur de désynchronisation de `this.state` dans `BoardCore` sous Rea
 // Interdit : Modifier l'état localement ou accéder aux membres privés via des casts
 // setState(prev => ({ ...prev, promotionDialogState: { isEnabled: false } }))
 // const s = core['state'];
+// Interdit : Capturer directement les callbacks de props dans des closures longues (risque de stale closure)
 
-// Recommandé : Passer par l'API publique et les getters du Core
+// Recommandé : Synchroniser les callbacks via une ref dans useEffect
+const callbacksRef = useRef({ onMove, onTurnChange, onCheck, onCheckmate, onStalemate, onDraw, onPromotion, onStockfishHint, onSquareClick });
+useEffect(() => {
+  callbacksRef.current = { onMove, onTurnChange, onCheck, onCheckmate, onStalemate, onDraw, onPromotion, onStockfishHint, onSquareClick };
+});
+
+// Passer par l'API publique et les getters du Core
 const coreState = core.getState();
 setState({
   showThreats: coreState.showThreats,
@@ -118,6 +125,9 @@ setState({
 #### Implémentation attendue dans le composant Vue 3 (`TheChessboard.vue`) :
 
 ```typescript
+// Tous les watchers réactifs (playerColor, boardConfig, stockfishConfig, diagram)
+// doivent être déclarés au niveau racine du <script setup> avec les options appropriées.
+
 // Synchronisation réactive dans onStateChange :
 () => {
   if (core.value) {
@@ -194,7 +204,7 @@ Pour interroger l'état interne de l'échiquier et gérer le nettoyage de maniè
 - `core.getIsGameOver(): boolean` : Indique si la partie est terminée (échec et mat ou nulle).
 - `core.getGameOverReason(lang?: 'fr' | 'en'): string` : Retourne la raison formatée de fin de partie (*ex: "Échec et mat ! Les Blancs ont gagné."*, *"Match nul par triple répétition."*, *"Match nul par la règle des 50 coups."*).
 - `getFinalFenFromPgn(pgnStr: string, fallbackFen?: string): string` : Fonction utilitaire autonome (exportée depuis `BoardHelper` et à la racine d'`eg-chessboard`) qui calcule la FEN finale en rejouant la variante principale du PGN via `chessops`. Permet aux applications hôtes (ex: plugin ROI) de déterminer la position finale d'un PGN sans manipuler directement l'API de `chessops`.
-- `core.destroy(): void` : Libère proprement toutes les sous-ressources (Workers Stockfish, instance DOM Chessground). Appelé automatiquement au démontage des wrappers React (`useEffect` cleanup) et Vue 3 (`onUnmounted`).
+- `core.destroy(): void` : Libère proprement et de manière idempotente l'intégralité des sous-ressources : arrêt des Web Workers Stockfish (`StockfishManager`), déconnexion des ResizeObservers et écouteurs DOM (`BoardAdapter`), destruction de l'instance DOM Chessground (`this.board.destroy()`), déréférencement dans `AnnotationService`, et purge totale du bus d'événements (`DomainEventBus.clear()`). Appelé automatiquement au démontage des wrappers React (`useEffect` cleanup) et Vue 3 (`onUnmounted`).
 
 ---
 
@@ -208,3 +218,10 @@ Pour instancier et lire des diagrammes combinant une position FEN et des formes 
    - **React** : Le composant surveille la prop `diagram` via `useEffect` et appelle `coreRef.current?.setDiagram(diagram)`.
    - **Vue 3** : Le composant surveille la prop `diagram` via un `watch` avec `deep: true` et appelle `core.value?.setDiagram(diagram)`.
 4. **Tolérance aux positions incomplètes/invalides** : Si la FEN chargée via `setPosition` ou `setDiagram` ne respecte pas les contraintes de parsing strictes, `BoardCore` charge une position minimale contenant le trait (turn) approprié, retire les rois factices, puis injecte manuellement chaque pièce sur le plateau. Ceci prévient tout crash ou désynchronisation de l'état logique par rapport à l'affichage visuel de Chessground.
+
+---
+
+## 9. Performance des Assets & Styles CSS
+
+1. **Zéro asset matriciel lourd en inline** : Aucun fichier JPG ou PNG lourd ne doit être inliné dans les feuilles de style de base (`base.css`). Les fonds d'échiquiers personnalisés doivent être vectorisés au format SVG inline paramétré afin de maintenir `base.css` sous le seuil des ~15 kB (gzippé < 3 kB).
+2. **Imports granulaires** : Les applications consommatrices sont encouragées à importer `eg-chessboard/base.css` et uniquement les thèmes de pièces nécessaires via `eg-chessboard/pieces/{theme}.css`.
