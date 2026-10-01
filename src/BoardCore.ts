@@ -505,6 +505,7 @@ export class BoardCore {
   public destroy(): void {
     this.stockfishManager.terminateStockfish();
     this.adapter.destroy();
+    this.annotationService.setBoard(null);
     this.eventBus.clear();
   }
 

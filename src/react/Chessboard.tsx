@@ -76,6 +76,36 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   const boardRef = useRef<HTMLDivElement>(null);
   const coreRef = useRef<BoardCore | null>(null);
 
+  const callbacksRef = useRef<BoardEvents>({
+    onBoardCreated,
+    onMove,
+    onTurnChange,
+    onCheck,
+    onCheckmate,
+    onStalemate,
+    onDraw,
+    onPromotion,
+    onStockfishHint,
+    onSquareClick,
+    onShapesChange,
+  });
+
+  useEffect(() => {
+    callbacksRef.current = {
+      onBoardCreated,
+      onMove,
+      onTurnChange,
+      onCheck,
+      onCheckmate,
+      onStalemate,
+      onDraw,
+      onPromotion,
+      onStockfishHint,
+      onSquareClick,
+      onShapesChange,
+    };
+  });
+
   const [state, setState] = useState<BoardCoreState>({
     showThreats: false,
     mode,
@@ -168,18 +198,19 @@ export const Chessboard: React.FC<ChessboardProps> = ({
         });
       },
       (event, ...args) => {
-        if (event === 'move') onMove?.(args[0] as Move);
+        const cb = callbacksRef.current;
+        if (event === 'move') cb.onMove?.(args[0] as Move);
         else if (event === 'turn-change')
-          onTurnChange?.(args[0] as 'white' | 'black', args[1] as number);
-        else if (event === 'check') onCheck?.(args[0] as string);
-        else if (event === 'checkmate') onCheckmate?.(args[0] as string);
-        else if (event === 'stalemate') onStalemate?.();
-        else if (event === 'draw') onDraw?.();
+          cb.onTurnChange?.(args[0] as 'white' | 'black', args[1] as number);
+        else if (event === 'check') cb.onCheck?.(args[0] as string);
+        else if (event === 'checkmate') cb.onCheckmate?.(args[0] as string);
+        else if (event === 'stalemate') cb.onStalemate?.();
+        else if (event === 'draw') cb.onDraw?.();
         else if (event === 'promotion')
-          onPromotion?.(args[0] as { from: string; to: string; promotedTo: string });
-        else if (event === 'stockfish-hint') onStockfishHint?.(args[0] as string);
-        else if (event === 'square-click') onSquareClick?.(args[0] as string);
-        else if (event === 'shapes-change') onShapesChange?.(args[0] as DrawShape[]);
+          cb.onPromotion?.(args[0] as { from: string; to: string; promotedTo: string });
+        else if (event === 'stockfish-hint') cb.onStockfishHint?.(args[0] as string);
+        else if (event === 'square-click') cb.onSquareClick?.(args[0] as string);
+        else if (event === 'shapes-change') cb.onShapesChange?.(args[0] as DrawShape[]);
       },
       {
         ...boardConfig,
@@ -193,7 +224,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     );
 
     coreRef.current = core;
-    onBoardCreated?.(core);
+    callbacksRef.current.onBoardCreated?.(core);
 
     return () => {
       core.destroy();

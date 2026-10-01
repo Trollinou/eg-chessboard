@@ -55,12 +55,20 @@ export class GameSession {
 
   private historyState: HistoryViewerState = { isEnabled: false };
   private soloHistory: Move[] = [];
+  private parentMap = new WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>();
 
   constructor(private eventBus: DomainEventBus) {
     this.resetTree(this.pos);
   }
 
   // --- Tree & Path Management ---
+
+  public indexParents(node: Node<PgnNodeMeta> = this.rootNode): void {
+    for (const child of node.children) {
+      this.parentMap.set(child, node);
+      this.indexParents(child);
+    }
+  }
 
   public getRootComments(): string[] {
     return this.rootComments;
@@ -91,6 +99,7 @@ export class GameSession {
     this.rootNode = new Node<PgnNodeMeta>();
     this.currentNode = this.rootNode;
     this.rootComments = [];
+    this.parentMap = new WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>();
     this.rootPos = startPos ? startPos.clone() : Chess.default();
     const fen = makeFen(this.rootPos.toSetup());
     if (fen !== 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1') {
@@ -103,8 +112,14 @@ export class GameSession {
     root: Node<PgnNodeMeta>,
     target: Node<PgnNodeMeta>
   ): Node<PgnNodeMeta> | null {
+    if (root === this.rootNode && this.parentMap.has(target)) {
+      return this.parentMap.get(target) || null;
+    }
     for (const child of root.children) {
-      if (child === target) return root;
+      if (child === target) {
+        this.parentMap.set(target, root);
+        return root;
+      }
       const found = this.findParentNode(child, target);
       if (found) return found;
     }
@@ -116,7 +131,7 @@ export class GameSession {
     let node: Node<PgnNodeMeta> = this.currentNode;
     while (isChildNode(node)) {
       path.unshift(node);
-      const parent = this.findParentNode(this.rootNode, node);
+      const parent = this.parentMap.get(node) ?? this.findParentNode(this.rootNode, node);
       if (!parent) break;
       node = parent;
     }
@@ -124,6 +139,18 @@ export class GameSession {
   }
 
   public syncGamePosToCurrentNode(): Chess {
+    if (this.currentNode === this.rootNode) {
+      return this.rootPos.clone();
+    }
+    if (isChildNode(this.currentNode) && this.currentNode.data.fen) {
+      const setup = parseFen(this.currentNode.data.fen);
+      if (setup.isOk) {
+        const pos = Chess.fromSetup(setup.value);
+        if (pos.isOk) {
+          return pos.value;
+        }
+      }
+    }
     const path = this.getActivePath();
     const newPos = this.rootPos.clone();
     for (const child of path) {
@@ -137,8 +164,21 @@ export class GameSession {
 
   public syncGamePosToPly(targetPly: number): Chess {
     const path = this.getActivePath();
-    const newPos = this.rootPos.clone();
     const limit = Math.min(targetPly, path.length);
+    if (limit === 0) {
+      return this.rootPos.clone();
+    }
+    const targetNode = path[limit - 1];
+    if (targetNode && targetNode.data.fen) {
+      const setup = parseFen(targetNode.data.fen);
+      if (setup.isOk) {
+        const pos = Chess.fromSetup(setup.value);
+        if (pos.isOk) {
+          return pos.value;
+        }
+      }
+    }
+    const newPos = this.rootPos.clone();
     for (let i = 0; i < limit; i++) {
       const m = parseSan(newPos, path[i].data.san);
       if (m) {
@@ -378,6 +418,7 @@ export class GameSession {
       }
       currentNode.children.push(childNode);
     }
+    this.parentMap.set(childNode, currentNode);
     this.setCurrentNode(childNode);
 
     const isNormalPromo = isNormal(parsedMove) && !!parsedMove.promotion;
@@ -617,6 +658,9 @@ export class GameSession {
       }
     }
 
+    this.parentMap = new WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>();
+    this.indexParents(this.rootNode);
+
     this.currentNode = this.rootNode;
     const mainline = Array.from(this.rootNode.mainlineNodes());
     if (mainline.length > 0) {
@@ -838,13 +882,28 @@ export class GameSession {
     const limit = targetPly !== undefined ? Math.min(targetPly, path.length) : path.length;
 
     const positions: Chess[] = [this.rootPos.clone()];
-    const simPos = this.rootPos.clone();
 
     for (let i = 0; i < limit; i++) {
-      const m = parseSan(simPos, path[i].data.san);
-      if (m) {
-        simPos.play(m);
-        positions.push(simPos.clone());
+      const fen = path[i].data.fen;
+      let posSnapshot: Chess | undefined;
+      if (fen) {
+        const setup = parseFen(fen);
+        if (setup.isOk) {
+          const res = Chess.fromSetup(setup.value);
+          if (res.isOk) {
+            posSnapshot = res.value;
+          }
+        }
+      }
+      if (posSnapshot) {
+        positions.push(posSnapshot);
+      } else {
+        const prev = positions[positions.length - 1].clone();
+        const m = parseSan(prev, path[i].data.san);
+        if (m) {
+          prev.play(m);
+          positions.push(prev);
+        }
       }
     }
 

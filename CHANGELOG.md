@@ -6,6 +6,37 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+### Ajouté & Amélioré
+
+- **Optimisation des assets CSS & Vectorisation SVG du thème `wood3`** :
+  - Remplacement de l'image matricielle `wood3.jpg` (71 kB) par un fond vectoriel SVG inline ultra-léger et étalonné (cases claires argentées/cendrées `#d4cfc6`, cases sombres noyer `#9e723e`, veinage vertical et joints de grille sombres).
+  - Réduction drastique du poids de `dist/base.css` de **105.7 kB** à **13.15 kB** (**-87.5%**, seulement **2.56 kB gzip**).
+  - Réduction de `dist/eg-chessboard.css` de **466.8 kB** à **374.24 kB** (**-92.5 kB**).
+  - Suppression de l'asset raster orphelin `src/assets/boards/wood3.jpg`.
+- **Cycle de vie, destruction et prévention des fuites mémoire** :
+  - Implémentation complète et idempotente de `BoardCore.destroy()` libérant l'intégralité des sous-ressources :
+    - Arrêt et terminaison des Web Workers Stockfish via `StockfishManager.destroy()`.
+    - Désactivation des ResizeObservers et suppression des écouteurs DOM dans `BoardAdapter.destroy()`.
+    - Destruction propre de l'instance DOM Chessground (`this.board.destroy()`).
+    - Déréférencement du plateau dans `AnnotationService`.
+    - Nettoyage et désabonnement complet de tous les écouteurs sur `DomainEventBus.clear()`.
+- **Réactivité et robustesse des wrappers Frameworks (React & Vue 3)** :
+  - **React (`Chessboard.tsx`)** : Ajout d'une référence stable `callbacksRef` synchronisée via `useEffect` pour éliminer tout risque de *stale closures* sur les écouteurs d'événements publics (`onMove`, `onTurnChange`, `onCheck`, etc.) sans induire de cycles de re-render.
+  - **Vue 3 (`TheChessboard.vue`)** : Déclaration systématique des watchers réactifs (`playerColor`, `boardConfig`, `stockfishConfig`, `diagram`) à la racine du `<script setup>` pour garantir un cycle de vie prévisible et prévenir les fuites mémoire lors de ré-instanciations.
+- **Optimisations algorithmiques de session PGN (`GameSession`)** :
+  - Indexation et calcul du chemin d'ancêtres en temps constant / linéaire amorti via `parentMap` (`WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>`) et méthode interne `indexParents()`.
+  - Synchronisation instantanée des positions FEN (`syncGamePosToCurrentNode`, `syncGamePosToPly`, `isThreefoldRepetition`) évitant les recalculs répétés depuis la position racine.
+- **Contrôle asynchrone du moteur Stockfish (`StockfishManager`)** :
+  - Envoi systématique de la commande UCI `stop` avant tout nouvel appel de calcul (`go movetime`) afin d'éviter les chevauchements et résultats désynchronisés lors de requêtes rapides.
+- **Robustesse d'environnement (`AnnotationService`)** :
+  - Sécurisation de l'accès à `requestAnimationFrame` avec fallback synchrone pour la prise en charge des contextes sans DOM (SSR, tests unitaires).
+  - Normalisation du formatage et nettoyage des espaces/sauts de ligne dans `parseComment`.
+- **Extension de la suite de tests unitaires automatisés (Vitest)** :
+  - Ajout de 3 nouvelles suites de tests portant la couverture à 53 tests (100% au vert) :
+    - `tests/AnnotationService.test.ts` (9 tests : gestion des formes, menaces, balises `%cal` / `%csl`, sérialisation de commentaires).
+    - `tests/ExerciseManager.test.ts` (7 tests : restrictions de mouvements, calcul d'attaques, historique solo).
+    - `tests/BoardCore.test.ts` (8 tests : initialisation, cycle de vie, API publique, `destroy()`, intégration DOM/happy-dom).
+
 ## [1.6.9] - 2026-09-18
 
 ### Ajouté & Amélioré

@@ -75,9 +75,15 @@ export class AnnotationService {
         },
       });
     }
-    requestAnimationFrame(() => {
-      this.isProgrammaticShapeUpdate = false;
-    });
+    if (typeof requestAnimationFrame !== 'undefined') {
+      requestAnimationFrame(() => {
+        this.isProgrammaticShapeUpdate = false;
+      });
+    } else {
+      setTimeout(() => {
+        this.isProgrammaticShapeUpdate = false;
+      }, 0);
+    }
   }
 
   public handleDrawableChange(
@@ -269,7 +275,10 @@ export class AnnotationService {
       }
     }
 
-    text = text.replace(/\[%(?:cal|csl|cpl)\s+[^\]]+\]/gi, '').trim();
+    text = text
+      .replace(/\[%(?:cal|csl|cpl)\s+[^\]]+\]/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
 
     return { text, shapes };
   }

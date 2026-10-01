@@ -166,6 +166,55 @@ watch(
   }
 );
 
+// Watch for playerColor changes
+watch(
+  () => props.playerColor,
+  (newVal) => {
+    if (newVal && core.value) {
+      core.value.setPlayerColor(newVal);
+    }
+  }
+);
+
+// Watch for configuration changes
+watch(
+  () => props.boardConfig,
+  (newConfig) => {
+    if (newConfig && core.value) {
+      core.value.setConfig({
+        ...newConfig,
+        movable: {
+          ...newConfig.movable,
+          color: props.playerColor || newConfig.movable?.color,
+        },
+      });
+    }
+  },
+  { deep: true }
+);
+
+// Watch for Stockfish configuration changes
+watch(
+  () => props.stockfishConfig,
+  (newStockfishConfig) => {
+    if (newStockfishConfig && core.value) {
+      core.value.updateStockfishConfig(newStockfishConfig);
+    }
+  },
+  { deep: true }
+);
+
+// Watch for diagram changes
+watch(
+  () => props.diagram,
+  (newDiagram) => {
+    if (newDiagram && core.value) {
+      core.value.setDiagram(newDiagram);
+    }
+  },
+  { deep: true }
+);
+
 onMounted(() => {
   if (!boardElement.value) return;
 
@@ -214,55 +263,6 @@ onMounted(() => {
   );
 
   emit('board-created', core.value!);
-
-  // Watch for playerColor changes
-  watch(
-    () => props.playerColor,
-    (newVal) => {
-      if (newVal && core.value) {
-        core.value.setPlayerColor(newVal);
-      }
-    }
-  );
-
-  // Watch for configuration changes
-  watch(
-    () => props.boardConfig,
-    (newConfig) => {
-      if (newConfig && core.value) {
-        core.value.setConfig({
-          ...newConfig,
-          movable: {
-            ...newConfig.movable,
-            color: props.playerColor || newConfig.movable?.color,
-          },
-        });
-      }
-    },
-    { deep: true }
-  );
-
-  // Watch for Stockfish configuration changes
-  watch(
-    () => props.stockfishConfig,
-    (newStockfishConfig) => {
-      if (newStockfishConfig && core.value) {
-        core.value.updateStockfishConfig(newStockfishConfig);
-      }
-    },
-    { deep: true }
-  );
-
-  // Watch for diagram changes
-  watch(
-    () => props.diagram,
-    (newDiagram) => {
-      if (newDiagram && core.value) {
-        core.value.setDiagram(newDiagram);
-      }
-    },
-    { deep: true }
-  );
 });
 
 onUnmounted(() => {

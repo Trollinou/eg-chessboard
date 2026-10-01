@@ -72,13 +72,13 @@ npm run optimize-assets
 La bibliothèque offre deux modes de chargement des styles pour s'adapter à vos besoins de performance :
 
 ### Option A : Import Tout-en-un (Rapide / Historique)
-Charge la structure et l'ensemble des 10 jeux de pièces inclus (~460 kB) :
+Charge la structure et l'ensemble des 10 jeux de pièces inclus (~374 kB) :
 ```typescript
 import 'eg-chessboard/style.css';
 ```
 
 ### Option B : Import Modulaire Granulaire (Recommandé en Production)
-Charge uniquement la structure de base (~105 kB) et le(s) jeu(x) de pièces utilisé(s) (~12 à 30 kB par thème) :
+Charge uniquement la structure de base (~13 kB / 2.5 kB gzip) et le(s) jeu(x) de pièces utilisé(s) (~12 à 85 kB par thème) :
 ```typescript
 import 'eg-chessboard/base.css';
 import 'eg-chessboard/pieces/cburnett.css'; // ou alpha, cardinal, dubrovny, fantasy, firi, maestro, merida, staunty, tatiana

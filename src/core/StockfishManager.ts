@@ -150,6 +150,7 @@ export class StockfishManager {
     const cmd = this.getEnginePositionCommand();
     const moveTime = this.stockfishConfig.stockfishMoveTime || 1000;
 
+    worker.postMessage('stop');
     worker.postMessage(cmd);
     worker.postMessage(`go movetime ${moveTime}`);
   }
