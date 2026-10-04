@@ -67,21 +67,39 @@ npm run optimize-assets
 
 ---
 
-## 🎨 Import des Styles CSS (2 Stratégies)
+## 🎨 Import des Styles (CSS & SCSS)
 
-La bibliothèque offre deux modes de chargement des styles pour s'adapter à vos besoins de performance :
+La bibliothèque offre plusieurs modes de chargement des styles pour s'adapter à tous les environnements :
 
-### Option A : Import Tout-en-un (Rapide / Historique)
+### 1. Import CSS Tout-en-un (Rapide / Sans outil Sass)
 Charge la structure et l'ensemble des 10 jeux de pièces inclus (~374 kB) :
 ```typescript
 import 'eg-chessboard/style.css';
 ```
 
-### Option B : Import Modulaire Granulaire (Recommandé en Production)
+### 2. Import CSS Modulaire (Recommandé en Production sans Sass)
 Charge uniquement la structure de base (~13 kB / 2.5 kB gzip) et le(s) jeu(x) de pièces utilisé(s) (~12 à 85 kB par thème) :
 ```typescript
 import 'eg-chessboard/base.css';
 import 'eg-chessboard/pieces/cburnett.css'; // ou alpha, cardinal, dubrovny, fantasy, firi, maestro, merida, staunty, tatiana
+```
+
+### 3. Import SCSS avec Personnalisation (Projets avec Sass / Vite / Webpack)
+Permet de surcharger les variables par défaut (`!default`) et d'importer les modules à la carte :
+```scss
+// Dans votre fichier style (ex: main.scss)
+@use 'eg-chessboard/scss/abstracts' with (
+  $eg-promo-bg: #f0d9b5,
+  $eg-promo-border-color: #b58863,
+  $eg-promo-btn-bg: #ffffff
+);
+@use 'eg-chessboard/scss/base';
+@use 'eg-chessboard/scss/pieces/merida'; // ou 'eg-chessboard/scss/pieces' pour tous les sets
+```
+
+Ou import global complet en SCSS :
+```scss
+@use 'eg-chessboard/scss';
 ```
 
 ---

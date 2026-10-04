@@ -1,0 +1,3 @@
+@use '../abstracts/piece-generator' as gen;
+
+@include gen.piece-set('dubrovny');

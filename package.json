@@ -10,6 +10,7 @@
   ],
   "sideEffects": [
     "*.css",
+    "*.scss",
     "src/index.ts"
   ],
   "exports": {
@@ -29,6 +30,11 @@
     "./pieces/merida.css": "./dist/pieces/merida.css",
     "./pieces/staunty.css": "./dist/pieces/staunty.css",
     "./pieces/tatiana.css": "./dist/pieces/tatiana.css",
+    "./scss": {
+      "sass": "./dist/scss/style.scss",
+      "default": "./dist/scss/style.scss"
+    },
+    "./scss/*": "./dist/scss/*",
     "./vue": {
       "import": "./dist/vue.js",
       "types": "./dist/vue/TheChessboard.vue.d.ts"
@@ -38,6 +44,8 @@
       "types": "./dist/react/Chessboard.d.ts"
     }
   },
+  "style": "./dist/eg-chessboard.css",
+  "sass": "./dist/scss/style.scss",
   "scripts": {
     "build": "vite build && vue-tsc --declaration --emitDeclarationOnly --outDir dist --noEmit false",
     "dev": "vite",
@@ -45,8 +53,8 @@
     "test:watch": "vitest",
     "lint": "eslint src sandbox",
     "lint:fix": "eslint src sandbox --fix",
-    "format": "prettier --write \"{src,sandbox,tests}/**/*.{ts,tsx,vue,css,json,md}\"",
-    "format:check": "prettier --check \"{src,sandbox,tests}/**/*.{ts,tsx,vue,css,json,md}\"",
+    "format": "prettier --write \"{src,sandbox,tests}/**/*.{ts,tsx,vue,css,scss,json,md}\"",
+    "format:check": "prettier --check \"{src,sandbox,tests}/**/*.{ts,tsx,vue,css,scss,json,md}\"",
     "optimize-assets": "svgo -rf src/assets/pieces"
   },
   "dependencies": {
@@ -72,6 +80,7 @@
     "happy-dom": "^20.14.5",
     "prettier": "^3.9.9",
     "react": "^18.3.1",
+    "sass-embedded": "^1.105.1",
     "svgo": "^4.1.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.0",

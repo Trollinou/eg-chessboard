@@ -2,10 +2,10 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
-import { copyFileSync, existsSync, mkdirSync } from 'fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync } from 'fs';
 
-const copyStockfishPlugin = () => ({
-  name: 'copy-stockfish',
+const copyDistAssetsPlugin = () => ({
+  name: 'copy-dist-assets',
   closeBundle() {
     const distDir = resolve(import.meta.dirname, 'dist');
     if (!existsSync(distDir)) {
@@ -19,6 +19,16 @@ const copyStockfishPlugin = () => ({
     if (existsSync(srcWasm)) {
       copyFileSync(srcWasm, resolve(distDir, 'stockfish.wasm'));
     }
+    const scssSrc = resolve(import.meta.dirname, 'src/styles');
+    const scssDest = resolve(distDir, 'scss');
+    if (existsSync(scssSrc)) {
+      cpSync(scssSrc, scssDest, { recursive: true });
+    }
+    const assetsSrc = resolve(import.meta.dirname, 'src/assets');
+    const assetsDest = resolve(distDir, 'assets');
+    if (existsSync(assetsSrc)) {
+      cpSync(assetsSrc, assetsDest, { recursive: true });
+    }
   }
 });
 
@@ -26,7 +36,12 @@ export default defineConfig(({ command }) => {
   return {
     root: command === 'serve' ? 'sandbox' : '.',
     publicDir: resolve(import.meta.dirname, 'public'),
-    plugins: [vue(), react(), copyStockfishPlugin()],
+    resolve: {
+      alias: {
+        '@': resolve(import.meta.dirname, 'src'),
+      },
+    },
+    plugins: [vue(), react(), copyDistAssetsPlugin()],
     server: {
       headers: {
         'Cross-Origin-Opener-Policy': 'same-origin',
@@ -41,17 +56,17 @@ export default defineConfig(({ command }) => {
           index: resolve(import.meta.dirname, 'src/index.ts'),
           vue: resolve(import.meta.dirname, 'src/vue/TheChessboard.vue'),
           react: resolve(import.meta.dirname, 'src/react/Chessboard.tsx'),
-          base: resolve(import.meta.dirname, 'src/styles/base.css'),
-          'pieces/alpha': resolve(import.meta.dirname, 'src/styles/pieces/alpha.css'),
-          'pieces/cardinal': resolve(import.meta.dirname, 'src/styles/pieces/cardinal.css'),
-          'pieces/cburnett': resolve(import.meta.dirname, 'src/styles/pieces/cburnett.css'),
-          'pieces/dubrovny': resolve(import.meta.dirname, 'src/styles/pieces/dubrovny.css'),
-          'pieces/fantasy': resolve(import.meta.dirname, 'src/styles/pieces/fantasy.css'),
-          'pieces/firi': resolve(import.meta.dirname, 'src/styles/pieces/firi.css'),
-          'pieces/maestro': resolve(import.meta.dirname, 'src/styles/pieces/maestro.css'),
-          'pieces/merida': resolve(import.meta.dirname, 'src/styles/pieces/merida.css'),
-          'pieces/staunty': resolve(import.meta.dirname, 'src/styles/pieces/staunty.css'),
-          'pieces/tatiana': resolve(import.meta.dirname, 'src/styles/pieces/tatiana.css'),
+          base: resolve(import.meta.dirname, 'src/styles/base.scss'),
+          'pieces/alpha': resolve(import.meta.dirname, 'src/styles/pieces/alpha.scss'),
+          'pieces/cardinal': resolve(import.meta.dirname, 'src/styles/pieces/cardinal.scss'),
+          'pieces/cburnett': resolve(import.meta.dirname, 'src/styles/pieces/cburnett.scss'),
+          'pieces/dubrovny': resolve(import.meta.dirname, 'src/styles/pieces/dubrovny.scss'),
+          'pieces/fantasy': resolve(import.meta.dirname, 'src/styles/pieces/fantasy.scss'),
+          'pieces/firi': resolve(import.meta.dirname, 'src/styles/pieces/firi.scss'),
+          'pieces/maestro': resolve(import.meta.dirname, 'src/styles/pieces/maestro.scss'),
+          'pieces/merida': resolve(import.meta.dirname, 'src/styles/pieces/merida.scss'),
+          'pieces/staunty': resolve(import.meta.dirname, 'src/styles/pieces/staunty.scss'),
+          'pieces/tatiana': resolve(import.meta.dirname, 'src/styles/pieces/tatiana.scss'),
         },
         formats: ['es'],
       },
