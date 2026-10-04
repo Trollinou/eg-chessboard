@@ -6,6 +6,8 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-04
+
 ### Ajouté & Amélioré
 
 - **Migration complète des feuilles de style CSS vers SCSS & architecture modulaire** :
