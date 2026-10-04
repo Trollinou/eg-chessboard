@@ -221,7 +221,23 @@ Pour instancier et lire des diagrammes combinant une position FEN et des formes 
 
 ---
 
-## 9. Performance des Assets & Styles CSS
+## 9. Architecture des Styles & Distribution Hybride (CSS & SCSS)
 
-1. **Zéro asset matriciel lourd en inline** : Aucun fichier JPG ou PNG lourd ne doit être inliné dans les feuilles de style de base (`base.css`). Les fonds d'échiquiers personnalisés doivent être vectorisés au format SVG inline paramétré afin de maintenir `base.css` sous le seuil des ~15 kB (gzippé < 3 kB).
-2. **Imports granulaires** : Les applications consommatrices sont encouragées à importer `eg-chessboard/base.css` et uniquement les thèmes de pièces nécessaires via `eg-chessboard/pieces/{theme}.css`.
+1. **Source de Vérité Unique en SCSS** : L'ensemble des styles réside sous `src/styles/` et s'appuie sur le système de modules moderne Dart Sass (`@use` / `@forward`), proscrivant l'usage de `@import` déprécié.
+2. **Modularité & Découpage Thématique** :
+   - `src/styles/abstracts/` : Centralise les variables surchargeables (`$eg-*` déclarées avec `!default`) et le mixin de génération dynamique de sets de pièces (`@mixin piece-set($name, $path)`).
+   - `src/styles/base/` : Découpe modulaire (`_variables-root`, `_dialog`, `_board`, `_themes`, `_coords`).
+   - `src/styles/pieces/` : Déclaration factorisée des 10 sets de pièces via le mixin `piece-set`.
+3. **Distribution Hybride (CSS Compilé + SCSS Source)** :
+   - Le build Vite compile et optimise les feuilles de style dans `dist/` (`eg-chessboard.css`, `base.css`, `pieces/*.css`).
+   - Les sources SCSS brutes et les assets SVG sont distribués dans `dist/scss/` et `dist/assets/pieces/` pour permettre aux applications hôtes avec pipeline Sass de surcharger les variables (`@use ... with (...)`) et d'importer les modules à la carte.
+   - Les points d'entrée `./scss` et `./scss/*` ainsi que les champs `"sass"` et `"style"` sont déclarés dans `package.json`.
+4. **Performance & Zéro asset matriciel lourd en inline** : Aucun fichier JPG ou PNG lourd ne doit être inliné dans les feuilles de style de base. Les fonds d'échiquiers personnalisés (ex: `wood3`) sont vectorisés au format SVG inline paramétré afin de maintenir `base.css` sous le seuil des ~15 kB (gzippé < 3 kB).
+
+---
+
+## 10. Protocole de Développement, Versionnage & Communication Client
+
+1. **Branches Dédiées** : Tout refactoring, évolution d'architecture ou nouvelle fonctionnalité doit être développé sur une branche Git dédiée (ex: `feat/...`, `fix/...`, `refactor/...`).
+2. **Traçabilité `CHANGELOG.md`** : Chaque lot de modifications doit systématiquement être documenté sous la section `## [Unreleased]` de `CHANGELOG.md` selon le standard *Keep a Changelog*.
+3. **Prompt de Transition pour les Applications Clientes** : Lors de toute modification impactant l'API, les points d'entrée de bundles ou les modes de consommation (CSS/SCSS), un prompt documenté et prêt à l'emploi doit être fourni pour guider la mise à jour des applications consommatrices.
