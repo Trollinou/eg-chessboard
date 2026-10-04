@@ -6,6 +6,21 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+### Ajouté & Amélioré
+
+- **Migration complète des feuilles de style CSS vers SCSS & architecture modulaire** :
+  - Découpage et refactorisation de l'ensemble des styles sous `src/styles/` avec le système de modules Dart Sass moderne (`@use`, `@forward`).
+  - Création de `src/styles/abstracts/` :
+    - `_variables.scss` : Définition des variables de thème, dimensions, dialogue de promotion et chemins d'assets avec valeurs par défaut surchargeables (`!default`).
+    - `_piece-generator.scss` : Mixin générique `@mixin piece-set(...)` factorisant la génération CSS des 10 sets de pièces et éliminant la redondance de code.
+  - Création de `src/styles/base/` : Découpage thématique (`_variables-root`, `_dialog`, `_board`, `_themes`, `_coords`).
+  - Création de `src/styles/pieces/` : 10 sets de pièces factorisés (`alpha`, `cardinal`, `cburnett`, `dubrovny`, `fantasy`, `firi`, `maestro`, `merida`, `staunty`, `tatiana`).
+- **Distribution Hybride CSS & SCSS** :
+  - **Support CSS rétrocompatible** : Maintien et génération à l'identique de tous les bundles CSS compilés dans `dist/` (`eg-chessboard.css`, `base.css`, `pieces/*.css`).
+  - **Support SCSS personnalisable** : Distribution des sources SCSS dans `dist/scss/` et des assets SVG dans `dist/assets/pieces/` permettant la surcharge de variables (`@use ... with (...)`).
+  - **Configuration `package.json`** : Ajout des exports `"./scss"` et `"./scss/*"`, des champs standards `"sass"` et `"style"`, et prise en charge de `*.scss` dans `sideEffects`.
+  - **Tooling & Build Vite** : Intégration de `sass-embedded`, configuration de l'alias `@` et automatisation de la distribution des partiels SCSS et assets dans `dist/` via le plugin Vite `copyDistAssetsPlugin`.
+
 ## [1.6.10] - 2026-10-01
 
 ### Ajouté & Amélioré

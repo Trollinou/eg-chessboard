@@ -1,0 +1,43 @@
+// Promotion Dialog & Dimensions
+$eg-chessboard-width: 100% !default;
+$eg-chessboard-height: 100% !default;
+$eg-chessboard-flex: 1 !default;
+
+$eg-promo-bg: #f0d9b5 !default;
+$eg-promo-border-color: #b58863 !default;
+$eg-promo-shadow: rgba(0, 0, 0, 0.4) !default;
+$eg-promo-btn-bg: #ffffff !default;
+$eg-promo-btn-border-color: #b58863 !default;
+$eg-promo-btn-hover-bg: #e6c89c !default;
+$eg-promo-btn-hover-border: #8b5a2b !default;
+
+// Board Themes Default Coordinate Colors
+$eg-board-coord-light-brown: #f0d9b5 !default;
+$eg-board-coord-dark-brown: #946f51 !default;
+
+$eg-board-coord-light-blue: #dee3e6 !default;
+$eg-board-coord-dark-blue: #6a8290 !default;
+
+$eg-board-coord-light-green: #ffffdd !default;
+$eg-board-coord-dark-green: #68864a !default;
+
+$eg-board-coord-light-ic: #ece9d8 !default;
+$eg-board-coord-dark-ic: #8b976b !default;
+
+$eg-board-coord-light-grey: #f5f5f5 !default;
+$eg-board-coord-dark-grey: #505050 !default;
+
+$eg-board-coord-light-purple: #edeed1 !default;
+$eg-board-coord-dark-purple: #5d3e84 !default;
+
+$eg-board-coord-light-wood: #f5e2c8 !default;
+$eg-board-coord-dark-wood: #6b401b !default;
+
+$eg-board-coord-light-wood3: #d4cfc6 !default;
+$eg-board-coord-dark-wood3: #9e723e !default;
+
+$eg-board-coord-light-maple: #fdf2e2 !default;
+$eg-board-coord-dark-maple: #8a5426 !default;
+
+// Pieces Assets Base Path
+$eg-piece-assets-base-path: '@/assets/pieces' !default;

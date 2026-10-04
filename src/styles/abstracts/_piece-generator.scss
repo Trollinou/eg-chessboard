@@ -1,0 +1,27 @@
+@use './variables' as vars;
+
+$piece-roles: (
+  'pawn': 'P',
+  'bishop': 'B',
+  'knight': 'N',
+  'rook': 'R',
+  'queen': 'Q',
+  'king': 'K',
+);
+
+$piece-colors: (
+  'white': 'w',
+  'black': 'b',
+);
+
+@mixin piece-set($set-name, $assets-path: vars.$eg-piece-assets-base-path) {
+  @each $color-name, $color-prefix in $piece-colors {
+    @each $role-name, $role-letter in $piece-roles {
+      .piece-set-#{$set-name} piece.#{$role-name}.#{$color-name},
+      .piece-set-#{$set-name} .promotion-dialog .#{$role-name}.#{$color-name},
+      .piece-set-#{$set-name} .promotion-piece-btn.#{$role-name}.#{$color-name} {
+        background-image: url('#{$assets-path}/#{$set-name}/#{$color-prefix}#{$role-letter}.svg');
+      }
+    }
+  }
+}

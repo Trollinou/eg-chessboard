@@ -1,0 +1,69 @@
+coords {
+  position: absolute;
+  display: flex;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+  color: #fff;
+  font-weight: 700;
+  font-size: 8px;
+
+  @media (min-width: 320px) {
+    font-size: calc(8px + 4 * ((100vw - 320px) / 880));
+  }
+
+  @media (min-width: 1200px) {
+    font-size: 12px;
+  }
+
+  &.ranks {
+    flex-flow: column-reverse;
+    top: 1px;
+    right: 0;
+    height: 100%;
+    width: 0.8em;
+
+    &.black {
+      flex-flow: column;
+    }
+  }
+
+  &.files {
+    bottom: 0;
+    left: -0.12em;
+    text-align: left;
+    flex-flow: row;
+    width: 100%;
+    height: 1.2em;
+
+    &.black {
+      flex-flow: row-reverse;
+    }
+
+    coord {
+      padding-left: 4px;
+    }
+  }
+
+  coord {
+    flex: 1 1 auto;
+  }
+}
+
+.coords-no coords {
+  display: none;
+}
+
+.orientation-white .files coord:nth-child(odd),
+.orientation-white .ranks coord:nth-child(2n),
+.orientation-black .files coord:nth-child(2n),
+.orientation-black .ranks coord:nth-child(odd) {
+  color: var(--board-coord-light, #f0d9b5);
+}
+
+.orientation-white .files coord:nth-child(2n),
+.orientation-white .ranks coord:nth-child(odd),
+.orientation-black .files coord:nth-child(odd),
+.orientation-black .ranks coord:nth-child(2n) {
+  color: var(--board-coord-dark, #946f51);
+}
