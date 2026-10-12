@@ -63,6 +63,7 @@ web_modules/
 # Output directory (Vite / general build)
 dist/
 dist-ssr/
+stats.html
 *.local
 
 # Editor directories and files
