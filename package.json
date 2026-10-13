@@ -10,13 +10,12 @@
   ],
   "sideEffects": [
     "*.css",
-    "*.scss",
-    "src/index.ts"
+    "*.scss"
   ],
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./style.css": "./dist/eg-chessboard.css",
     "./base.css": "./dist/base.css",
@@ -36,18 +35,19 @@
     },
     "./scss/*": "./dist/scss/*",
     "./vue": {
-      "import": "./dist/vue.js",
-      "types": "./dist/vue/TheChessboard.vue.d.ts"
+      "types": "./dist/vue/TheChessboard.vue.d.ts",
+      "import": "./dist/vue.js"
     },
     "./react": {
-      "import": "./dist/react.js",
-      "types": "./dist/react/Chessboard.d.ts"
+      "types": "./dist/react/Chessboard.d.ts",
+      "import": "./dist/react.js"
     }
   },
   "style": "./dist/eg-chessboard.css",
   "sass": "./dist/scss/style.scss",
   "scripts": {
     "build": "vite build && vue-tsc --declaration --emitDeclarationOnly --outDir dist --noEmit false",
+    "build:analyze": "cross-env ANALYZE=true vite build && vue-tsc --declaration --emitDeclarationOnly --outDir dist --noEmit false",
     "dev": "vite",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -59,18 +59,31 @@
   },
   "dependencies": {
     "@lichess-org/chessground": "^10.4.1",
-    "chessops": "^0.15.1",
-    "stockfish": "^18.0.8"
+    "chessops": "^0.15.1"
   },
   "peerDependencies": {
     "react": "^17.0.0 || ^18.0.0",
+    "react-dom": "^17.0.0 || ^18.0.0",
     "vue": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
     "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^6.1.1",
     "@vitejs/plugin-vue": "^6.0.9",
+    "cross-env": "^10.1.0",
     "eslint": "^9.22.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
@@ -80,7 +93,11 @@
     "happy-dom": "^20.14.5",
     "prettier": "^3.9.9",
     "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "rollup-plugin-visualizer": "^7.1.1",
+    "sass": "^1.105.1",
     "sass-embedded": "^1.105.1",
+    "stockfish": "^18.0.8",
     "svgo": "^4.1.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.0",

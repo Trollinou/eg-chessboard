@@ -1,5 +1,3 @@
-import './style.scss';
-
 export {
   BoardCore,
   type BoardCoreState,

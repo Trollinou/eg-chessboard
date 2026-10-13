@@ -6,6 +6,26 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+### Ajouté & Amélioré
+
+- **Optimisation du Tree-Shaking & Découplage CSS/JS** :
+  - Suppression de l'import forcé `import './style.scss';` du point d'entrée JS `src/index.ts`.
+  - Restriction de `sideEffects` à `["*.css", "*.scss"]` dans `package.json` : les bundlers tiers (Webpack, Rollup, Vite) éliminent désormais tout code JS inutilisé sans embarquer l'échiquier ni les feuilles de style lors de l'import de fonctions pures (ex: `getFinalFenFromPgn`).
+  - Définition d'une entrée de build dédiée `style: src/styles/style.scss` dans `vite.config.ts` pour générer de manière autonome `dist/eg-chessboard.css`.
+  - Réduction de la taille du point d'entrée `dist/index.js` à **0.29 kB** (gzippé : 0.22 kB).
+  - Possibilité de consommation modulaire ultra-légère du style via `eg-chessboard/base.css` + `eg-chessboard/pieces/cburnett.css` (**~25 kB** brut / **~4.6 kB** gzip, soit **-93% de CSS** par rapport au pack complet).
+- **Bibliothèque autonome (*Batteries-included*) & Compatibilité WordPress** :
+  - Intégration et tree-shaking direct de `chessops` et `@lichess-org/chessground` dans le bundle de la bibliothèque (retirés de `external`). Les projets consommateurs (notamment les extensions et blocs WordPress Gutenberg) n'ont aucune dépendance tierce d'échecs à installer ou configurer.
+  - Externalisation stricte via expressions régulières de `react`, `react-dom` et `vue` (avec leurs sous-chemins `react/*`, `react-dom/*`, `vue/*`).
+  - Maintien strict de la compatibilité React 18 (`"react": "^17.0.0 || ^18.0.0"`, `"react-dom": "^17.0.0 || ^18.0.0"`) pour s'aligner sur l'environnement d'exécution WordPress (`@wordpress/element`).
+  - Ajout du bloc `peerDependenciesMeta` marquant React, ReactDOM et Vue comme optionnels.
+  - Déplacement de `stockfish` vers `devDependencies` (ses binaires `dist/stockfish.js` et `dist/stockfish.wasm` étant directement distribués dans `dist/`).
+- **Résolution TypeScript & Normes de Packaging** :
+  - Réorganisation des exports conditionnels dans `package.json` en plaçant systématiquement la condition `"types"` avant `"import"` pour une détection immédiate des déclarations `.d.ts` sous TypeScript 5+ (`moduleResolution: bundler` / `node16`).
+  - Activation de `sourcemap: true` et de la minification native dans `vite.config.ts`.
+- **Outillage d'analyse du Bundle** :
+  - Ajout du script `npm run build:analyze` (`cross-env ANALYZE=true vite build`) s'appuyant sur `rollup-plugin-visualizer` pour générer un treemap interactif (`stats.html`).
+
 ## [1.7.0] - 2026-10-04
 
 ### Ajouté & Amélioré

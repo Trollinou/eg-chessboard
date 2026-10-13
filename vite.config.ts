@@ -3,6 +3,7 @@ import vue from '@vitejs/plugin-vue';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 import { copyFileSync, cpSync, existsSync, mkdirSync } from 'fs';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 const copyDistAssetsPlugin = () => ({
   name: 'copy-dist-assets',
@@ -41,7 +42,21 @@ export default defineConfig(({ command }) => {
         '@': resolve(import.meta.dirname, 'src'),
       },
     },
-    plugins: [vue(), react(), copyDistAssetsPlugin()],
+    plugins: [
+      vue(),
+      react(),
+      copyDistAssetsPlugin(),
+      ...(process.env.ANALYZE === 'true'
+        ? [
+            visualizer({
+              filename: 'stats.html',
+              open: false,
+              gzipSize: true,
+              brotliSize: true,
+            }),
+          ]
+        : []),
+    ],
     server: {
       headers: {
         'Cross-Origin-Opener-Policy': 'same-origin',
@@ -50,10 +65,13 @@ export default defineConfig(({ command }) => {
     },
     build: {
       target: 'es2021',
+      sourcemap: true,
       cssCodeSplit: true,
+      minify: true,
       lib: {
         entry: {
           index: resolve(import.meta.dirname, 'src/index.ts'),
+          style: resolve(import.meta.dirname, 'src/styles/style.scss'),
           vue: resolve(import.meta.dirname, 'src/vue/TheChessboard.vue'),
           react: resolve(import.meta.dirname, 'src/react/Chessboard.tsx'),
           base: resolve(import.meta.dirname, 'src/styles/base.scss'),
@@ -71,7 +89,11 @@ export default defineConfig(({ command }) => {
         formats: ['es'],
       },
       rollupOptions: {
-        external: ['vue', 'react', 'react-dom', 'react/jsx-runtime', 'chessops', '@lichess-org/chessground'],
+        external: [
+          /^react(\/.*)?$/,
+          /^react-dom(\/.*)?$/,
+          /^vue(\/.*)?$/,
+        ],
         output: {
           entryFileNames: '[name].js',
           chunkFileNames: 'chunks/[name]-[hash].js',
@@ -85,8 +107,6 @@ export default defineConfig(({ command }) => {
             vue: 'Vue',
             react: 'React',
             'react-dom': 'ReactDOM',
-            chessops: 'chessops',
-            '@lichess-org/chessground': 'Chessground',
           },
         },
       },
