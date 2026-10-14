@@ -654,6 +654,7 @@ export class BoardCore {
       selected: undefined,
     });
     this.adapter.updateGameState({ updateFen: false });
+    this.stockfishManager.newGame();
     this.stockfishManager.initStockfish(!!this.state.freeMode);
     this.stockfishManager.triggerStockfish(!!this.state.freeMode);
   }
@@ -725,8 +726,13 @@ export class BoardCore {
   public reviewGame(options?: {
     depth?: number;
     onProgress?: (percent: number) => void;
+    signal?: AbortSignal;
   }): Promise<GameReviewReport> {
     return this.stockfishManager.reviewGame(options);
+  }
+
+  public cancelReview(): void {
+    this.stockfishManager.cancelReview();
   }
 
   public setCommentAtPly(

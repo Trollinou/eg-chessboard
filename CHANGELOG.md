@@ -9,13 +9,18 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 - **Mise à niveau Stockfish 19 & Nouvelle Architecture Moteur Unifiée** :
   - Mise à niveau du moteur vers **Stockfish 19** (`stockfish@^19.0.1`, binaire WASM `stockfish-19-lite-single` de 1.84 Mo ne requérant aucun header COOP/COEP).
   - Refonte complète de la gestion multi-workers en une **architecture mono-worker asynchrone robuste** (`StockfishEngine`) avec machine à états finis (`uninitialized`, `loading`, `ready`, `searching`, `stopping`, `error`), préemption immédiate et file d'attente FIFO.
-  - Sécurité renforcée contre les crashs de Stockfish 19 : pré-validation stricte des FENs via `chessops` (`validateFen`), interception active des lignes `CRITICAL ERROR: Invalid FEN`, watchdogs de non-réponse et recyclage automatique du worker en cas d'anomalie.
+  - Sécurité renforcée contre les crashs et corruptions d'état :
+    - File d'attente FIFO lors de l'état `loading` retenant les commandes de recherche jusqu'à la fin de la négociation UCI (`readyok`).
+    - Isolation stricte des contextes de recherche (`activeContext` vs `stagedContext`) prévenant toute corruption d'évaluation lors des préemptions ou interruptions.
+    - Pré-validation stricte des FENs via `chessops` (`validateFen`), interception active des lignes `CRITICAL ERROR: Invalid FEN`, watchdogs de non-réponse (5 000 ms) et recyclage automatique du worker en cas d'anomalie.
+    - Synchronisation réactive avec la navigation historique (`core.viewHistory()`) : limitation automatique des coups évalués au ply visualisé et calcul en temps réel.
   - Décodage complet des lignes UCI `info` : scores centipions normalisés et mat, statistiques WDL (`UCI_ShowWDL`), profondeur, seldepth, NPS, nœuds, PV et MultiPV.
   - Nouvelles fonctionnalités moteur :
     - **Barre d'évaluation temps réel** : calcul précis du pourcentage d'avantage avec `computeEvalBarPercentage()` et émission d'événements `@evaluation` / `onEvaluation`.
-    - **Conseils multi-variantes (MultiPV)** : méthode `requestHint({ multiPv: 3, drawArrows: true })` affichant les flèches d'indication colorées.
-    - **Analyse continue en direct** : `startLiveAnalysis()` / `stopLiveAnalysis()` suivant les coups joués en temps réel.
-    - **Revue de partie post-mortem autonome** : `reviewGame()` analysant l'ensemble des plies de la partie, calculant un score de précision pour les Blancs et les Noirs (0 à 100%), et classifiant chaque coup (*Brillant*, *Meilleur*, *Excellent*, *Bon*, *Imprécision*, *Erreur*, *Gaffe*, *Gain manqué*).
+    - **Conseils multi-variantes (MultiPV)** : méthode `requestHint({ multiPv: 3, drawArrows: true })` affichant les flèches d'indication colorées, opérationnelle même sans configuration bot active.
+    - **Analyse continue en direct** : `startLiveAnalysis()` / `stopLiveAnalysis()` suivant les coups joués et la navigation historique en temps réel.
+    - **Revue de partie post-mortem autonome haute performance** : `reviewGame()` optimisée avec réutilisation des évaluations chaînées (-50% de calcul CPU), support de l'annulation (`AbortSignal` et `core.cancelReview()`), calcul de précision Blancs/Noirs (0 à 100%) et classification affinée des coups.
+    - **Réinitialisation propre du moteur** : méthode `core.newGame()` propageant `ucinewgame` à Stockfish pour purger les tables de transposition sans recréer le Worker.
   - Parité stricte des wrappers React (`Chessboard.tsx`) et Vue 3 (`TheChessboard.vue`), documentation complète dans [`STOCKFISH.md`](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/STOCKFISH.md) et démonstration interactive complète dans le bac à sable `sandbox/DevApp.vue`.
 - **Optimisation du Tree-Shaking & Découplage CSS/JS** :
   - Suppression de l'import forcé `import './style.scss';` du point d'entrée JS `src/index.ts`.

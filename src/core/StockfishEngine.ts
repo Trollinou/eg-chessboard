@@ -16,12 +16,21 @@ export interface EngineHandlers {
   onError?: (error: string) => void;
 }
 
+interface SearchContext {
+  fen: string;
+  turn: 'white' | 'black';
+  ply: number;
+}
+
 export class StockfishEngine {
   private worker: Worker | null = null;
   private status: EngineStatus = 'uninitialized';
-  private currentTurn: 'white' | 'black' = 'white';
-  private currentPly = 0;
-  private currentFen = '';
+  private stagedContext: SearchContext = {
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    turn: 'white',
+    ply: 0,
+  };
+  private activeContext: SearchContext | null = null;
   private lastEvaluation: StockfishEvaluation | null = null;
   private watchdogTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingSearch: (() => void) | null = null;
@@ -99,12 +108,15 @@ export class StockfishEngine {
     this.worker.postMessage(`setoption name ${name} value ${value}`);
   }
 
-  public setPosition(fenOrStartpos: string, moves: string[] = []): boolean {
+  public setPosition(fenOrStartpos: string, moves: string[] = [], currentFen?: string): boolean {
     if (!this.worker) return false;
 
     const trimmed = fenOrStartpos.trim();
     const isStartpos =
       trimmed === 'startpos' || trimmed.startsWith('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR');
+
+    let rootTurn: 'white' | 'black' = 'white';
+    let baseFen = trimmed;
 
     if (!isStartpos) {
       const validation = validateFen(trimmed);
@@ -112,13 +124,26 @@ export class StockfishEngine {
         this.handlers.onError?.(`FEN rejected before sending to Stockfish: ${validation.error}`);
         return false;
       }
-      this.currentFen = trimmed;
+      baseFen = trimmed;
       const parts = trimmed.split(' ');
-      this.currentTurn = parts[1] === 'b' ? 'black' : 'white';
+      rootTurn = parts[1] === 'b' ? 'black' : 'white';
     } else {
-      this.currentFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-      this.currentTurn = 'white';
+      baseFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      rootTurn = 'white';
     }
+
+    const calculatedTurn: 'white' | 'black' =
+      moves.length % 2 === 0
+        ? rootTurn
+        : rootTurn === 'white'
+          ? 'black'
+          : 'white';
+
+    this.stagedContext = {
+      fen: currentFen || baseFen,
+      turn: calculatedTurn,
+      ply: moves.length,
+    };
 
     const movesStr = moves.length > 0 ? ` moves ${moves.join(' ')}` : '';
     const baseCmd = isStartpos ? 'position startpos' : `position fen ${trimmed}`;
@@ -126,23 +151,24 @@ export class StockfishEngine {
 
     if (this.status === 'searching' || this.status === 'stopping') {
       this.pendingPosition = fullCmd;
+    } else if (this.status === 'loading') {
+      this.worker.postMessage(fullCmd);
+      this.pendingPosition = fullCmd;
     } else {
       this.worker.postMessage(fullCmd);
       this.pendingPosition = null;
     }
 
-    if (moves.length > 0) {
-      // Determine turn from move count if startpos
-      if (isStartpos) {
-        this.currentTurn = moves.length % 2 === 0 ? 'white' : 'black';
-      }
-      this.currentPly = moves.length;
-    }
     return true;
   }
 
   public search(options: SearchOptions = {}): void {
     if (!this.worker) return;
+
+    if (this.status === 'loading') {
+      this.pendingSearch = () => this.search(options);
+      return;
+    }
 
     if (this.status === 'searching' || this.status === 'stopping') {
       this.pendingSearch = () => this.search(options);
@@ -154,6 +180,8 @@ export class StockfishEngine {
       this.worker.postMessage(this.pendingPosition);
       this.pendingPosition = null;
     }
+
+    this.activeContext = { ...this.stagedContext };
 
     let cmd = 'go';
     if (options.infinite) {
@@ -190,8 +218,19 @@ export class StockfishEngine {
     if (this.status === 'searching') {
       this.setStatus('stopping');
       this.worker.postMessage('stop');
-      this.armWatchdog(3000, 'Stop command timeout waiting for bestmove');
+      this.armWatchdog(5000, 'Stop command timeout waiting for bestmove');
     }
+  }
+
+  public newGame(): void {
+    if (!this.worker || this.status === 'uninitialized') return;
+    this.pendingSearch = null;
+    this.pendingPosition = null;
+    if (this.status === 'searching' || this.status === 'stopping') {
+      this.stop();
+    }
+    this.worker.postMessage('ucinewgame');
+    this.worker.postMessage('isready');
   }
 
   public terminate(): void {
@@ -211,6 +250,8 @@ export class StockfishEngine {
       this.initResolve = null;
     }
     this.pendingSearch = null;
+    this.pendingPosition = null;
+    this.activeContext = null;
     this.setStatus('uninitialized');
   }
 
@@ -241,6 +282,14 @@ export class StockfishEngine {
         this.initResolve();
         this.initResolve = null;
         this.initReject = null;
+      }
+      if (this.pendingSearch) {
+        const next = this.pendingSearch;
+        this.pendingSearch = null;
+        next();
+      } else if (this.pendingPosition) {
+        this.worker?.postMessage(this.pendingPosition);
+        this.pendingPosition = null;
       }
       return;
     }
@@ -273,6 +322,9 @@ export class StockfishEngine {
   }
 
   private parseInfoLine(line: string): void {
+    if (this.status === 'stopping') return;
+    const ctx = this.activeContext || this.stagedContext;
+
     const depthMatch = line.match(/\bdepth\s+(\d+)/);
     const seldepthMatch = line.match(/\bseldepth\s+(\d+)/);
     const multipvMatch = line.match(/\bmultipv\s+(\d+)/);
@@ -303,19 +355,19 @@ export class StockfishEngine {
     const pvMatch = line.match(/\bpv\s+(.+)$/);
     const pvMoves = pvMatch ? pvMatch[1].trim().split(/\s+/) : [];
 
-    const isWhite = this.currentTurn === 'white';
+    const isWhite = ctx.turn === 'white';
     const sign = isWhite ? 1 : -1;
     const whiteScoreValue = scoreValue * sign;
     const winChancePercentage = computeEvalBarPercentage(
-      this.currentTurn,
+      ctx.turn,
       scoreType,
       scoreValue,
       wdl
     );
 
     const evaluation: StockfishEvaluation = {
-      ply: this.currentPly,
-      fen: this.currentFen,
+      ply: ctx.ply,
+      fen: ctx.fen,
       depth: depthMatch ? parseInt(depthMatch[1], 10) : 0,
       seldepth: seldepthMatch ? parseInt(seldepthMatch[1], 10) : undefined,
       scoreType,

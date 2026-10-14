@@ -39,6 +39,7 @@ export class StockfishManager {
   private isReviewRunning = false;
   private isLiveAnalysis = false;
   private isHintRequested = false;
+  private reviewAbortController: AbortController | null = null;
 
   constructor(
     private eventBus: DomainEventBus,
@@ -47,6 +48,24 @@ export class StockfishManager {
     private onPlayEngineMove?: (move: { from: string; to: string; promotion?: string }) => void
   ) {
     this.stockfishConfig = stockfishConfig;
+    this.eventBus.on('history-navigated', () => {
+      if (this.isLiveAnalysis) {
+        this.triggerStockfish(false);
+      }
+    });
+  }
+
+  public newGame(): void {
+    this.isHintRequested = false;
+    this.engine?.newGame();
+  }
+
+  public cancelReview(): void {
+    if (this.reviewAbortController) {
+      this.reviewAbortController.abort();
+      this.reviewAbortController = null;
+    }
+    this.isReviewRunning = false;
   }
 
   public getConfig(): StockfishConfig {
@@ -77,7 +96,14 @@ export class StockfishManager {
     const isWhiteActive = whiteMode && whiteMode !== 'disabled';
     const isBlackActive = blackMode && blackMode !== 'disabled';
 
-    if (!workerUrl || (!isWhiteActive && !isBlackActive && !this.isLiveAnalysis && !this.isHintRequested)) {
+    if (
+      !workerUrl ||
+      (!isWhiteActive &&
+        !isBlackActive &&
+        !this.isLiveAnalysis &&
+        !this.isHintRequested &&
+        !this.isReviewRunning)
+    ) {
       this.terminateStockfish();
       return;
     }
@@ -134,23 +160,30 @@ export class StockfishManager {
   }
 
   public triggerStockfish(isFreeMode: boolean): void {
-    if (isFreeMode || this.session.getIsGameOver() || !this.engine || this.isReviewRunning) {
+    if (isFreeMode || !this.engine || this.isReviewRunning) {
       return;
     }
 
-    const turn = this.session.getTurnColor();
-    const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
-    const elo = turn === 'white' ? this.stockfishConfig.whiteElo : this.stockfishConfig.blackElo;
+    const { baseCmd, moves, currentFen, currentTurn, isGameOver } = this.getEnginePosition();
+    if (isGameOver) {
+      return;
+    }
 
-    // 1. If it's the bot's turn to play, prioritize calculating and playing the bot move
-    if (mode === 'bot' || mode === 'elo') {
+    const mode = currentTurn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
+    const elo = currentTurn === 'white' ? this.stockfishConfig.whiteElo : this.stockfishConfig.blackElo;
+
+    // 1. If it's the bot's turn to play (only when at live position, not viewing past history)
+    const isPastHistory =
+      this.session.isViewingHistory() &&
+      this.session.getCurrentViewingPly() < this.session.getCurrentPlyNumber();
+
+    if (!isPastHistory && (mode === 'bot' || mode === 'elo')) {
       const targetElo = elo || 1500;
       this.engine.setOption('UCI_LimitStrength', 'true');
       this.engine.setOption('UCI_Elo', targetElo);
       this.engine.setOption('MultiPV', 1);
 
-      const { baseCmd, moves } = this.getEnginePosition();
-      const ok = this.engine.setPosition(baseCmd, moves);
+      const ok = this.engine.setPosition(baseCmd, moves, currentFen);
       if (!ok) return;
 
       const moveTime =
@@ -171,8 +204,7 @@ export class StockfishManager {
       this.engine.setOption('UCI_LimitStrength', 'false');
       this.engine.setOption('MultiPV', this.stockfishConfig.multiPv || 1);
 
-      const { baseCmd, moves } = this.getEnginePosition();
-      this.engine.setPosition(baseCmd, moves);
+      this.engine.setPosition(baseCmd, moves, currentFen);
       this.engine.search({ infinite: true });
       return;
     }
@@ -186,8 +218,7 @@ export class StockfishManager {
       this.engine.setOption('UCI_LimitStrength', 'false');
       this.engine.setOption('MultiPV', this.stockfishConfig.multiPv || 1);
 
-      const { baseCmd, moves } = this.getEnginePosition();
-      const ok = this.engine.setPosition(baseCmd, moves);
+      const ok = this.engine.setPosition(baseCmd, moves, currentFen);
       if (!ok) return;
 
       const moveTime =
@@ -201,18 +232,27 @@ export class StockfishManager {
   }
 
   public requestHint(options: { multiPv?: number; depth?: number; movetime?: number } = {}): void {
-    if (this.session.getIsGameOver() || this.isReviewRunning) return;
+    if (this.isReviewRunning) return;
+    this.isHintRequested = true;
+
     if (!this.engine) {
       this.initStockfish(false);
     }
-    if (!this.engine) return;
+    if (!this.engine) {
+      this.isHintRequested = false;
+      return;
+    }
 
-    this.isHintRequested = true;
+    const { baseCmd, moves, currentFen, isGameOver } = this.getEnginePosition();
+    if (isGameOver) {
+      this.isHintRequested = false;
+      return;
+    }
+
     this.engine.setOption('UCI_LimitStrength', 'false');
     this.engine.setOption('MultiPV', options.multiPv || 1);
 
-    const { baseCmd, moves } = this.getEnginePosition();
-    this.engine.setPosition(baseCmd, moves);
+    this.engine.setPosition(baseCmd, moves, currentFen);
     this.engine.search({
       movetime: options.depth ? undefined : options.movetime || 1200,
       depth: options.depth,
@@ -230,8 +270,8 @@ export class StockfishManager {
     this.engine.setOption('UCI_LimitStrength', 'false');
     this.engine.setOption('MultiPV', this.stockfishConfig.multiPv || 1);
 
-    const { baseCmd, moves } = this.getEnginePosition();
-    this.engine.setPosition(baseCmd, moves);
+    const { baseCmd, moves, currentFen } = this.getEnginePosition();
+    this.engine.setPosition(baseCmd, moves, currentFen);
     this.engine.search({ infinite: true });
   }
 
@@ -264,13 +304,21 @@ export class StockfishManager {
     options: {
       depth?: number;
       onProgress?: (percent: number) => void;
+      signal?: AbortSignal;
     } = {}
   ): Promise<GameReviewReport> {
+    this.isReviewRunning = true;
     if (!this.engine) {
+      this.initStockfish(false);
+    }
+    if (!this.engine) {
+      this.isReviewRunning = false;
       throw new Error('Stockfish engine is not initialized');
     }
 
-    this.isReviewRunning = true;
+    this.reviewAbortController = new AbortController();
+    const effectiveSignal = options.signal || this.reviewAbortController.signal;
+
     this.eventBus.emit('stockfish-game-review', { progress: 0, isComplete: false });
 
     const depth = options.depth || 12;
@@ -306,12 +354,18 @@ export class StockfishManager {
     this.engine.setOption('MultiPV', 1);
 
     try {
+      let currentEval = await this.evaluatePosition(rootFen, [], depth, effectiveSignal);
+
       for (let i = 0; i < history.length; i++) {
+        if (effectiveSignal.aborted) {
+          throw new Error('Game review was aborted');
+        }
+
         const move = history[i];
         const moveColor = move.color === 'w' ? 'white' : 'black';
 
-        // 1. Evaluate position before move
-        const evalBefore = await this.evaluatePosition(rootFen, [...playedMovesUci], depth);
+        // 1. Position before move is currentEval (50% reduction in Stockfish evaluations)
+        const evalBefore = currentEval;
 
         // 2. Play the move and evaluate position after move
         const moveUci = move.from + move.to + (move.promotion ? move.promotion.toLowerCase() : '');
@@ -331,8 +385,9 @@ export class StockfishManager {
             multipvIndex: 1,
           };
         } else {
-          evalAfter = await this.evaluatePosition(rootFen, [...playedMovesUci], depth);
+          evalAfter = await this.evaluatePosition(rootFen, [...playedMovesUci], depth, effectiveSignal);
         }
+        currentEval = evalAfter;
 
         // Calculate win chance before and after from the player's perspective
         const bestWinChance =
@@ -410,6 +465,7 @@ export class StockfishManager {
       return report;
     } finally {
       this.isReviewRunning = false;
+      this.reviewAbortController = null;
       this.restoreDefaultHandlers();
       this.triggerStockfish(false);
     }
@@ -436,9 +492,15 @@ export class StockfishManager {
   private evaluatePosition(
     rootFen: string,
     moves: string[],
-    depth: number
+    depth: number,
+    signal?: AbortSignal
   ): Promise<StockfishEvaluation> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(new Error('Game review was aborted'));
+        return;
+      }
+
       if (!this.engine) {
         resolve({
           ply: moves.length,
@@ -461,6 +523,7 @@ export class StockfishManager {
         if (isDone) return;
         isDone = true;
         clearTimeout(safetyTimer);
+        signal?.removeEventListener('abort', onAbort);
         if (lastEval) {
           resolve(lastEval);
         } else {
@@ -480,7 +543,19 @@ export class StockfishManager {
         }
       };
 
+      const onAbort = () => {
+        if (isDone) return;
+        isDone = true;
+        clearTimeout(safetyTimer);
+        signal?.removeEventListener('abort', onAbort);
+        this.engine?.stop();
+        reject(new Error('Game review was aborted'));
+      };
+
+      signal?.addEventListener('abort', onAbort);
+
       const safetyTimer = setTimeout(() => {
+        this.engine?.stop();
         finish();
       }, 5000);
 
@@ -507,7 +582,7 @@ export class StockfishManager {
   private classifyMove(diff: number, isMissedWin: boolean, san: string): MoveJudgement {
     if (isMissedWin) return 'missed_win';
     if (diff <= 1.5) {
-      if (san.includes('x') && diff < 0.5) return 'brilliant';
+      if (san.includes('!!') || (san.includes('#') && san.includes('x') && diff < 0.5)) return 'brilliant';
       return 'best';
     }
     if (diff <= 5.0) return 'excellent';
@@ -523,16 +598,45 @@ export class StockfishManager {
     return Number(((sum / losses.length) * 100).toFixed(1));
   }
 
-  private getEnginePosition(): { baseCmd: string; moves: string[] } {
+  private getEnginePosition(): {
+    baseCmd: string;
+    moves: string[];
+    currentFen?: string;
+    currentTurn: 'white' | 'black';
+    isGameOver: boolean;
+  } {
     const rootFen = makeFen(this.session.getRootPos().toSetup());
     const isStandardStart = rootFen === 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     const baseCmd = isStandardStart ? 'startpos' : rootFen;
 
-    const history = this.session.getHistory(true) as Move[];
+    let history = this.session.getHistory(true) as Move[];
+    let currentFen: string | undefined;
+    let currentTurn: 'white' | 'black' = this.session.getTurnColor();
+    let isGameOver = this.session.getIsGameOver();
+
+    if (this.session.isViewingHistory()) {
+      const viewingPly = this.session.getCurrentViewingPly();
+      history = history.slice(0, viewingPly);
+      const rootPos = this.session.getRootPos();
+      const path = this.session.getActivePath();
+      if (viewingPly === 0) {
+        currentFen = rootFen;
+        currentTurn = rootPos.turn === 'white' ? 'white' : 'black';
+        isGameOver = false;
+      } else if (path[viewingPly - 1]?.data?.fen) {
+        currentFen = path[viewingPly - 1].data.fen;
+        const parts = currentFen.split(' ');
+        currentTurn = parts[1] === 'b' ? 'black' : 'white';
+        isGameOver = viewingPly === path.length && this.session.getIsGameOver();
+      }
+    } else {
+      currentFen = this.session.getFen();
+    }
+
     const moves = history.map(
       (m) => m.from + m.to + (m.promotion ? m.promotion.toLowerCase() : '')
     );
 
-    return { baseCmd, moves };
+    return { baseCmd, moves, currentFen, currentTurn, isGameOver };
   }
 }

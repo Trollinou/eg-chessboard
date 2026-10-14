@@ -10,9 +10,12 @@ Ce guide présente l'architecture, la configuration et l'utilisation du moteur d
 - **Binaire WebAssembly Lite-Single (1.84 Mo)** : Embarqué par défaut sans nécessiter d'en-têtes serveur COOP/COEP (`SharedArrayBuffer`), garantissant une compatibilité totale sur desktop et mobile.
 - **Probabilités WDL natives** : Stockfish 19 fournit directement les probabilités de Gain/Nulle/Perte (`wdl <Win> <Draw> <Loss>` en millièmes).
 - **Sécurité et résilience renforcée** :
+  - File d'attente à froid (`loading`) garantissant qu'aucune commande UCI (`position`, `go`) n'est envoyée avant la fin du handshake initial (`uciok` / `readyok`).
+  - Isolation stricte des contextes de recherche (`activeContext` vs `stagedContext`) évitant toute corruption d'évaluation lors des interruptions ou préemptions asynchrones.
   - Pré-validation stricte des chaînes FEN via `chessops` avant toute commande UCI afin d'éviter les arrêts brutaux de Stockfish 19 sur position illégale.
   - Surveillance active du message `info string CRITICAL ERROR` avec interception et reprise d'état.
-  - Watchdog de synchronisation sur les commandes `isready` et `stop`.
+  - Watchdog de synchronisation tolérant (5 000 ms) sur les commandes `isready` et `stop`.
+  - Compatibilité native avec la navigation historique (`core.viewHistory()`) : limitation automatique des coups analysés au ply visualisé et calcul en temps réel.
 
 ---
 
@@ -89,7 +92,7 @@ core.requestHint();
 // Avec options personnalisées (ex: 2 variantes principales, 1500 ms)
 core.requestHint({ multiPv: 2, movetime: 1500 });
 ```
-> **Note de conception** : Le calcul de conseil est totalement découplé du bridage ELO de l'adversaire. Même si l'IA adverse est réglée à 1400 ELO (7 924 nœuds), le conseil utilise ses 1200 ms à pleine puissance pour suggérer le meilleur coup absolu sans être bridé.
+> **Note de conception** : Le calcul de conseil est totalement découplé du bridage ELO de l'adversaire et fonctionne même si aucun bot n'est configuré (`whiteMode: 'disabled'`, `blackMode: 'disabled'`). Si le moteur n'est pas encore instancié, `requestHint()` l'initialise automatiquement à la volée.
 
 ### B. Analyse en continu (`startLiveAnalysis` / `stopLiveAnalysis`)
 Active l'évaluation continue en temps réel (`go infinite`) sans limite de profondeur :
@@ -100,16 +103,23 @@ core.startLiveAnalysis();
 // Arrête l'analyse en continu
 core.stopLiveAnalysis();
 ```
+> **Synchronisation réactive avec l'historique** : Lors de la navigation dans les coups (`core.viewHistory(ply)`, `core.viewPrevious()`, `core.viewNext()`), l'analyse en direct s'adapte instantanément et évalue la position visualisée à l'écran.
 > **Alternance transparente avec le Bot** : Si l'analyse en direct est active pendant une partie contre l'ordinateur, le moteur évalue en continu pendant que l'humain réfléchit. Dès que l'humain joue son coup, le moteur met en pause l'analyse, calcule le coup du bot adverse selon l'ELO et le temps/nœuds configurés, le joue sur l'échiquier, puis reprend instantanément l'analyse en direct pour le tour de l'humain !
 
-### C. Revue de partie autonome (`reviewGame`)
-Analyse séquentielle complète de l'ensemble des coups de la partie avec classification tactique et calcul du score d'accuracy global :
+### C. Revue de partie autonome (`reviewGame` / `cancelReview`)
+Analyse séquentielle complète de l'ensemble des coups de la partie avec classification tactique et calcul du score d'accuracy global. Optimisée avec chaînage d'évaluations (réduction de 50 % des requêtes de calcul) et support d'annulation via `AbortSignal` :
 
 ```typescript
+const controller = new AbortController();
+
 const report = await core.reviewGame({
   depth: 12, // Profondeur par position (défaut: 12)
+  signal: controller.signal, // Optionnel : signal d'annulation
   onProgress: (percent) => console.log(`Analyse : ${percent}%`)
 });
+
+// Annulation possible à tout moment :
+core.cancelReview(); // ou controller.abort();
 
 console.log('Précision Blancs :', report.accuracy.white, '%');
 console.log('Précision Noirs :', report.accuracy.black, '%');
@@ -117,7 +127,7 @@ console.log('Nombre de gaffes :', report.summary.white.blunder);
 ```
 
 #### Classification des coups (`MoveJudgement`)
-- `'brilliant'` : Coup spectaculaire ou sacrifice gagnant (`!!`).
+- `'brilliant'` : Coup spectaculaire, sacrifice ou mat tactique décisif (`!!`).
 - `'best'` : Meilleur coup théorique de la position (`!`).
 - `'excellent'` : Coup solide quasi-optimal.
 - `'good'` : Bon coup conservant la dynamique.
@@ -125,6 +135,13 @@ console.log('Nombre de gaffes :', report.summary.white.blunder);
 - `'mistake'` : Erreur concédant un avantage net (`?`).
 - `'blunder'` : Gaffe décisive inversant le sort de la partie (`??`).
 - `'missed_win'` : Gain immédiat ou mat forcé non exploité.
+
+### D. Réinitialisation et mémoire (`newGame`)
+```typescript
+// Réinitialise la partie, l'arbre PGN et transmet 'ucinewgame' à Stockfish
+// pour purger les tables de transposition sans détruire le Worker.
+core.newGame();
+```
 
 ---
 

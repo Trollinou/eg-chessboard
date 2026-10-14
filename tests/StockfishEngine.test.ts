@@ -238,4 +238,61 @@ describe('StockfishEngine', () => {
     expect(engine.getStatus()).toBe('ready');
     expect(capturedMove).toBe('(none)');
   });
+
+  it('queues search when engine is in loading state and dispatches on readyok', async () => {
+    const engine = new StockfishEngine('/stockfish.js');
+    const initPromise = engine.init();
+    expect(engine.getStatus()).toBe('loading');
+
+    engine.setPosition('startpos');
+    engine.search({ depth: 12 });
+
+    // go depth 12 should NOT be posted while loading
+    expect(mockWorkerInstance?.messagesPosted.some((m) => m.startsWith('go'))).toBe(false);
+
+    mockWorkerInstance?.simulateMessage('uciok');
+    mockWorkerInstance?.simulateMessage('readyok');
+    await initPromise;
+
+    expect(mockWorkerInstance?.messagesPosted).toContain('go depth 12');
+    expect(engine.getStatus()).toBe('searching');
+  });
+
+  it('isolates evaluation context so interrupted searches do not corrupt evaluations', async () => {
+    let lastEval: StockfishEvaluation | null = null;
+    const engine = new StockfishEngine('/stockfish.js', undefined, {
+      onEvaluation: (ev) => {
+        lastEval = ev;
+      },
+    });
+    const initPromise = engine.init();
+    mockWorkerInstance?.simulateMessage('uciok');
+    mockWorkerInstance?.simulateMessage('readyok');
+    await initPromise;
+
+    // Search position 1: Black to move
+    engine.setPosition('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1');
+    engine.search({ depth: 10 });
+
+    // Staging position 2: White to move while position 1 is stopping
+    engine.setPosition('startpos');
+
+    // Position 1 emits evaluation: must use position 1 active context (black turn, score -50 from white's view)
+    mockWorkerInstance?.simulateMessage('info depth 8 score cp 50 pv e7e5');
+    expect(lastEval).not.toBeNull();
+    expect(lastEval!.fen).toContain('b KQkq');
+    expect(lastEval!.whiteScoreValue).toBe(-50);
+  });
+
+  it('sends ucinewgame and isready on newGame', async () => {
+    const engine = new StockfishEngine('/stockfish.js');
+    const initPromise = engine.init();
+    mockWorkerInstance?.simulateMessage('uciok');
+    mockWorkerInstance?.simulateMessage('readyok');
+    await initPromise;
+
+    engine.newGame();
+    expect(mockWorkerInstance?.messagesPosted).toContain('ucinewgame');
+    expect(mockWorkerInstance?.messagesPosted).toContain('isready');
+  });
 });
