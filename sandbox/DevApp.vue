@@ -234,9 +234,9 @@ const playerColor = computed<'white' | 'black' | 'both'>(() =>
 
 const baseStockfishConfig = reactive<StockfishConfig>({
   workerUrl: '/stockfish.js',
-  whiteMode: 'hint',
-  whiteElo: 1500, // Hint mode uses full strength anyway
-  blackMode: 'elo',
+  whiteMode: 'disabled', // Human plays White without auto-spoilers
+  whiteElo: 1500,
+  blackMode: 'elo',      // Stockfish plays Black with Elo limit
   blackElo: 1400,
   stockfishMoveTime: 1500,
 });
@@ -571,20 +571,41 @@ const formatMove = (move: string, index: number) => {
           </div>
         </div>
 
+        <!-- Live Analysis Card -->
+        <div v-if="isLiveAnalysisActive" class="glass-card analysis-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>⚡ Analyse en direct</h2>
+            <span class="badge" style="background: rgba(76, 175, 80, 0.2); color: #4caf50;">Actif</span>
+          </div>
+          <p class="description">
+            Stockfish 19 calcule en profondeur infinie sur la position courante et s'adapte à chaque coup.
+          </p>
+          <div v-if="currentEvaluation" class="analysis-details">
+            <div class="analysis-row">
+              <span>Éval : <strong>{{ evalScoreLabel }}</strong></span>
+              <span>Prof : <strong>{{ currentEvaluation.depth }}</strong></span>
+              <span v-if="currentEvaluation.nps">NPS : <strong>{{ (currentEvaluation.nps / 1000).toFixed(0) }}k</strong></span>
+            </div>
+            <div v-if="currentEvaluation.pv && currentEvaluation.pv.length" class="analysis-pv">
+              <span class="pv-label">Meilleure suite (PV) :</span>
+              <code class="pv-code">{{ currentEvaluation.pv.slice(0, 7).join(' ') }}</code>
+            </div>
+          </div>
+        </div>
+
         <!-- Hint Card -->
         <div v-if="!isStockfishDisabled" class="glass-card hint-card">
-          <h2>Suggestion d'aide (Mode Hint)</h2>
+          <h2>💡 Conseil (Hint)</h2>
           <p class="description">
-            Stockfish 19 analyse la position et propose le meilleur coup pour
-            vous (Blancs).
+            Cliquez sur « 💡 Conseil (Hint) » pour obtenir à la demande la recommandation de Stockfish 19 sur la position actuelle.
           </p>
           <div class="hint-display">
-            <span class="hint-label">Meilleur coup :</span>
+            <span class="hint-label">Coup suggéré :</span>
             <span v-if="currentHint" class="hint-value">{{ currentHint }}</span>
-            <span v-else class="hint-placeholder">Analyse en cours... (ou jouez un coup)</span>
+            <span v-else class="hint-placeholder">Aucun conseil demandé pour l'instant</span>
           </div>
           <p v-if="currentHint" class="hint-subtext">
-            💡 Une flèche verte a été dessinée sur le plateau pour visualiser ce coup.
+            💡 Une flèche verte a été tracée sur le plateau pour matérialiser ce coup.
           </p>
         </div>
 
@@ -1275,6 +1296,43 @@ body {
   color: #a1a1aa;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Live Analysis Styles */
+.analysis-card {
+  border-color: rgba(76, 175, 80, 0.4);
+}
+.analysis-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.analysis-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+}
+.analysis-pv {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.analysis-pv .pv-label {
+  font-size: 0.75rem;
+  color: #a1a1aa;
+}
+.analysis-pv .pv-code {
+  font-family: monospace;
+  font-size: 0.8rem;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: #86efac;
+  word-break: break-all;
 }
 
 /* Game Review Styles */

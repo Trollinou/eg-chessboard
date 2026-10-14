@@ -38,6 +38,7 @@ export class StockfishManager {
   public lastSuggestedMove = '';
   private isReviewRunning = false;
   private isLiveAnalysis = false;
+  private isHintRequested = false;
 
   constructor(
     private eventBus: DomainEventBus,
@@ -76,7 +77,7 @@ export class StockfishManager {
     const isWhiteActive = whiteMode && whiteMode !== 'disabled';
     const isBlackActive = blackMode && blackMode !== 'disabled';
 
-    if (!workerUrl || (!isWhiteActive && !isBlackActive)) {
+    if (!workerUrl || (!isWhiteActive && !isBlackActive && !this.isLiveAnalysis && !this.isHintRequested)) {
       this.terminateStockfish();
       return;
     }
@@ -137,6 +138,13 @@ export class StockfishManager {
       return;
     }
 
+    if (this.isLiveAnalysis) {
+      const { baseCmd, moves } = this.getEnginePosition();
+      this.engine.setPosition(baseCmd, moves);
+      this.engine.search({ infinite: true });
+      return;
+    }
+
     const turn = this.session.getTurnColor();
     const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
     const elo = turn === 'white' ? this.stockfishConfig.whiteElo : this.stockfishConfig.blackElo;
@@ -172,8 +180,13 @@ export class StockfishManager {
   }
 
   public requestHint(options: { multiPv?: number; depth?: number; movetime?: number } = {}): void {
-    if (!this.engine || this.session.getIsGameOver() || this.isReviewRunning) return;
+    if (this.session.getIsGameOver() || this.isReviewRunning) return;
+    if (!this.engine) {
+      this.initStockfish(false);
+    }
+    if (!this.engine) return;
 
+    this.isHintRequested = true;
     this.engine.setOption('UCI_LimitStrength', 'false');
     this.engine.setOption('MultiPV', options.multiPv || 1);
 
@@ -186,8 +199,13 @@ export class StockfishManager {
   }
 
   public startLiveAnalysis(): void {
-    if (!this.engine || this.isReviewRunning) return;
+    if (this.isReviewRunning) return;
     this.isLiveAnalysis = true;
+    if (!this.engine) {
+      this.initStockfish(false);
+    }
+    if (!this.engine) return;
+
     this.engine.setOption('UCI_LimitStrength', 'false');
     this.engine.setOption('MultiPV', this.stockfishConfig.multiPv || 1);
 
@@ -203,11 +221,15 @@ export class StockfishManager {
   }
 
   private handleBestMove(bestMove: string): void {
+    if (!bestMove || bestMove === '(none)') return;
     this.lastSuggestedMove = bestMove;
     const turn = this.session.getTurnColor();
     const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
 
-    if (mode === 'hint') {
+    const wasHintRequested = this.isHintRequested;
+    this.isHintRequested = false;
+
+    if (wasHintRequested || mode === 'hint') {
       this.eventBus.emit('stockfish-hint', { bestMove });
     } else if ((mode === 'bot' || mode === 'elo') && this.onPlayEngineMove) {
       const from = bestMove.substring(0, 2);
