@@ -632,6 +632,19 @@ const formatMove = (move: string, index: number) => {
               />
               <span class="config-value black-text">ELO {{ baseStockfishConfig.blackElo }}</span>
             </div>
+            <div class="config-item">
+              <span class="config-label">Temps de réflexion :</span>
+              <input
+                v-model.number="baseStockfishConfig.stockfishMoveTime"
+                type="range"
+                min="200"
+                max="5000"
+                step="100"
+                :disabled="isStockfishDisabled"
+                style="width: 100%;"
+              />
+              <span class="config-value">{{ (baseStockfishConfig.stockfishMoveTime || 1000) / 1000 }}s</span>
+            </div>
           </div>
         </div>
 

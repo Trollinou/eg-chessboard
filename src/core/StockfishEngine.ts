@@ -25,6 +25,7 @@ export class StockfishEngine {
   private lastEvaluation: StockfishEvaluation | null = null;
   private watchdogTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingSearch: (() => void) | null = null;
+  private pendingPosition: string | null = null;
   private initResolve: (() => void) | null = null;
   private initReject: ((err: Error) => void) | null = null;
 
@@ -121,7 +122,14 @@ export class StockfishEngine {
 
     const movesStr = moves.length > 0 ? ` moves ${moves.join(' ')}` : '';
     const baseCmd = isStartpos ? 'position startpos' : `position fen ${trimmed}`;
-    this.worker.postMessage(`${baseCmd}${movesStr}`);
+    const fullCmd = `${baseCmd}${movesStr}`;
+
+    if (this.status === 'searching' || this.status === 'stopping') {
+      this.pendingPosition = fullCmd;
+    } else {
+      this.worker.postMessage(fullCmd);
+      this.pendingPosition = null;
+    }
 
     if (moves.length > 0) {
       // Determine turn from move count if startpos
@@ -140,6 +148,11 @@ export class StockfishEngine {
       this.pendingSearch = () => this.search(options);
       this.stop();
       return;
+    }
+
+    if (this.pendingPosition) {
+      this.worker.postMessage(this.pendingPosition);
+      this.pendingPosition = null;
     }
 
     let cmd = 'go';
@@ -239,14 +252,13 @@ export class StockfishEngine {
 
       this.setStatus('ready');
 
-      if (bestMove) {
-        this.handlers.onBestMove?.(bestMove, ponder);
-      }
+      const next = this.pendingSearch;
+      this.pendingSearch = null;
 
-      if (this.pendingSearch) {
-        const next = this.pendingSearch;
-        this.pendingSearch = null;
+      if (next) {
         next();
+      } else if (bestMove) {
+        this.handlers.onBestMove?.(bestMove, ponder);
       }
     }
   }

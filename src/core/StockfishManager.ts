@@ -138,45 +138,70 @@ export class StockfishManager {
       return;
     }
 
+    const turn = this.session.getTurnColor();
+    const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
+    const elo = turn === 'white' ? this.stockfishConfig.whiteElo : this.stockfishConfig.blackElo;
+
+    // 1. If it's the bot's turn to play, prioritize calculating and playing the bot move
+    if (mode === 'bot' || mode === 'elo') {
+      const targetElo = elo || 1500;
+      this.engine.setOption('UCI_LimitStrength', 'true');
+      this.engine.setOption('UCI_Elo', targetElo);
+      this.engine.setOption('MultiPV', 1);
+
+      const { baseCmd, moves } = this.getEnginePosition();
+      const ok = this.engine.setPosition(baseCmd, moves);
+      if (!ok) return;
+
+      const moveTime =
+        this.stockfishConfig.searchLimit?.movetime || this.stockfishConfig.stockfishMoveTime || 1000;
+      const depth = this.stockfishConfig.searchLimit?.depth;
+      const nodes = this.stockfishConfig.searchLimit?.nodes;
+
+      this.engine.search({
+        movetime: depth || nodes ? undefined : moveTime,
+        depth,
+        nodes,
+      });
+      return;
+    }
+
+    // 2. If it's the human's turn and live analysis is active, run infinite search in real-time
     if (this.isLiveAnalysis) {
+      this.engine.setOption('UCI_LimitStrength', 'false');
+      this.engine.setOption('MultiPV', this.stockfishConfig.multiPv || 1);
+
       const { baseCmd, moves } = this.getEnginePosition();
       this.engine.setPosition(baseCmd, moves);
       this.engine.search({ infinite: true });
       return;
     }
 
-    const turn = this.session.getTurnColor();
-    const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
-    const elo = turn === 'white' ? this.stockfishConfig.whiteElo : this.stockfishConfig.blackElo;
-
     if (!mode || mode === 'disabled') {
       return;
     }
 
-    if (mode === 'bot' || mode === 'elo') {
-      const targetElo = elo || 1500;
-      this.engine.setOption('UCI_LimitStrength', 'true');
-      this.engine.setOption('UCI_Elo', targetElo);
-      this.engine.setOption('MultiPV', 1);
-    } else if (mode === 'hint') {
+    // 3. Auto-hint mode
+    if (mode === 'hint') {
       this.engine.setOption('UCI_LimitStrength', 'false');
       this.engine.setOption('MultiPV', this.stockfishConfig.multiPv || 1);
+
+      const { baseCmd, moves } = this.getEnginePosition();
+      const ok = this.engine.setPosition(baseCmd, moves);
+      if (!ok) return;
+
+      const moveTime =
+        this.stockfishConfig.searchLimit?.movetime || this.stockfishConfig.stockfishMoveTime || 1000;
+      const depth = this.stockfishConfig.searchLimit?.depth;
+      const nodes = this.stockfishConfig.searchLimit?.nodes;
+
+      this.engine.search({
+        movetime: depth || nodes ? undefined : moveTime,
+        depth,
+        nodes,
+      });
+      return;
     }
-
-    const { baseCmd, moves } = this.getEnginePosition();
-    const ok = this.engine.setPosition(baseCmd, moves);
-    if (!ok) return;
-
-    const moveTime =
-      this.stockfishConfig.searchLimit?.movetime || this.stockfishConfig.stockfishMoveTime || 1000;
-    const depth = this.stockfishConfig.searchLimit?.depth;
-    const nodes = this.stockfishConfig.searchLimit?.nodes;
-
-    this.engine.search({
-      movetime: depth || nodes ? undefined : moveTime,
-      depth,
-      nodes,
-    });
   }
 
   public requestHint(options: { multiPv?: number; depth?: number; movetime?: number } = {}): void {
