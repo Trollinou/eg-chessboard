@@ -243,6 +243,7 @@ const baseStockfishConfig = reactive<StockfishConfig>({
 });
 
 const searchLimitType = ref<'time' | 'nodes'>('time');
+const isHintActive = ref<boolean>(false);
 
 const stockfishConfig = computed<StockfishConfig>(() => {
   if (isStockfishDisabled.value) {
@@ -254,6 +255,8 @@ const stockfishConfig = computed<StockfishConfig>(() => {
   }
 
   const cfg: StockfishConfig = { ...baseStockfishConfig };
+  cfg.whiteMode = isHintActive.value ? 'hint' : 'disabled';
+
   if (searchLimitType.value === 'nodes') {
     const nodes = getNodesForElo(baseStockfishConfig.blackElo || 1400);
     cfg.searchLimit = { nodes };
@@ -283,15 +286,34 @@ const onEvaluation = (ev: StockfishEvaluation) => {
     const cp = (ev.whiteScoreValue / 100).toFixed(1);
     evalScoreLabel.value = ev.whiteScoreValue > 0 ? `+${cp}` : cp;
   }
+
+  if (
+    isHintActive.value &&
+    ev.bestMove &&
+    ev.bestMove.length >= 4 &&
+    boardCore.value?.getTurnColor() === 'white'
+  ) {
+    currentHint.value = ev.bestMove;
+    const from = ev.bestMove.slice(0, 2) as Key;
+    const to = ev.bestMove.slice(2, 4) as Key;
+    boardCore.value.drawMove(from, to, 'green');
+  }
 };
 
 const onEngineStatus = (status: EngineStatus) => {
   engineStatus.value = status;
 };
 
-const onRequestHint = () => {
-  if (boardCore.value) {
-    boardCore.value.requestHint({ multiPv: 2 });
+const toggleHint = () => {
+  if (!boardCore.value) return;
+  isHintActive.value = !isHintActive.value;
+  if (isHintActive.value) {
+    if (boardCore.value.getTurnColor() === 'white') {
+      boardCore.value.requestHint({ multiPv: 1 });
+    }
+  } else {
+    currentHint.value = '';
+    boardCore.value.setShapes([]);
   }
 };
 
@@ -396,6 +418,11 @@ const handleNewGame = () => {
     currentHint.value = '';
     isThreatsEnabled.value = false;
     syncState();
+    if (isHintActive.value) {
+      setTimeout(() => {
+        boardCore.value?.requestHint({ multiPv: 1 });
+      }, 100);
+    }
   }
 };
 
@@ -606,17 +633,34 @@ const formatMove = (move: string, index: number) => {
 
         <!-- Hint Card -->
         <div v-if="!isStockfishDisabled" class="glass-card hint-card">
-          <h2>💡 Conseil (Hint)</h2>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>💡 Conseils (Mode continu)</h2>
+            <span
+              class="badge"
+              :style="{
+                background: isHintActive ? 'rgba(76, 175, 80, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                color: isHintActive ? '#4caf50' : '#a1a1aa',
+              }"
+            >
+              {{ isHintActive ? 'ACTIF' : 'INACTIF' }}
+            </span>
+          </div>
           <p class="description">
-            Cliquez sur « 💡 Conseil (Hint) » pour obtenir à la demande la recommandation de Stockfish 19 sur la position actuelle.
+            {{
+              isHintActive
+                ? 'Conseils activés en continu : une flèche verte s’affichera à chaque tour des Blancs.'
+                : 'Basculez le bouton « Conseils » pour recevoir les suggestions de Stockfish à chaque tour.'
+            }}
           </p>
           <div class="hint-display">
             <span class="hint-label">Coup suggéré :</span>
             <span v-if="currentHint" class="hint-value">{{ currentHint }}</span>
-            <span v-else class="hint-placeholder">Aucun conseil demandé pour l'instant</span>
+            <span v-else class="hint-placeholder">
+              {{ isHintActive ? 'Calcul du conseil...' : 'Conseils désactivés' }}
+            </span>
           </div>
-          <p v-if="currentHint" class="hint-subtext">
-            💡 Une flèche verte a été tracée sur le plateau pour matérialiser ce coup.
+          <p v-if="currentHint && isHintActive" class="hint-subtext">
+            💡 Une flèche verte est tracée sur le plateau pour matérialiser ce coup.
           </p>
         </div>
 
@@ -691,10 +735,11 @@ const formatMove = (move: string, index: number) => {
             <button
               id="btn-hint"
               class="btn btn-secondary"
+              :class="{ active: isHintActive }"
               :disabled="isStockfishDisabled"
-              @click="onRequestHint"
+              @click="toggleHint"
             >
-              💡 Conseil (Hint)
+              💡 {{ isHintActive ? 'Conseils : ACTIFS' : 'Conseils : Inactifs' }}
             </button>
             <button
               id="btn-live-analysis"
