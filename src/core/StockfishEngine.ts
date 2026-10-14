@@ -239,7 +239,7 @@ export class StockfishEngine {
 
       this.setStatus('ready');
 
-      if (bestMove && bestMove !== '(none)') {
+      if (bestMove) {
         this.handlers.onBestMove?.(bestMove, ponder);
       }
 

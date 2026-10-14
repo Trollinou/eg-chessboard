@@ -273,7 +273,23 @@ export class StockfishManager {
         // 2. Play the move and evaluate position after move
         const moveUci = move.from + move.to + (move.promotion ? move.promotion.toLowerCase() : '');
         playedMovesUci.push(moveUci);
-        const evalAfter = await this.evaluatePosition(rootFen, [...playedMovesUci], depth);
+
+        let evalAfter: StockfishEvaluation;
+        if (move.san.includes('#')) {
+          evalAfter = {
+            ply: i + 1,
+            fen: rootFen,
+            depth,
+            scoreType: 'mate',
+            scoreValue: 0,
+            whiteScoreValue: moveColor === 'white' ? 10000 : -10000,
+            winChancePercentage: moveColor === 'white' ? 100 : 0,
+            pv: [],
+            multipvIndex: 1,
+          };
+        } else {
+          evalAfter = await this.evaluatePosition(rootFen, [...playedMovesUci], depth);
+        }
 
         // Calculate win chance before and after from the player's perspective
         const bestWinChance =
@@ -351,8 +367,27 @@ export class StockfishManager {
       return report;
     } finally {
       this.isReviewRunning = false;
+      this.restoreDefaultHandlers();
       this.triggerStockfish(false);
     }
+  }
+
+  private restoreDefaultHandlers(): void {
+    if (!this.engine) return;
+    this.engine.setHandlers({
+      onStatusChange: (status) => {
+        this.eventBus.emit('stockfish-status', { status });
+      },
+      onEvaluation: (evaluation) => {
+        this.eventBus.emit('stockfish-eval', { evaluation });
+      },
+      onBestMove: (bestMove) => {
+        this.handleBestMove(bestMove);
+      },
+      onError: (error) => {
+        this.eventBus.emit('stockfish-error', { error });
+      },
+    });
   }
 
   private evaluatePosition(
@@ -362,32 +397,56 @@ export class StockfishManager {
   ): Promise<StockfishEvaluation> {
     return new Promise((resolve) => {
       if (!this.engine) {
+        resolve({
+          ply: moves.length,
+          fen: rootFen,
+          depth,
+          scoreType: 'cp',
+          scoreValue: 0,
+          whiteScoreValue: 0,
+          winChancePercentage: 50,
+          pv: [],
+          multipvIndex: 1,
+        });
         return;
       }
 
       let lastEval: StockfishEvaluation | null = null;
+      let isDone = false;
+
+      const finish = () => {
+        if (isDone) return;
+        isDone = true;
+        clearTimeout(safetyTimer);
+        if (lastEval) {
+          resolve(lastEval);
+        } else {
+          resolve(
+            this.engine?.getLastEvaluation() || {
+              ply: moves.length,
+              fen: rootFen,
+              depth,
+              scoreType: 'cp',
+              scoreValue: 0,
+              whiteScoreValue: 0,
+              winChancePercentage: 50,
+              pv: [],
+              multipvIndex: 1,
+            }
+          );
+        }
+      };
+
+      const safetyTimer = setTimeout(() => {
+        finish();
+      }, 5000);
+
       const originalHandlers = {
         onEvaluation: (ev: StockfishEvaluation) => {
           lastEval = ev;
         },
         onBestMove: () => {
-          if (lastEval) {
-            resolve(lastEval);
-          } else {
-            resolve(
-              this.engine?.getLastEvaluation() || {
-                ply: moves.length,
-                fen: rootFen,
-                depth,
-                scoreType: 'cp',
-                scoreValue: 0,
-                whiteScoreValue: 0,
-                winChancePercentage: 50,
-                pv: [],
-                multipvIndex: 1,
-              }
-            );
-          }
+          finish();
         },
       };
 

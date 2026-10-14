@@ -131,4 +131,82 @@ describe('StockfishManager', () => {
       report.moves[0].judgement
     );
   });
+
+  it('completes game review up to 100% on a game ending in checkmate', async () => {
+    // 4 moves ending in checkmate: Scholar's mate
+    session.loadPgn('1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Qxf7#');
+
+    const manager = new StockfishManager(eventBus, session, {
+      workerUrl: '/stockfish.js',
+      whiteMode: 'hint',
+    });
+
+    manager.initStockfish(false);
+    await new Promise((r) => setTimeout(r, 30));
+
+    if (mockWorkerInstance) {
+      const origPostMessage = mockWorkerInstance.postMessage.bind(mockWorkerInstance);
+      mockWorkerInstance.postMessage = (msg: string) => {
+        origPostMessage(msg);
+        if (msg.startsWith('go depth')) {
+          setTimeout(() => {
+            mockWorkerInstance?.simulateMessage('info depth 10 score cp 40 wdl 200 750 50 pv e2e4');
+            mockWorkerInstance?.simulateMessage('bestmove e2e4');
+          }, 0);
+        }
+      };
+    }
+
+    const progressValues: number[] = [];
+    const report = await manager.reviewGame({
+      depth: 8,
+      onProgress: (p) => progressValues.push(p),
+    });
+
+    expect(report.moves.length).toBe(7);
+    expect(progressValues[progressValues.length - 1]).toBe(100);
+    // Last move (Qxf7#) should have win chance 100%
+    const lastMove = report.moves[report.moves.length - 1];
+    expect(lastMove.san).toBe('Qxf7#');
+    expect(lastMove.playedMoveScore).toBe(100);
+    expect(lastMove.judgement).toBe('brilliant');
+  });
+
+  it('completes the exact 39-ply user game ending in 20. Qxa7# up to 100%', async () => {
+    const userPgn = `1. e4 e6 2. d4 Nf6 3. e5 Bb4+ 4. c3 Bf8 5. exf6 Qxf6 6. Nf3 h6 7. Be3 Nc6 8. g3 b6 9. Bg2 Ba6 10. Nbd2 Qg6 11. c4 O-O-O 12. O-O d5 13. Qa4 Na5 14. b4 Qe4 15. bxa5 Qxe3 16. fxe3 c6 17. Qxc6+ Kb8 18. axb6 e5 19. Qc7+ Ka8 20. Qxa7#`;
+    session.loadPgn(userPgn);
+
+    const manager = new StockfishManager(eventBus, session, {
+      workerUrl: '/stockfish.js',
+      whiteMode: 'hint',
+    });
+
+    manager.initStockfish(false);
+    await new Promise((r) => setTimeout(r, 30));
+
+    if (mockWorkerInstance) {
+      const origPostMessage = mockWorkerInstance.postMessage.bind(mockWorkerInstance);
+      mockWorkerInstance.postMessage = (msg: string) => {
+        origPostMessage(msg);
+        if (msg.startsWith('go depth')) {
+          setTimeout(() => {
+            mockWorkerInstance?.simulateMessage('info depth 10 score cp 50 wdl 250 700 50 pv e2e4');
+            mockWorkerInstance?.simulateMessage('bestmove e2e4');
+          }, 0);
+        }
+      };
+    }
+
+    const progressValues: number[] = [];
+    const report = await manager.reviewGame({
+      depth: 6,
+      onProgress: (p) => progressValues.push(p),
+    });
+
+    expect(report.moves.length).toBe(39);
+    expect(progressValues[progressValues.length - 1]).toBe(100);
+    const finalMove = report.moves[38];
+    expect(finalMove.san).toBe('Qxa7#');
+    expect(finalMove.playedMoveScore).toBe(100);
+  });
 });

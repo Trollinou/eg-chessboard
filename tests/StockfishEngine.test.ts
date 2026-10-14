@@ -218,4 +218,24 @@ describe('StockfishEngine', () => {
     expect(mockWorkerInstance?.messagesPosted).toContain('go depth 15');
     expect(engine.getStatus()).toBe('searching');
   });
+
+  it('notifies onBestMove even when bestmove is (none)', async () => {
+    let capturedMove: string | null = null;
+    const engine = new StockfishEngine('/stockfish.js', undefined, {
+      onBestMove: (move) => {
+        capturedMove = move;
+      },
+    });
+    const initPromise = engine.init();
+    mockWorkerInstance?.simulateMessage('uciok');
+    mockWorkerInstance?.simulateMessage('readyok');
+    await initPromise;
+
+    engine.search({ depth: 10 });
+    expect(engine.getStatus()).toBe('searching');
+
+    mockWorkerInstance?.simulateMessage('bestmove (none)');
+    expect(engine.getStatus()).toBe('ready');
+    expect(capturedMove).toBe('(none)');
+  });
 });
