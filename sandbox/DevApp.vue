@@ -13,9 +13,10 @@ import type {
 import {
   AVAILABLE_PIECE_SETS,
   AVAILABLE_BOARD_THEMES,
+  getNodesForElo,
   type PieceSet,
   type BoardTheme,
-} from '../src/types';
+} from '../src';
 import PgnApp from './PgnApp.vue';
 
 const selectedPieceSet = ref<PieceSet>('cburnett');
@@ -241,6 +242,8 @@ const baseStockfishConfig = reactive<StockfishConfig>({
   stockfishMoveTime: 1500,
 });
 
+const searchLimitType = ref<'time' | 'nodes'>('time');
+
 const stockfishConfig = computed<StockfishConfig>(() => {
   if (isStockfishDisabled.value) {
     return {
@@ -249,7 +252,15 @@ const stockfishConfig = computed<StockfishConfig>(() => {
       blackMode: 'disabled',
     };
   }
-  return baseStockfishConfig;
+
+  const cfg: StockfishConfig = { ...baseStockfishConfig };
+  if (searchLimitType.value === 'nodes') {
+    const nodes = getNodesForElo(baseStockfishConfig.blackElo || 1400);
+    cfg.searchLimit = { nodes };
+  } else {
+    cfg.searchLimit = { movetime: baseStockfishConfig.stockfishMoveTime || 1500 };
+  }
+  return cfg;
 });
 
 const isLiveAnalysisActive = ref<boolean>(false);
@@ -633,6 +644,19 @@ const formatMove = (move: string, index: number) => {
               <span class="config-value black-text">ELO {{ baseStockfishConfig.blackElo }}</span>
             </div>
             <div class="config-item">
+              <span class="config-label">Mode de limitation :</span>
+              <div style="display: flex; gap: 12px; margin-top: 4px;">
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 0.85rem;">
+                  <input type="radio" value="time" v-model="searchLimitType" :disabled="isStockfishDisabled" />
+                  ⏱️ Temps (ms)
+                </label>
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 0.85rem;">
+                  <input type="radio" value="nodes" v-model="searchLimitType" :disabled="isStockfishDisabled" />
+                  🔢 Nœuds (Formule Elo)
+                </label>
+              </div>
+            </div>
+            <div v-if="searchLimitType === 'time'" class="config-item">
               <span class="config-label">Temps de réflexion :</span>
               <input
                 v-model.number="baseStockfishConfig.stockfishMoveTime"
@@ -644,6 +668,15 @@ const formatMove = (move: string, index: number) => {
                 style="width: 100%;"
               />
               <span class="config-value">{{ (baseStockfishConfig.stockfishMoveTime || 1000) / 1000 }}s</span>
+            </div>
+            <div v-else class="config-item">
+              <span class="config-label">Nœuds alloués :</span>
+              <span class="config-value" style="color: #60a5fa; font-weight: 700;">
+                {{ getNodesForElo(baseStockfishConfig.blackElo || 1400).toLocaleString('fr-FR') }} nœuds
+              </span>
+              <span style="font-size: 0.75rem; color: #a1a1aa; margin-top: 2px;">
+                Formule exponentielle : 500 × 10^((Elo - 800) / 500)
+              </span>
             </div>
           </div>
         </div>

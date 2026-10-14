@@ -32,5 +32,6 @@ export {
   getFinalFenFromPgn,
   validateFen,
   computeEvalBarPercentage,
+  getNodesForElo,
   type Threat,
 } from './BoardHelper';

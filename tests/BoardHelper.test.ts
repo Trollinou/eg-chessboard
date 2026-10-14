@@ -8,6 +8,7 @@ import {
   getFinalFenFromPgn,
   validateFen,
   computeEvalBarPercentage,
+  getNodesForElo,
 } from '../src/BoardHelper';
 import type { Move } from '../src/types';
 
@@ -178,6 +179,23 @@ describe('BoardHelper', () => {
     it('clamps non-mate scores between 5% and 95%', () => {
       expect(computeEvalBarPercentage('w', 'cp', 10000)).toBe(95);
       expect(computeEvalBarPercentage('w', 'cp', -10000)).toBe(5);
+    });
+  });
+
+  describe('getNodesForElo', () => {
+    it('calculates 500 nodes for baseline Elo 800', () => {
+      expect(getNodesForElo(800)).toBe(500);
+    });
+
+    it('calculates exact decimal powers for steps of 500 Elo', () => {
+      expect(getNodesForElo(1300)).toBe(5000);
+      expect(getNodesForElo(1800)).toBe(50000);
+      expect(getNodesForElo(2300)).toBe(500000);
+    });
+
+    it('calculates expected rounded nodes for Elo 1400', () => {
+      // 500 * 10^(600/500) = 500 * 10^1.2 = 7924.46... -> 7924
+      expect(getNodesForElo(1400)).toBe(7924);
     });
   });
 });

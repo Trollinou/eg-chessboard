@@ -108,3 +108,11 @@ export function computeEvalBarPercentage(
 
   return Math.max(5, Math.min(95, Number(whitePercentage.toFixed(1))));
 }
+
+/**
+ * Calcule une limite de recherche en nombre de nœuds selon le niveau ELO.
+ * Formule exponentielle standard : 500 * 10^((elo - 800) / 500)
+ */
+export function getNodesForElo(elo: number): number {
+  return Math.round(500 * Math.pow(10, (elo - 800) / 500));
+}

@@ -158,14 +158,23 @@ export class StockfishEngine {
     let cmd = 'go';
     if (options.infinite) {
       cmd += ' infinite';
-    } else if (options.movetime !== undefined) {
-      cmd += ` movetime ${options.movetime}`;
-    } else if (options.depth !== undefined) {
-      cmd += ` depth ${options.depth}`;
-    } else if (options.nodes !== undefined) {
-      cmd += ` nodes ${options.nodes}`;
     } else {
-      cmd += ' movetime 1000';
+      let hasParam = false;
+      if (options.nodes !== undefined) {
+        cmd += ` nodes ${options.nodes}`;
+        hasParam = true;
+      }
+      if (options.movetime !== undefined) {
+        cmd += ` movetime ${options.movetime}`;
+        hasParam = true;
+      }
+      if (options.depth !== undefined) {
+        cmd += ` depth ${options.depth}`;
+        hasParam = true;
+      }
+      if (!hasParam) {
+        cmd += ' movetime 1000';
+      }
     }
 
     if (options.searchmoves && options.searchmoves.length > 0) {
