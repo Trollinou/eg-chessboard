@@ -191,14 +191,10 @@ export class StockfishManager {
       if (!ok) return;
 
       const moveTime =
-        this.stockfishConfig.searchLimit?.movetime || this.stockfishConfig.stockfishMoveTime || 1000;
-      const depth = this.stockfishConfig.searchLimit?.depth;
-      const nodes = this.stockfishConfig.searchLimit?.nodes;
+        this.stockfishConfig.searchLimit?.movetime || this.stockfishConfig.stockfishMoveTime || 1200;
 
       this.engine.search({
-        movetime: depth || nodes ? undefined : moveTime,
-        depth,
-        nodes,
+        movetime: moveTime,
       });
       return;
     }
