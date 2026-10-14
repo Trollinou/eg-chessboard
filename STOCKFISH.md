@@ -80,20 +80,27 @@ export interface StockfishEvaluation {
 
 Accessibles via l'instance `core` reçue sur `@board-created` (Vue) ou `onBoardCreated` (React) :
 
-### A. Demande de conseil ponctuel (`requestHint`)
+### A. Demande de conseil (`requestHint`)
+Calcule le meilleur coup pour le camp actif à **force maximale (3500+ ELO, `UCI_LimitStrength: false`)** pour garantir une aide pédagogique optimale :
 ```typescript
-// Calcule immédiatement à pleine force le meilleur coup (ou top 2 variantes)
-core.requestHint({ multiPv: 2, movetime: 1000 });
+// Par défaut : recherche pendant 1200 ms (go movetime 1200) à pleine puissance
+core.requestHint();
+
+// Avec options personnalisées (ex: 2 variantes principales, 1500 ms)
+core.requestHint({ multiPv: 2, movetime: 1500 });
 ```
+> **Note de conception** : Le calcul de conseil est totalement découplé du bridage ELO de l'adversaire. Même si l'IA adverse est réglée à 1400 ELO (7 924 nœuds), le conseil utilise ses 1200 ms à pleine puissance pour suggérer le meilleur coup absolu sans être bridé.
 
 ### B. Analyse en continu (`startLiveAnalysis` / `stopLiveAnalysis`)
+Active l'évaluation continue en temps réel (`go infinite`) sans limite de profondeur :
 ```typescript
-// Active l'analyse continue (infinite search) sur la position affichée à l'écran
+// Active l'analyse continue sur la position affichée à l'écran
 core.startLiveAnalysis();
 
 // Arrête l'analyse en continu
 core.stopLiveAnalysis();
 ```
+> **Alternance transparente avec le Bot** : Si l'analyse en direct est active pendant une partie contre l'ordinateur, le moteur évalue en continu pendant que l'humain réfléchit. Dès que l'humain joue son coup, le moteur met en pause l'analyse, calcule le coup du bot adverse selon l'ELO et le temps/nœuds configurés, le joue sur l'échiquier, puis reprend instantanément l'analyse en direct pour le tour de l'humain !
 
 ### C. Revue de partie autonome (`reviewGame`)
 Analyse séquentielle complète de l'ensemble des coups de la partie avec classification tactique et calcul du score d'accuracy global :
@@ -149,6 +156,17 @@ const result = validateFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -
 if (!result.valid) {
   console.error('FEN illégale :', result.error);
 }
+```
+
+### `getNodesForElo`
+Calcule une limite de recherche déterministe en nombre de nœuds selon le niveau ELO via la formule exponentielle standard (type Lichess/Maïa) : `Math.round(500 * Math.pow(10, (elo - 800) / 500))` :
+
+```typescript
+import { getNodesForElo } from 'eg-chessboard';
+
+const nodes1400 = getNodesForElo(1400); // 7 924 nœuds (~10ms)
+const nodes1800 = getNodesForElo(1800); // 50 000 nœuds (~50ms)
+const nodes2500 = getNodesForElo(2500); // 1 255 943 nœuds (~1.5s)
 ```
 
 ---
