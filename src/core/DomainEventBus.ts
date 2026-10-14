@@ -1,4 +1,4 @@
-import type { Move } from '../types';
+import type { Move, StockfishEvaluation, EngineStatus, GameReviewReport } from '../types';
 import type { DrawShape } from '@lichess-org/chessground/draw';
 import type { Key } from '@lichess-org/chessground/types';
 
@@ -36,6 +36,20 @@ export interface DomainEvents {
   };
   'stockfish-hint': {
     bestMove: string;
+  };
+  'stockfish-eval': {
+    evaluation: StockfishEvaluation;
+  };
+  'stockfish-status': {
+    status: EngineStatus;
+  };
+  'stockfish-game-review': {
+    report?: GameReviewReport;
+    progress?: number;
+    isComplete: boolean;
+  };
+  'stockfish-error': {
+    error: string;
   };
   'square-clicked': {
     square: Key;

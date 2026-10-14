@@ -1,9 +1,17 @@
 import { makeFen } from 'chessops/fen';
 import { DomainEventBus } from './DomainEventBus';
 import { GameSession } from './GameSession';
-import type { Move } from '../types';
+import { StockfishEngine } from './StockfishEngine';
+import type {
+  Move,
+  StockfishEvaluation,
+  EngineStatus,
+  GameReviewReport,
+  MoveAnalysisReport,
+  MoveJudgement,
+} from '../types';
 
-export type StockfishMode = 'disabled' | 'hint' | 'elo';
+export type StockfishMode = 'disabled' | 'hint' | 'bot' | 'elo';
 
 export interface StockfishConfig {
   whiteMode?: StockfishMode;
@@ -12,14 +20,24 @@ export interface StockfishConfig {
   blackElo?: number;
   stockfishMoveTime?: number; // millisecondes
   workerUrl?: string; // URL vers stockfish.js
-  wasmUrl?: string; // URL vers le binaire stockfish.wasm
+  wasmUrl?: string; // URL vers stockfish.wasm
+  threads?: number;
+  hashSize?: number;
+  showWdl?: boolean;
+  multiPv?: number;
+  searchLimit?: {
+    movetime?: number;
+    depth?: number;
+    nodes?: number;
+  };
 }
 
 export class StockfishManager {
-  private whiteWorker: Worker | null = null;
-  private blackWorker: Worker | null = null;
+  private engine: StockfishEngine | null = null;
   private stockfishConfig: StockfishConfig = {};
   public lastSuggestedMove = '';
+  private isReviewRunning = false;
+  private isLiveAnalysis = false;
 
   constructor(
     private eventBus: DomainEventBus,
@@ -34,6 +52,14 @@ export class StockfishManager {
     return { ...this.stockfishConfig };
   }
 
+  public getEngineStatus(): EngineStatus {
+    return this.engine ? this.engine.getStatus() : 'uninitialized';
+  }
+
+  public getLastEvaluation(): StockfishEvaluation | null {
+    return this.engine ? this.engine.getLastEvaluation() : null;
+  }
+
   public updateStockfishConfig(config: StockfishConfig, isFreeMode: boolean): void {
     this.stockfishConfig = { ...this.stockfishConfig, ...config };
     this.initStockfish(isFreeMode);
@@ -46,125 +72,365 @@ export class StockfishManager {
       return;
     }
 
-    const { workerUrl, whiteMode, blackMode, whiteElo, blackElo } = this.stockfishConfig;
-    if (
-      !workerUrl ||
-      (!whiteMode && !blackMode) ||
-      (whiteMode === 'disabled' && blackMode === 'disabled')
-    ) {
+    const { workerUrl, wasmUrl, whiteMode, blackMode } = this.stockfishConfig;
+    const isWhiteActive = whiteMode && whiteMode !== 'disabled';
+    const isBlackActive = blackMode && blackMode !== 'disabled';
+
+    if (!workerUrl || (!isWhiteActive && !isBlackActive)) {
       this.terminateStockfish();
       return;
     }
 
-    this.whiteWorker = this.setupWorker(this.whiteWorker, workerUrl, whiteMode, whiteElo, (line) =>
-      this.handleWhiteMessage(line)
-    );
-    this.blackWorker = this.setupWorker(this.blackWorker, workerUrl, blackMode, blackElo, (line) =>
-      this.handleBlackMessage(line)
-    );
+    if (!this.engine) {
+      this.engine = new StockfishEngine(workerUrl, wasmUrl, {
+        onStatusChange: (status) => {
+          this.eventBus.emit('stockfish-status', { status });
+        },
+        onEvaluation: (evaluation) => {
+          this.eventBus.emit('stockfish-eval', { evaluation });
+        },
+        onBestMove: (bestMove) => {
+          this.handleBestMove(bestMove);
+        },
+        onError: (error) => {
+          this.eventBus.emit('stockfish-error', { error });
+        },
+      });
+
+      this.engine
+        .init()
+        .then(() => {
+          this.applyBaseOptions();
+        })
+        .catch(() => {
+          // Handled via onError
+        });
+    } else {
+      this.applyBaseOptions();
+    }
   }
 
-  private setupWorker(
-    currentWorker: Worker | null,
-    workerUrl: string,
-    mode: StockfishMode | undefined,
-    elo: number | undefined,
-    onMessage: (line: string) => void
-  ): Worker | null {
-    if (mode && mode !== 'disabled') {
-      let worker = currentWorker;
-      if (!worker) {
-        worker = new Worker(workerUrl);
-        worker.onmessage = (e) => onMessage(e.data);
-        worker.postMessage('uci');
-        worker.postMessage('ucinewgame');
-        worker.postMessage('isready');
-      }
-      if (mode === 'elo') {
-        const targetElo = elo || 1500;
-        worker.postMessage('setoption name UCI_LimitStrength value true');
-        worker.postMessage(`setoption name UCI_Elo value ${targetElo}`);
-      } else if (mode === 'hint') {
-        worker.postMessage('setoption name Hash value 256');
-      }
-      return worker;
+  private applyBaseOptions(): void {
+    if (!this.engine) return;
+    const { hashSize, threads, showWdl = true, multiPv = 1 } = this.stockfishConfig;
+    if (hashSize) {
+      this.engine.setOption('Hash', hashSize);
     }
-    if (currentWorker) {
-      currentWorker.terminate();
+    if (threads) {
+      this.engine.setOption('Threads', threads);
     }
-    return null;
+    this.engine.setOption('UCI_ShowWDL', showWdl);
+    this.engine.setOption('MultiPV', multiPv);
   }
 
   public terminateStockfish(): void {
-    if (this.whiteWorker) {
-      this.whiteWorker.terminate();
-      this.whiteWorker = null;
+    if (this.engine) {
+      this.engine.terminate();
+      this.engine = null;
     }
-    if (this.blackWorker) {
-      this.blackWorker.terminate();
-      this.blackWorker = null;
-    }
-  }
-
-  private handleWhiteMessage(line: string): void {
-    this.handleEngineOutput(line, this.stockfishConfig.whiteMode);
-  }
-
-  private handleBlackMessage(line: string): void {
-    this.handleEngineOutput(line, this.stockfishConfig.blackMode);
-  }
-
-  private handleEngineOutput(line: string, mode?: StockfishMode): void {
-    if (typeof line !== 'string') return;
-
-    if (line.startsWith('bestmove')) {
-      const parts = line.split(' ');
-      const bestMove = parts[1];
-      if (bestMove && bestMove !== '(none)') {
-        this.lastSuggestedMove = bestMove;
-        if (mode === 'hint') {
-          this.eventBus.emit('stockfish-hint', { bestMove });
-        } else if (mode === 'elo' && this.onPlayEngineMove) {
-          const from = bestMove.substring(0, 2);
-          const to = bestMove.substring(2, 4);
-          const promotion = bestMove.length > 4 ? bestMove.substring(4, 5) : undefined;
-          this.onPlayEngineMove({ from, to, promotion });
-        }
-      }
-    }
+    this.isReviewRunning = false;
+    this.isLiveAnalysis = false;
   }
 
   public triggerStockfish(isFreeMode: boolean): void {
-    if (isFreeMode || this.session.getIsGameOver()) {
+    if (isFreeMode || this.session.getIsGameOver() || !this.engine || this.isReviewRunning) {
       return;
     }
 
     const turn = this.session.getTurnColor();
     const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
-    const worker = turn === 'white' ? this.whiteWorker : this.blackWorker;
+    const elo = turn === 'white' ? this.stockfishConfig.whiteElo : this.stockfishConfig.blackElo;
 
-    if (!worker || !mode || mode === 'disabled') {
+    if (!mode || mode === 'disabled') {
       return;
     }
 
-    const cmd = this.getEnginePositionCommand();
-    const moveTime = this.stockfishConfig.stockfishMoveTime || 1000;
+    if (mode === 'bot' || mode === 'elo') {
+      const targetElo = elo || 1500;
+      this.engine.setOption('UCI_LimitStrength', 'true');
+      this.engine.setOption('UCI_Elo', targetElo);
+      this.engine.setOption('MultiPV', 1);
+    } else if (mode === 'hint') {
+      this.engine.setOption('UCI_LimitStrength', 'false');
+      this.engine.setOption('MultiPV', this.stockfishConfig.multiPv || 1);
+    }
 
-    worker.postMessage('stop');
-    worker.postMessage(cmd);
-    worker.postMessage(`go movetime ${moveTime}`);
+    const { baseCmd, moves } = this.getEnginePosition();
+    const ok = this.engine.setPosition(baseCmd, moves);
+    if (!ok) return;
+
+    const moveTime =
+      this.stockfishConfig.searchLimit?.movetime || this.stockfishConfig.stockfishMoveTime || 1000;
+    const depth = this.stockfishConfig.searchLimit?.depth;
+    const nodes = this.stockfishConfig.searchLimit?.nodes;
+
+    this.engine.search({
+      movetime: depth || nodes ? undefined : moveTime,
+      depth,
+      nodes,
+    });
   }
 
-  private getEnginePositionCommand(): string {
+  public requestHint(options: { multiPv?: number; depth?: number; movetime?: number } = {}): void {
+    if (!this.engine || this.session.getIsGameOver() || this.isReviewRunning) return;
+
+    this.engine.setOption('UCI_LimitStrength', 'false');
+    this.engine.setOption('MultiPV', options.multiPv || 1);
+
+    const { baseCmd, moves } = this.getEnginePosition();
+    this.engine.setPosition(baseCmd, moves);
+    this.engine.search({
+      movetime: options.depth ? undefined : options.movetime || 1200,
+      depth: options.depth,
+    });
+  }
+
+  public startLiveAnalysis(): void {
+    if (!this.engine || this.isReviewRunning) return;
+    this.isLiveAnalysis = true;
+    this.engine.setOption('UCI_LimitStrength', 'false');
+    this.engine.setOption('MultiPV', this.stockfishConfig.multiPv || 1);
+
+    const { baseCmd, moves } = this.getEnginePosition();
+    this.engine.setPosition(baseCmd, moves);
+    this.engine.search({ infinite: true });
+  }
+
+  public stopLiveAnalysis(): void {
+    if (!this.engine || !this.isLiveAnalysis) return;
+    this.isLiveAnalysis = false;
+    this.engine.stop();
+  }
+
+  private handleBestMove(bestMove: string): void {
+    this.lastSuggestedMove = bestMove;
+    const turn = this.session.getTurnColor();
+    const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
+
+    if (mode === 'hint') {
+      this.eventBus.emit('stockfish-hint', { bestMove });
+    } else if ((mode === 'bot' || mode === 'elo') && this.onPlayEngineMove) {
+      const from = bestMove.substring(0, 2);
+      const to = bestMove.substring(2, 4);
+      const promotion = bestMove.length > 4 ? bestMove.substring(4, 5) : undefined;
+      this.onPlayEngineMove({ from, to, promotion });
+    }
+  }
+
+  public async reviewGame(
+    options: {
+      depth?: number;
+      onProgress?: (percent: number) => void;
+    } = {}
+  ): Promise<GameReviewReport> {
+    if (!this.engine) {
+      throw new Error('Stockfish engine is not initialized');
+    }
+
+    this.isReviewRunning = true;
+    this.eventBus.emit('stockfish-game-review', { progress: 0, isComplete: false });
+
+    const depth = options.depth || 12;
+    const history = this.session.getHistory(true) as Move[];
+    const rootFen = makeFen(this.session.getRootPos().toSetup());
+
+    const movesReport: MoveAnalysisReport[] = [];
+    const evalGraph: { ply: number; whiteWinChance: number }[] = [];
+    const whiteSummary: Record<MoveJudgement, number> = {
+      brilliant: 0,
+      best: 0,
+      excellent: 0,
+      good: 0,
+      inaccuracy: 0,
+      mistake: 0,
+      blunder: 0,
+      missed_win: 0,
+    };
+    const blackSummary: Record<MoveJudgement, number> = {
+      brilliant: 0,
+      best: 0,
+      excellent: 0,
+      good: 0,
+      inaccuracy: 0,
+      mistake: 0,
+      blunder: 0,
+      missed_win: 0,
+    };
+
+    const playedMovesUci: string[] = [];
+
+    this.engine.setOption('UCI_LimitStrength', 'false');
+    this.engine.setOption('MultiPV', 1);
+
+    try {
+      for (let i = 0; i < history.length; i++) {
+        const move = history[i];
+        const moveColor = move.color === 'w' ? 'white' : 'black';
+
+        // 1. Evaluate position before move
+        const evalBefore = await this.evaluatePosition(rootFen, [...playedMovesUci], depth);
+
+        // 2. Play the move and evaluate position after move
+        const moveUci = move.from + move.to + (move.promotion ? move.promotion.toLowerCase() : '');
+        playedMovesUci.push(moveUci);
+        const evalAfter = await this.evaluatePosition(rootFen, [...playedMovesUci], depth);
+
+        // Calculate win chance before and after from the player's perspective
+        const bestWinChance =
+          moveColor === 'white'
+            ? evalBefore.winChancePercentage
+            : 100 - evalBefore.winChancePercentage;
+
+        const playedWinChance =
+          moveColor === 'white'
+            ? evalAfter.winChancePercentage
+            : 100 - evalAfter.winChancePercentage;
+
+        const diff = Math.max(0, bestWinChance - playedWinChance);
+
+        // Determine if a mate was missed
+        const isMissedWin =
+          evalBefore.scoreType === 'mate' &&
+          ((moveColor === 'white' && evalBefore.whiteScoreValue > 0) ||
+            (moveColor === 'black' && evalBefore.whiteScoreValue < 0)) &&
+          evalAfter.scoreType !== 'mate';
+
+        const judgement = this.classifyMove(diff, isMissedWin, move.san);
+
+        if (moveColor === 'white') {
+          whiteSummary[judgement]++;
+        } else {
+          blackSummary[judgement]++;
+        }
+
+        movesReport.push({
+          ply: i + 1,
+          san: move.san,
+          uci: moveUci,
+          color: moveColor,
+          judgement,
+          playedMoveScore: playedWinChance,
+          bestMoveScore: bestWinChance,
+          diffPercentage: Number(diff.toFixed(1)),
+          bestMoveUci: evalBefore.bestMove || moveUci,
+          bestMoveSan: evalBefore.bestMove || moveUci,
+        });
+
+        evalGraph.push({
+          ply: i + 1,
+          whiteWinChance: evalAfter.winChancePercentage,
+        });
+
+        const percent = Math.round(((i + 1) / history.length) * 100);
+        options.onProgress?.(percent);
+        this.eventBus.emit('stockfish-game-review', { progress: percent, isComplete: false });
+      }
+
+      // Calculate accuracy using exponential loss formula
+      const whiteAccuracy = this.calculateAccuracy(
+        movesReport.filter((m) => m.color === 'white').map((m) => m.diffPercentage)
+      );
+      const blackAccuracy = this.calculateAccuracy(
+        movesReport.filter((m) => m.color === 'black').map((m) => m.diffPercentage)
+      );
+
+      const report: GameReviewReport = {
+        accuracy: {
+          white: whiteAccuracy,
+          black: blackAccuracy,
+        },
+        summary: {
+          white: whiteSummary,
+          black: blackSummary,
+        },
+        moves: movesReport,
+        evalGraph,
+      };
+
+      this.eventBus.emit('stockfish-game-review', { report, isComplete: true, progress: 100 });
+      return report;
+    } finally {
+      this.isReviewRunning = false;
+      this.triggerStockfish(false);
+    }
+  }
+
+  private evaluatePosition(
+    rootFen: string,
+    moves: string[],
+    depth: number
+  ): Promise<StockfishEvaluation> {
+    return new Promise((resolve) => {
+      if (!this.engine) {
+        return;
+      }
+
+      let lastEval: StockfishEvaluation | null = null;
+      const originalHandlers = {
+        onEvaluation: (ev: StockfishEvaluation) => {
+          lastEval = ev;
+        },
+        onBestMove: () => {
+          if (lastEval) {
+            resolve(lastEval);
+          } else {
+            resolve(
+              this.engine?.getLastEvaluation() || {
+                ply: moves.length,
+                fen: rootFen,
+                depth,
+                scoreType: 'cp',
+                scoreValue: 0,
+                whiteScoreValue: 0,
+                winChancePercentage: 50,
+                pv: [],
+                multipvIndex: 1,
+              }
+            );
+          }
+        },
+      };
+
+      this.engine.setHandlers(originalHandlers);
+      const baseCmd =
+        rootFen === 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+          ? 'startpos'
+          : rootFen;
+
+      this.engine.setPosition(baseCmd, moves);
+      this.engine.search({ depth });
+    });
+  }
+
+  private classifyMove(diff: number, isMissedWin: boolean, san: string): MoveJudgement {
+    if (isMissedWin) return 'missed_win';
+    if (diff <= 1.5) {
+      if (san.includes('x') && diff < 0.5) return 'brilliant';
+      return 'best';
+    }
+    if (diff <= 5.0) return 'excellent';
+    if (diff <= 10.0) return 'good';
+    if (diff <= 20.0) return 'inaccuracy';
+    if (diff <= 35.0) return 'mistake';
+    return 'blunder';
+  }
+
+  private calculateAccuracy(losses: number[]): number {
+    if (!losses.length) return 100;
+    const sum = losses.reduce((acc, loss) => acc + Math.exp(-0.06 * loss), 0);
+    return Number(((sum / losses.length) * 100).toFixed(1));
+  }
+
+  private getEnginePosition(): { baseCmd: string; moves: string[] } {
     const rootFen = makeFen(this.session.getRootPos().toSetup());
     const isStandardStart = rootFen === 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-    const baseCmd = isStandardStart ? 'position startpos' : `position fen ${rootFen}`;
+    const baseCmd = isStandardStart ? 'startpos' : rootFen;
 
     const history = this.session.getHistory(true) as Move[];
-    const movesStr = history
-      .map((m) => m.from + m.to + (m.promotion ? m.promotion.toLowerCase() : ''))
-      .join(' ');
+    const moves = history.map(
+      (m) => m.from + m.to + (m.promotion ? m.promotion.toLowerCase() : '')
+    );
 
-    return movesStr ? `${baseCmd} moves ${movesStr}` : baseCmd;
+    return { baseCmd, moves };
   }
 }

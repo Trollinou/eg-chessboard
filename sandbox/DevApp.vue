@@ -3,7 +3,13 @@ import { ref, reactive, computed } from 'vue';
 import TheChessboard from '../src/vue/TheChessboard.vue';
 import type { Key } from '@lichess-org/chessground/types';
 import type { DrawShape } from '@lichess-org/chessground/draw';
-import type { BoardCore, StockfishConfig } from '../src/BoardCore';
+import type {
+  BoardCore,
+  StockfishConfig,
+  StockfishEvaluation,
+  EngineStatus,
+  GameReviewReport,
+} from '../src/BoardCore';
 import {
   AVAILABLE_PIECE_SETS,
   AVAILABLE_BOARD_THEMES,
@@ -246,6 +252,72 @@ const stockfishConfig = computed<StockfishConfig>(() => {
   return baseStockfishConfig;
 });
 
+const isLiveAnalysisActive = ref<boolean>(false);
+const engineStatus = ref<EngineStatus>('uninitialized');
+const currentEvaluation = ref<StockfishEvaluation | null>(null);
+const evalPercentage = ref<number>(50);
+const evalScoreLabel = ref<string>('0.0');
+
+// Game review state
+const isReviewing = ref<boolean>(false);
+const reviewProgress = ref<number>(0);
+const reviewReport = ref<GameReviewReport | null>(null);
+
+const onEvaluation = (ev: StockfishEvaluation) => {
+  currentEvaluation.value = ev;
+  evalPercentage.value = ev.winChancePercentage;
+  if (ev.scoreType === 'mate') {
+    evalScoreLabel.value = `#${ev.whiteScoreValue}`;
+  } else {
+    const cp = (ev.whiteScoreValue / 100).toFixed(1);
+    evalScoreLabel.value = ev.whiteScoreValue > 0 ? `+${cp}` : cp;
+  }
+};
+
+const onEngineStatus = (status: EngineStatus) => {
+  engineStatus.value = status;
+};
+
+const onRequestHint = () => {
+  if (boardCore.value) {
+    boardCore.value.requestHint({ multiPv: 2 });
+  }
+};
+
+const toggleLiveAnalysis = () => {
+  if (!boardCore.value) return;
+  if (isLiveAnalysisActive.value) {
+    boardCore.value.stopLiveAnalysis();
+    isLiveAnalysisActive.value = false;
+  } else {
+    boardCore.value.startLiveAnalysis();
+    isLiveAnalysisActive.value = true;
+  }
+};
+
+const startReview = async () => {
+  if (!boardCore.value || isReviewing.value) return;
+  isReviewing.value = true;
+  reviewProgress.value = 0;
+  reviewReport.value = null;
+  try {
+    const report = await boardCore.value.reviewGame({
+      depth: 10,
+      onProgress: (p) => {
+        reviewProgress.value = p;
+      },
+    });
+    reviewReport.value = report;
+  } finally {
+    isReviewing.value = false;
+  }
+};
+
+const viewReviewMove = (ply: number) => {
+  if (!boardCore.value) return;
+  boardCore.value.viewHistory(ply);
+};
+
 const onBoardCreated = (core: BoardCore) => {
   boardCore.value = core;
   syncState();
@@ -447,22 +519,32 @@ const formatMove = (move: string, index: number) => {
     </header>
 
     <main v-if="activeTab === 'stockfish'" class="app-layout">
-      <!-- Left column: The board -->
+      <!-- Left column: The board with eval bar -->
       <section class="board-column">
-        <div class="board-wrapper">
-          <TheChessboard
-            :player-color="playerColor"
-            :stockfish-config="stockfishConfig"
-            :piece-set="selectedPieceSet"
-            :board-theme="selectedBoardTheme"
-            @board-created="onBoardCreated"
-            @move="onMove"
-            @check="syncState"
-            @checkmate="syncState"
-            @stalemate="syncState"
-            @draw="syncState"
-            @stockfish-hint="onStockfishHint"
-          />
+        <div class="board-with-eval">
+          <!-- Evaluation bar -->
+          <div class="eval-bar-container" title="Barre d'évaluation Stockfish 19">
+            <div class="eval-bar-fill" :style="{ height: `${evalPercentage}%` }"></div>
+            <div class="eval-bar-label">{{ evalScoreLabel }}</div>
+          </div>
+
+          <div class="board-wrapper">
+            <TheChessboard
+              :player-color="playerColor"
+              :stockfish-config="stockfishConfig"
+              :piece-set="selectedPieceSet"
+              :board-theme="selectedBoardTheme"
+              @board-created="onBoardCreated"
+              @move="onMove"
+              @check="syncState"
+              @checkmate="syncState"
+              @stalemate="syncState"
+              @draw="syncState"
+              @stockfish-hint="onStockfishHint"
+              @evaluation="onEvaluation"
+              @engine-status="onEngineStatus"
+            />
+          </div>
         </div>
       </section>
 
@@ -470,10 +552,22 @@ const formatMove = (move: string, index: number) => {
       <section class="controls-column">
         <!-- Live status card -->
         <div class="glass-card status-card" :class="{ 'warning-border': boardCore?.getIsCheck() }">
-          <h2>Statut de la partie</h2>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Statut de la partie</h2>
+            <span class="engine-badge" :class="engineStatus">
+              ⚙️ {{ engineStatus.toUpperCase() }}
+            </span>
+          </div>
           <div class="status-indicator">
             <span class="pulse-dot" :class="currentTurn"></span>
             <span class="status-text">{{ gameStatus }}</span>
+          </div>
+          <div v-if="currentEvaluation" class="eval-metrics">
+            <span>Prof: <strong>{{ currentEvaluation.depth }}</strong></span>
+            <span v-if="currentEvaluation.nps">NPS: <strong>{{ (currentEvaluation.nps / 1000).toFixed(0) }}k</strong></span>
+            <span v-if="currentEvaluation.wdl">
+              WDL: <strong>{{ (currentEvaluation.wdl[0] / 10).toFixed(0) }}% / {{ (currentEvaluation.wdl[1] / 10).toFixed(0) }}% / {{ (currentEvaluation.wdl[2] / 10).toFixed(0) }}%</strong>
+            </span>
           </div>
         </div>
 
@@ -481,7 +575,7 @@ const formatMove = (move: string, index: number) => {
         <div v-if="!isStockfishDisabled" class="glass-card hint-card">
           <h2>Suggestion d'aide (Mode Hint)</h2>
           <p class="description">
-            Le <strong>whiteWorker</strong> analyse la position et propose le meilleur coup pour
+            Stockfish 19 analyse la position et propose le meilleur coup pour
             vous (Blancs).
           </p>
           <div class="hint-display">
@@ -496,7 +590,7 @@ const formatMove = (move: string, index: number) => {
 
         <!-- Configurations -->
         <div class="glass-card config-card">
-          <h2>Configuration de la partie</h2>
+          <h2>Configuration Stockfish 19</h2>
           <div class="config-grid">
             <div class="config-item">
               <span class="config-label">Mode :</span>
@@ -505,26 +599,51 @@ const formatMove = (move: string, index: number) => {
               }}</span>
             </div>
             <div class="config-item">
-              <span class="config-label">Joueur Blanc :</span>
-              <span class="config-value white-text">{{
-                isStockfishDisabled ? 'Humain' : 'Humain + Hint'
-              }}</span>
-            </div>
-            <div class="config-item">
-              <span class="config-label">Joueur Noir :</span>
-              <span class="config-value black-text">{{
-                isStockfishDisabled ? 'Humain' : `Stockfish (ELO ${baseStockfishConfig.blackElo})`
-              }}</span>
+              <span class="config-label">Niveau Elo IA :</span>
+              <input
+                v-model.number="baseStockfishConfig.blackElo"
+                type="range"
+                min="1320"
+                max="3000"
+                step="50"
+                :disabled="isStockfishDisabled"
+                style="width: 100%;"
+              />
+              <span class="config-value black-text">ELO {{ baseStockfishConfig.blackElo }}</span>
             </div>
           </div>
         </div>
 
         <!-- Controls card -->
         <div class="glass-card action-card">
-          <h2>Actions</h2>
+          <h2>Actions & Analyses</h2>
           <div class="action-buttons">
             <button id="btn-new" class="btn btn-primary" @click="handleNewGame">
               🔄 Nouvelle Partie
+            </button>
+            <button
+              id="btn-hint"
+              class="btn btn-secondary"
+              :disabled="isStockfishDisabled"
+              @click="onRequestHint"
+            >
+              💡 Conseil (Hint)
+            </button>
+            <button
+              id="btn-live-analysis"
+              :class="{ active: isLiveAnalysisActive }"
+              class="btn btn-secondary"
+              @click="toggleLiveAnalysis"
+            >
+              ⚡ {{ isLiveAnalysisActive ? 'Arrêter Analyse' : 'Analyse en direct' }}
+            </button>
+            <button
+              id="btn-review"
+              :disabled="gameHistory.length === 0 || isReviewing"
+              class="btn btn-secondary"
+              @click="startReview"
+            >
+              📊 {{ isReviewing ? `Revue (${reviewProgress}%)` : 'Revue de partie' }}
             </button>
             <button
               id="btn-toggle-stockfish"
@@ -557,6 +676,50 @@ const formatMove = (move: string, index: number) => {
             <button id="btn-rotate" class="btn btn-secondary" @click="toggleOrientation">
               🔄 Tourner le plateau
             </button>
+          </div>
+        </div>
+
+        <!-- Game Review Card -->
+        <div v-if="reviewReport || isReviewing" class="glass-card review-card">
+          <h2>Revue de partie</h2>
+          <div v-if="isReviewing" class="review-progress-wrap">
+            <div class="review-progress-bar" :style="{ width: `${reviewProgress}%` }"></div>
+            <span class="review-progress-text">Calcul de l'évaluation : {{ reviewProgress }}%</span>
+          </div>
+
+          <div v-if="reviewReport" class="review-results">
+            <div class="accuracy-grid">
+              <div class="accuracy-box white-box">
+                <span class="acc-title">Précision Blancs</span>
+                <span class="acc-value">{{ reviewReport.accuracy.white }}%</span>
+              </div>
+              <div class="accuracy-box black-box">
+                <span class="acc-title">Précision Noirs</span>
+                <span class="acc-value">{{ reviewReport.accuracy.black }}%</span>
+              </div>
+            </div>
+
+            <div class="judgement-summary">
+              <span class="badge brilliant">!! {{ reviewReport.summary.white.brilliant }}</span>
+              <span class="badge best">! {{ reviewReport.summary.white.best }}</span>
+              <span class="badge inaccuracy">?! {{ reviewReport.summary.white.inaccuracy }}</span>
+              <span class="badge mistake">? {{ reviewReport.summary.white.mistake }}</span>
+              <span class="badge blunder">?? {{ reviewReport.summary.white.blunder }}</span>
+            </div>
+
+            <div class="review-moves-list">
+              <div
+                v-for="m in reviewReport.moves"
+                :key="m.ply"
+                class="review-move-row"
+                @click="viewReviewMove(m.ply)"
+              >
+                <span class="move-ply">{{ Math.ceil(m.ply / 2) }}.{{ m.ply % 2 === 1 ? '' : '..' }}</span>
+                <span class="move-san">{{ m.san }}</span>
+                <span class="move-judgement-tag" :class="m.judgement">{{ m.judgement.toUpperCase() }}</span>
+                <span class="move-diff">-{{ m.diffPercentage }}%</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1042,6 +1205,201 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.board-with-eval {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+  max-width: 640px;
+}
+
+.eval-bar-container {
+  width: 24px;
+  background: #2b2927;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column-reverse;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+}
+
+.eval-bar-fill {
+  background: #ffffff;
+  transition: height 0.3s ease;
+  width: 100%;
+}
+
+.eval-bar-label {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+.engine-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #a1a1aa;
+}
+.engine-badge.ready {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+.engine-badge.searching {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+}
+.engine-badge.error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.eval-metrics {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: #a1a1aa;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Game Review Styles */
+.review-card {
+  border-color: rgba(99, 102, 241, 0.3);
+}
+.review-progress-wrap {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  height: 24px;
+  margin-top: 8px;
+}
+.review-progress-bar {
+  background: var(--primary);
+  height: 100%;
+  transition: width 0.2s ease;
+}
+.review-progress-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+}
+.accuracy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 12px 0;
+}
+.accuracy-box {
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.accuracy-box .acc-title {
+  font-size: 0.75rem;
+  color: #a1a1aa;
+}
+.accuracy-box .acc-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+.white-box .acc-value {
+  color: #fff;
+}
+.black-box .acc-value {
+  color: #60a5fa;
+}
+.judgement-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.judgement-summary .badge {
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+.badge.brilliant { background: #06b6d4; color: #fff; }
+.badge.best { background: #10b981; color: #fff; }
+.badge.inaccuracy { background: #f59e0b; color: #fff; }
+.badge.mistake { background: #f97316; color: #fff; }
+.badge.blunder { background: #ef4444; color: #fff; }
+
+.review-moves-list {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.review-move-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s ease;
+}
+.review-move-row:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.move-ply {
+  color: #71717a;
+  width: 28px;
+}
+.move-san {
+  font-weight: 600;
+  width: 45px;
+}
+.move-judgement-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.move-judgement-tag.brilliant { background: rgba(6, 182, 212, 0.2); color: #22d3ee; }
+.move-judgement-tag.best { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.move-judgement-tag.excellent { background: rgba(52, 211, 153, 0.15); color: #6ee7b7; }
+.move-judgement-tag.good { background: rgba(255, 255, 255, 0.1); color: #e4e4e7; }
+.move-judgement-tag.inaccuracy { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.move-judgement-tag.mistake { background: rgba(249, 115, 22, 0.2); color: #fb923c; }
+.move-judgement-tag.blunder { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+.move-diff {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: #71717a;
 }
 
 .board-wrapper {

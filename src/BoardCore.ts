@@ -5,7 +5,17 @@ import type { Color, Key, MoveMetadata } from '@lichess-org/chessground/types';
 import type { DrawShape } from '@lichess-org/chessground/draw';
 
 import { getFinalFenFromPgn } from './BoardHelper';
-import type { Move, VariationInfo, PgnTreeNode, BoardMode, PieceSet, BoardTheme } from './types';
+import type {
+  Move,
+  VariationInfo,
+  PgnTreeNode,
+  BoardMode,
+  PieceSet,
+  BoardTheme,
+  StockfishEvaluation,
+  EngineStatus,
+  GameReviewReport,
+} from './types';
 
 import { DomainEventBus } from './core/DomainEventBus';
 import { GameSession } from './core/GameSession';
@@ -43,6 +53,13 @@ export interface BoardCoreState {
 }
 
 export type { StockfishConfig, StockfishMode } from './core/StockfishManager';
+export type {
+  StockfishEvaluation,
+  EngineStatus,
+  GameReviewReport,
+  MoveAnalysisReport,
+  MoveJudgement,
+} from './types';
 
 export interface ChessDiagram {
   fen: string;
@@ -180,6 +197,18 @@ export class BoardCore {
 
     this.eventBus.on('stockfish-hint', (data) => {
       this.emitEvent('stockfish-hint', data.bestMove);
+    });
+
+    this.eventBus.on('stockfish-eval', (data) => {
+      this.emitEvent('evaluation', data.evaluation);
+    });
+
+    this.eventBus.on('stockfish-status', (data) => {
+      this.emitEvent('engine-status', data.status);
+    });
+
+    this.eventBus.on('stockfish-game-review', (data) => {
+      this.emitEvent('game-review-progress', data.progress || 0);
     });
 
     this.eventBus.on('square-clicked', (data) => {
@@ -671,6 +700,33 @@ export class BoardCore {
 
   public updateStockfishConfig(config: StockfishConfig): void {
     this.stockfishManager.updateStockfishConfig(config, !!this.state.freeMode);
+  }
+
+  public getEngineStatus(): EngineStatus {
+    return this.stockfishManager.getEngineStatus();
+  }
+
+  public getLastEvaluation(): StockfishEvaluation | null {
+    return this.stockfishManager.getLastEvaluation();
+  }
+
+  public requestHint(options?: { multiPv?: number; depth?: number; movetime?: number }): void {
+    this.stockfishManager.requestHint(options);
+  }
+
+  public startLiveAnalysis(): void {
+    this.stockfishManager.startLiveAnalysis();
+  }
+
+  public stopLiveAnalysis(): void {
+    this.stockfishManager.stopLiveAnalysis();
+  }
+
+  public reviewGame(options?: {
+    depth?: number;
+    onProgress?: (percent: number) => void;
+  }): Promise<GameReviewReport> {
+    return this.stockfishManager.reviewGame(options);
   }
 
   public setCommentAtPly(

@@ -8,6 +8,11 @@ import {
   type BoardTheme,
   type BoardEvents,
   type PromotionDetail,
+  type StockfishEvaluation,
+  type EngineStatus,
+  type GameReviewReport,
+  type MoveAnalysisReport,
+  type MoveJudgement,
   AVAILABLE_PIECE_SETS,
   AVAILABLE_BOARD_THEMES,
 } from '../types';
@@ -15,12 +20,14 @@ import {
   BoardCore,
   type BoardCoreState,
   type StockfishConfig,
+  type StockfishMode,
   type ChessDiagram,
 } from '../BoardCore';
 export {
   BoardCore,
   type BoardCoreState,
   type StockfishConfig,
+  type StockfishMode,
   type ChessDiagram,
   type Move,
   type BoardMode,
@@ -28,6 +35,11 @@ export {
   type BoardTheme,
   type BoardEvents,
   type PromotionDetail,
+  type StockfishEvaluation,
+  type EngineStatus,
+  type GameReviewReport,
+  type MoveAnalysisReport,
+  type MoveJudgement,
   AVAILABLE_PIECE_SETS,
   AVAILABLE_BOARD_THEMES,
 };
@@ -70,6 +82,9 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   onDraw,
   onPromotion,
   onStockfishHint,
+  onEvaluation,
+  onEngineStatus,
+  onGameReviewProgress,
   onSquareClick,
   onShapesChange,
 }) => {
@@ -86,6 +101,9 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     onDraw,
     onPromotion,
     onStockfishHint,
+    onEvaluation,
+    onEngineStatus,
+    onGameReviewProgress,
     onSquareClick,
     onShapesChange,
   });
@@ -101,6 +119,9 @@ export const Chessboard: React.FC<ChessboardProps> = ({
       onDraw,
       onPromotion,
       onStockfishHint,
+      onEvaluation,
+      onEngineStatus,
+      onGameReviewProgress,
       onSquareClick,
       onShapesChange,
     };
@@ -209,6 +230,9 @@ export const Chessboard: React.FC<ChessboardProps> = ({
         else if (event === 'promotion')
           cb.onPromotion?.(args[0] as { from: string; to: string; promotedTo: string });
         else if (event === 'stockfish-hint') cb.onStockfishHint?.(args[0] as string);
+        else if (event === 'evaluation') cb.onEvaluation?.(args[0] as StockfishEvaluation);
+        else if (event === 'engine-status') cb.onEngineStatus?.(args[0] as EngineStatus);
+        else if (event === 'game-review-progress') cb.onGameReviewProgress?.(args[0] as number);
         else if (event === 'square-click') cb.onSquareClick?.(args[0] as string);
         else if (event === 'shapes-change') cb.onShapesChange?.(args[0] as DrawShape[]);
       },

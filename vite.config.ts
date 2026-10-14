@@ -12,13 +12,19 @@ const copyDistAssetsPlugin = () => ({
     if (!existsSync(distDir)) {
       mkdirSync(distDir, { recursive: true });
     }
-    const srcJs = resolve(import.meta.dirname, 'node_modules/stockfish/bin/stockfish-18-lite-single.js');
-    const srcWasm = resolve(import.meta.dirname, 'node_modules/stockfish/bin/stockfish-18-lite-single.wasm');
+    const publicDir = resolve(import.meta.dirname, 'public');
+    if (!existsSync(publicDir)) {
+      mkdirSync(publicDir, { recursive: true });
+    }
+    const srcJs = resolve(import.meta.dirname, 'node_modules/stockfish/bin/stockfish-19-lite-single.js');
+    const srcWasm = resolve(import.meta.dirname, 'node_modules/stockfish/bin/stockfish-19-lite-single.wasm');
     if (existsSync(srcJs)) {
       copyFileSync(srcJs, resolve(distDir, 'stockfish.js'));
+      copyFileSync(srcJs, resolve(publicDir, 'stockfish.js'));
     }
     if (existsSync(srcWasm)) {
       copyFileSync(srcWasm, resolve(distDir, 'stockfish.wasm'));
+      copyFileSync(srcWasm, resolve(publicDir, 'stockfish.wasm'));
     }
     const scssSrc = resolve(import.meta.dirname, 'src/styles');
     const scssDest = resolve(distDir, 'scss');

@@ -89,6 +89,60 @@ export interface BoardEvents {
   onDraw?: () => void;
   onPromotion?: (detail: PromotionDetail) => void;
   onStockfishHint?: (bestMove: string) => void;
+  onEvaluation?: (evaluation: StockfishEvaluation) => void;
+  onEngineStatus?: (status: EngineStatus) => void;
+  onGameReviewProgress?: (percent: number) => void;
   onSquareClick?: (square: string) => void;
   onShapesChange?: (shapes: DrawShape[]) => void;
+}
+
+export type EngineStatus =
+  'uninitialized' | 'loading' | 'ready' | 'searching' | 'stopping' | 'error';
+
+export interface StockfishEvaluation {
+  ply: number;
+  fen: string;
+  depth: number;
+  seldepth?: number;
+  scoreType: 'cp' | 'mate';
+  scoreValue: number;
+  whiteScoreValue: number;
+  winChancePercentage: number;
+  wdl?: [number, number, number];
+  bestMove?: string;
+  pv: string[];
+  multipvIndex: number;
+  nodes?: number;
+  nps?: number;
+  time?: number;
+}
+
+export type MoveJudgement =
+  'brilliant' | 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder' | 'missed_win';
+
+export interface MoveAnalysisReport {
+  ply: number;
+  san: string;
+  uci: string;
+  color: 'white' | 'black';
+  judgement: MoveJudgement;
+  playedMoveScore: number;
+  bestMoveScore: number;
+  diffPercentage: number;
+  bestMoveUci: string;
+  bestMoveSan: string;
+  comment?: string;
+}
+
+export interface GameReviewReport {
+  accuracy: {
+    white: number;
+    black: number;
+  };
+  summary: {
+    white: Record<MoveJudgement, number>;
+    black: Record<MoveJudgement, number>;
+  };
+  moves: MoveAnalysisReport[];
+  evalGraph: { ply: number; whiteWinChance: number }[];
 }

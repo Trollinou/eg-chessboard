@@ -3,6 +3,7 @@ export {
   BoardCore,
   type BoardCoreState,
   type StockfishConfig,
+  type StockfishMode,
   type ChessDiagram,
 } from '../BoardCore';
 export {
@@ -14,6 +15,11 @@ export {
   type BoardTheme,
   type BoardEvents,
   type PromotionDetail,
+  type StockfishEvaluation,
+  type EngineStatus,
+  type GameReviewReport,
+  type MoveAnalysisReport,
+  type MoveJudgement,
 } from '../types';
 </script>
 
@@ -21,7 +27,14 @@ export {
 import { ref, shallowRef, onMounted, onUnmounted, reactive, watch } from 'vue';
 import type { Config } from '@lichess-org/chessground/config';
 import type { DrawShape } from '@lichess-org/chessground/draw';
-import type { Move, BoardMode, PieceSet, BoardTheme } from '../types';
+import type {
+  Move,
+  BoardMode,
+  PieceSet,
+  BoardTheme,
+  StockfishEvaluation,
+  EngineStatus,
+} from '../types';
 import {
   BoardCore,
   type BoardCoreState,
@@ -69,6 +82,9 @@ const emit = defineEmits<{
   draw: [];
   promotion: [detail: { from: string; to: string; promotedTo: string }];
   'stockfish-hint': [bestMove: string];
+  evaluation: [evaluation: StockfishEvaluation];
+  'engine-status': [status: EngineStatus];
+  'game-review-progress': [percent: number];
   'square-click': [square: string];
   'shapes-change': [shapes: DrawShape[]];
 }>();
@@ -245,6 +261,12 @@ onMounted(() => {
         emit('promotion', args[0] as { from: string; to: string; promotedTo: string });
       } else if (event === 'stockfish-hint') {
         emit('stockfish-hint', args[0] as string);
+      } else if (event === 'evaluation') {
+        emit('evaluation', args[0] as StockfishEvaluation);
+      } else if (event === 'engine-status') {
+        emit('engine-status', args[0] as EngineStatus);
+      } else if (event === 'game-review-progress') {
+        emit('game-review-progress', args[0] as number);
       } else if (event === 'square-click') {
         emit('square-click', args[0] as string);
       } else if (event === 'shapes-change') {

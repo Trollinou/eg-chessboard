@@ -6,8 +6,17 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
-### Ajouté & Amélioré
-
+- **Mise à niveau Stockfish 19 & Nouvelle Architecture Moteur Unifiée** :
+  - Mise à niveau du moteur vers **Stockfish 19** (`stockfish@^19.0.1`, binaire WASM `stockfish-19-lite-single` de 1.84 Mo ne requérant aucun header COOP/COEP).
+  - Refonte complète de la gestion multi-workers en une **architecture mono-worker asynchrone robuste** (`StockfishEngine`) avec machine à états finis (`uninitialized`, `loading`, `ready`, `searching`, `stopping`, `error`), préemption immédiate et file d'attente FIFO.
+  - Sécurité renforcée contre les crashs de Stockfish 19 : pré-validation stricte des FENs via `chessops` (`validateFen`), interception active des lignes `CRITICAL ERROR: Invalid FEN`, watchdogs de non-réponse et recyclage automatique du worker en cas d'anomalie.
+  - Décodage complet des lignes UCI `info` : scores centipions normalisés et mat, statistiques WDL (`UCI_ShowWDL`), profondeur, seldepth, NPS, nœuds, PV et MultiPV.
+  - Nouvelles fonctionnalités moteur :
+    - **Barre d'évaluation temps réel** : calcul précis du pourcentage d'avantage avec `computeEvalBarPercentage()` et émission d'événements `@evaluation` / `onEvaluation`.
+    - **Conseils multi-variantes (MultiPV)** : méthode `requestHint({ multiPv: 3, drawArrows: true })` affichant les flèches d'indication colorées.
+    - **Analyse continue en direct** : `startLiveAnalysis()` / `stopLiveAnalysis()` suivant les coups joués en temps réel.
+    - **Revue de partie post-mortem autonome** : `reviewGame()` analysant l'ensemble des plies de la partie, calculant un score de précision pour les Blancs et les Noirs (0 à 100%), et classifiant chaque coup (*Brillant*, *Meilleur*, *Excellent*, *Bon*, *Imprécision*, *Erreur*, *Gaffe*, *Gain manqué*).
+  - Parité stricte des wrappers React (`Chessboard.tsx`) et Vue 3 (`TheChessboard.vue`), documentation complète dans [`STOCKFISH.md`](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/STOCKFISH.md) et démonstration interactive complète dans le bac à sable `sandbox/DevApp.vue`.
 - **Optimisation du Tree-Shaking & Découplage CSS/JS** :
   - Suppression de l'import forcé `import './style.scss';` du point d'entrée JS `src/index.ts`.
   - Restriction de `sideEffects` à `["*.css", "*.scss"]` dans `package.json` : les bundlers tiers (Webpack, Rollup, Vite) éliminent désormais tout code JS inutilisé sans embarquer l'échiquier ni les feuilles de style lors de l'import de fonctions pures (ex: `getFinalFenFromPgn`).
