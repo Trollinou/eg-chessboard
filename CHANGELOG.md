@@ -21,7 +21,7 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
     - **Analyse continue en direct** : `startLiveAnalysis()` / `stopLiveAnalysis()` suivant les coups joués et la navigation historique en temps réel.
     - **Revue de partie post-mortem autonome haute performance** : `reviewGame()` optimisée avec réutilisation des évaluations chaînées (-50% de calcul CPU), support de l'annulation (`AbortSignal` et `core.cancelReview()`), calcul de précision Blancs/Noirs (0 à 100%) et classification affinée des coups.
     - **Réinitialisation propre du moteur** : méthode `core.newGame()` propageant `ucinewgame` à Stockfish pour purger les tables de transposition sans recréer le Worker.
-  - Parité stricte des wrappers React (`Chessboard.tsx`) et Vue 3 (`TheChessboard.vue`), documentation complète dans [`STOCKFISH.md`](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/STOCKFISH.md) et démonstration interactive complète dans le bac à sable `sandbox/DevApp.vue`.
+  - Parité stricte des wrappers React (`Chessboard.tsx`) et Vue 3 (`TheChessboard.vue`), documentation complète dans [`docs/STOCKFISH.md`](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/STOCKFISH.md) et démonstration interactive complète dans le bac à sable `sandbox/DevApp.vue`.
 - **Optimisation du Tree-Shaking & Découplage CSS/JS** :
   - Suppression de l'import forcé `import './style.scss';` du point d'entrée JS `src/index.ts`.
   - Restriction de `sideEffects` à `["*.css", "*.scss"]` dans `package.json` : les bundlers tiers (Webpack, Rollup, Vite) éliminent désormais tout code JS inutilisé sans embarquer l'échiquier ni les feuilles de style lors de l'import de fonctions pures (ex: `getFinalFenFromPgn`).
