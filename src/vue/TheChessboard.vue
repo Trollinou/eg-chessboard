@@ -112,83 +112,29 @@ const state = reactive<BoardCoreState>({
   isGameOver: false,
 });
 
-// Watch for mode changes
+// Watch for option & appearance changes
 watch(
-  () => props.mode,
-  (newVal) => {
-    if (core.value && newVal) {
-      core.value.setMode(newVal);
-    }
-  }
-);
-
-// Watch for readOnly changes
-watch(
-  () => props.readOnly,
-  (newVal) => {
-    if (core.value && newVal !== undefined) {
-      core.value.setReadOnly(newVal);
-    }
-  }
-);
-
-// Watch for freeMode changes
-watch(
-  () => props.freeMode,
-  (newVal) => {
-    if (core.value && newVal !== undefined) {
-      core.value.setFreeMode(newVal);
-    }
-  }
-);
-
-// Watch for soloMode changes
-watch(
-  () => props.soloMode,
-  (newVal) => {
-    if (core.value && newVal !== undefined) {
-      core.value.setSoloMode(newVal);
-    }
-  }
-);
-
-// Watch for preserveShapesOnPositionChange changes
-watch(
-  () => props.preserveShapesOnPositionChange,
-  (newVal) => {
-    if (core.value && newVal !== undefined) {
-      core.value.setPreserveShapesOnPositionChange(newVal);
-    }
-  }
-);
-
-// Watch for pieceSet changes
-watch(
-  () => props.pieceSet,
-  (newVal) => {
-    if (core.value && newVal) {
-      core.value.setPieceSet(newVal);
-    }
-  }
-);
-
-// Watch for boardTheme changes
-watch(
-  () => props.boardTheme,
-  (newVal) => {
-    if (core.value && newVal) {
-      core.value.setBoardTheme(newVal);
-    }
-  }
-);
-
-// Watch for playerColor changes
-watch(
-  () => props.playerColor,
-  (newVal) => {
-    if (newVal && core.value) {
-      core.value.setPlayerColor(newVal);
-    }
+  [
+    () => props.mode,
+    () => props.readOnly,
+    () => props.freeMode,
+    () => props.soloMode,
+    () => props.preserveShapesOnPositionChange,
+    () => props.pieceSet,
+    () => props.boardTheme,
+    () => props.playerColor,
+  ],
+  ([mode, readOnly, freeMode, soloMode, preserveShapes, pieceSet, boardTheme, playerColor]) => {
+    const c = core.value;
+    if (!c) return;
+    if (mode) c.setMode(mode);
+    if (readOnly !== undefined) c.setReadOnly(readOnly);
+    if (freeMode !== undefined) c.setFreeMode(freeMode);
+    if (soloMode !== undefined) c.setSoloMode(soloMode);
+    if (preserveShapes !== undefined) c.setPreserveShapesOnPositionChange(preserveShapes);
+    if (pieceSet) c.setPieceSet(pieceSet);
+    if (boardTheme) c.setBoardTheme(boardTheme);
+    if (playerColor) c.setPlayerColor(playerColor);
   }
 );
 
@@ -245,32 +191,33 @@ onMounted(() => {
     },
     (event, ...args) => {
       // Emit events to parent Vue component
-      if (event === 'move') {
-        emit('move', args[0] as Move);
-      } else if (event === 'turn-change') {
-        emit('turn-change', args[0] as 'white' | 'black', args[1] as number);
-      } else if (event === 'check') {
-        emit('check', args[0] as string);
-      } else if (event === 'checkmate') {
-        emit('checkmate', args[0] as string);
-      } else if (event === 'stalemate') {
-        emit('stalemate');
-      } else if (event === 'draw') {
-        emit('draw');
-      } else if (event === 'promotion') {
-        emit('promotion', args[0] as { from: string; to: string; promotedTo: string });
-      } else if (event === 'stockfish-hint') {
-        emit('stockfish-hint', args[0] as string);
-      } else if (event === 'evaluation') {
-        emit('evaluation', args[0] as StockfishEvaluation);
-      } else if (event === 'engine-status') {
-        emit('engine-status', args[0] as EngineStatus);
-      } else if (event === 'game-review-progress') {
-        emit('game-review-progress', args[0] as number);
-      } else if (event === 'square-click') {
-        emit('square-click', args[0] as string);
-      } else if (event === 'shapes-change') {
-        emit('shapes-change', args[0] as DrawShape[]);
+      switch (event) {
+        case 'move':
+          return emit('move', args[0] as Move);
+        case 'turn-change':
+          return emit('turn-change', args[0] as 'white' | 'black', args[1] as number);
+        case 'check':
+          return emit('check', args[0] as string);
+        case 'checkmate':
+          return emit('checkmate', args[0] as string);
+        case 'stalemate':
+          return emit('stalemate');
+        case 'draw':
+          return emit('draw');
+        case 'promotion':
+          return emit('promotion', args[0] as { from: string; to: string; promotedTo: string });
+        case 'stockfish-hint':
+          return emit('stockfish-hint', args[0] as string);
+        case 'evaluation':
+          return emit('evaluation', args[0] as StockfishEvaluation);
+        case 'engine-status':
+          return emit('engine-status', args[0] as EngineStatus);
+        case 'game-review-progress':
+          return emit('game-review-progress', args[0] as number);
+        case 'square-click':
+          return emit('square-click', args[0] as string);
+        case 'shapes-change':
+          return emit('shapes-change', args[0] as DrawShape[]);
       }
     },
     {

@@ -218,10 +218,11 @@ describe('StockfishManager', () => {
     });
 
     manager.requestHint({ movetime: 1200 });
-    await new Promise((r) => setTimeout(r, 30));
 
-    expect(mockWorkerInstance).not.toBeNull();
-    expect(mockWorkerInstance?.messagesPosted).toContain('go movetime 1200');
+    await vi.waitFor(() => {
+      expect(mockWorkerInstance).not.toBeNull();
+      expect(mockWorkerInstance?.messagesPosted).toContain('go movetime 1200');
+    });
   });
 
   it('evaluates only up to the viewed ply when navigating history', async () => {

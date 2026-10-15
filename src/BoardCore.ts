@@ -255,6 +255,7 @@ export class BoardCore {
   // --- PUBLIC API CONTRACT ---
 
   public setMode(mode: BoardMode): void {
+    if (this.state.mode === mode) return;
     this.state.mode = mode;
     this.applyModeDefaults();
     this.adapter.updateGameState({ updateFen: false });
@@ -271,18 +272,21 @@ export class BoardCore {
   }
 
   public setFreeMode(freeMode: boolean): void {
+    if (this.state.freeMode === freeMode) return;
     this.state.freeMode = freeMode;
     this.adapter.updateGameState({ updateFen: false });
     this.onStateChange();
   }
 
   public setSoloMode(soloMode: boolean): void {
+    if (this.state.soloMode === soloMode) return;
     this.state.soloMode = soloMode;
     this.adapter.updateGameState({ updateFen: false });
     this.onStateChange();
   }
 
   public setPreserveShapesOnPositionChange(preserve: boolean): void {
+    if (this.state.preserveShapesOnPositionChange === preserve) return;
     this.state.preserveShapesOnPositionChange = preserve;
     if (preserve && this.board) {
       const currentBoardShapes = this.board.state.drawable.shapes || [];
@@ -302,6 +306,7 @@ export class BoardCore {
   }
 
   public setPlayerColor(color: 'white' | 'black' | 'both'): void {
+    if (this.state.playerColor === color) return;
     this.state.playerColor = color;
     this.adapter.updateGameState({ updateFen: false });
     this.onStateChange();
@@ -616,6 +621,7 @@ export class BoardCore {
   }
 
   public setPieceSet(pieceSet: PieceSet): void {
+    if (this.state.pieceSet === pieceSet) return;
     this.state.pieceSet = pieceSet;
     this.adapter.updateDomThemeClasses(pieceSet, this.getBoardTheme());
     this.onStateChange();
@@ -626,6 +632,7 @@ export class BoardCore {
   }
 
   public setBoardTheme(boardTheme: BoardTheme): void {
+    if (this.state.boardTheme === boardTheme) return;
     this.state.boardTheme = boardTheme;
     this.adapter.updateDomThemeClasses(this.getPieceSet(), boardTheme);
     this.onStateChange();
@@ -636,6 +643,7 @@ export class BoardCore {
   }
 
   public setReadOnly(readOnly: boolean): void {
+    if (this.state.readOnly === readOnly) return;
     this.state.readOnly = readOnly;
     this.adapter.updateGameState({ updateFen: false });
     this.onStateChange();
