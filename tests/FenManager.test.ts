@@ -58,4 +58,25 @@ describe('FenManager', () => {
       expect(material.materialDiff).toBe(11);
     });
   });
+
+  describe('validateFen', () => {
+    it('validates a correct FEN', () => {
+      const res = FenManager.validateFen('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1');
+      expect(res.valid).toBe(true);
+    });
+
+    it('identifies invalid FEN syntax', () => {
+      const res = FenManager.validateFen('invalid fen string');
+      expect(res.valid).toBe(false);
+      expect(res.error).toBeDefined();
+    });
+  });
+
+  describe('getFinalFenFromPgn', () => {
+    it('computes final position from PGN string', () => {
+      const pgn = '1. e4 e5 2. Nf3 *';
+      const finalFen = FenManager.getFinalFenFromPgn(pgn);
+      expect(finalFen).toBe('rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2');
+    });
+  });
 });

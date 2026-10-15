@@ -9,8 +9,17 @@ import {
   validateFen,
   computeEvalBarPercentage,
   getNodesForElo,
+  getSquareColor,
+  getSquare,
+  getPossibleMovesForBothColors,
+  getAllLegalMovesAsPojos,
+  getMaterialCount,
+  getCapturedPieces,
+  getGameOverReason,
 } from '../src/BoardHelper';
 import type { Move } from '../src/types';
+import type { Key, Color } from '@lichess-org/chessground/types';
+import type { Role } from 'chessops/types';
 
 describe('BoardHelper', () => {
   describe('shortToLongColor', () => {
@@ -196,6 +205,71 @@ describe('BoardHelper', () => {
     it('calculates expected rounded nodes for Elo 1400', () => {
       // 500 * 10^(600/500) = 500 * 10^1.2 = 7924.46... -> 7924
       expect(getNodesForElo(1400)).toBe(7924);
+    });
+  });
+
+  describe('getSquareColor & getSquare', () => {
+    it('returns square color correctly', () => {
+      expect(getSquareColor('a1')).toBe('dark');
+      expect(getSquareColor('e4')).toBe('light');
+      expect(getSquareColor('e5')).toBe('dark');
+      expect(getSquareColor('invalid')).toBeNull();
+    });
+
+    it('returns piece on square correctly', () => {
+      const pos = Chess.default();
+      expect(getSquare(pos, 'e1')).toEqual({ type: 'k', color: 'w' });
+      expect(getSquare(pos, 'e4')).toBeNull();
+      expect(getSquare(pos, 'invalid')).toBeUndefined();
+    });
+  });
+
+  describe('getPossibleMovesForBothColors & getAllLegalMovesAsPojos', () => {
+    it('returns moves for both colors', () => {
+      const pos = Chess.default();
+      const dests = getPossibleMovesForBothColors(pos);
+      // White e2 and Black e7 should both have destinations
+      expect(dests.has('e2')).toBe(true);
+      expect(dests.has('e7')).toBe(true);
+    });
+
+    it('generates POJOs for all legal moves', () => {
+      const pos = Chess.default();
+      const moves = getAllLegalMovesAsPojos(pos, 'start');
+      expect(moves.length).toBe(20);
+      expect(moves.some((m) => m.san === 'e4')).toBe(true);
+    });
+  });
+
+  describe('getMaterialCount & getCapturedPieces', () => {
+    it('computes material values', () => {
+      const pieces = new Map<Key, { role: Role; color: Color }>();
+      pieces.set('e1', { role: 'king', color: 'white' });
+      pieces.set('d1', { role: 'queen', color: 'white' }); // 9
+      pieces.set('c8', { role: 'bishop', color: 'black' }); // 3
+      const count = getMaterialCount(pieces);
+      expect(count.materialWhite).toBe(9);
+      expect(count.materialBlack).toBe(3);
+      expect(count.materialDiff).toBe(6);
+    });
+
+    it('collects captured pieces from history', () => {
+      const history: Move[] = [
+        { from: 'e4', to: 'd5', piece: 'p', color: 'w', san: 'exd5', captured: 'p', before: '', after: '' },
+        { from: 'c6', to: 'd5', piece: 'n', color: 'b', san: 'Nxd5', captured: 'p', before: '', after: '' },
+      ];
+      const captured = getCapturedPieces(history);
+      expect(captured.white).toEqual(['p']);
+      expect(captured.black).toEqual(['p']);
+    });
+  });
+
+  describe('getGameOverReason', () => {
+    it('formats reasons properly', () => {
+      const pos = Chess.default();
+      expect(getGameOverReason(pos, 'fr')).toBe('');
+      expect(getGameOverReason(pos, 'fr', true)).toBe('Match nul par triple répétition.');
+      expect(getGameOverReason(pos, 'en', true)).toBe('Draw by threefold repetition.');
     });
   });
 });
