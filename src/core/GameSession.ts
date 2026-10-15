@@ -17,14 +17,14 @@ import {
   isNormal,
   type Role,
   type Move as ChessopsMove,
-  type Color as ChessopsColor,
 } from 'chessops/types';
 import type { Key, Color } from '@lichess-org/chessground/types';
 
 import type { Move, PgnNodeMeta, VariationInfo, PgnTreeNode } from '../types';
-import { roleToPieceSymbol, pieceSymbolToRole, buildMovePojo, FILES } from './pieceMapping';
+import { pieceSymbolToRole, buildMovePojo } from './pieceMapping';
 import { DomainEventBus } from './DomainEventBus';
 import { FenManager } from './FenManager';
+import * as BoardHelper from '../BoardHelper';
 
 export interface HistoryViewerState {
   isEnabled: boolean;
@@ -99,6 +99,7 @@ export class GameSession {
     this.rootNode = new Node<PgnNodeMeta>();
     this.currentNode = this.rootNode;
     this.rootComments = [];
+    this.soloHistory = [];
     this.parentMap = new WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>();
     this.rootPos = startPos ? startPos.clone() : Chess.default();
     const fen = makeFen(this.rootPos.toSetup());
@@ -469,6 +470,10 @@ export class GameSession {
     this.setCurrentNode(parentNode);
     this.pos = this.syncGamePosToCurrentNode();
 
+    if (this.soloHistory.length > 0) {
+      this.soloHistory.pop();
+    }
+
     this.eventBus.emit('turn-changed', {
       turnColor: this.getTurnColor(),
       ply: this.getCurrentPlyNumber(),
@@ -710,57 +715,55 @@ export class GameSession {
     return headersObj;
   }
 
+  // --- PGN Comments Encapsulation ---
+
+  public getRawCommentAtPly(ply: number): string {
+    const path = this.getActivePath();
+    if (ply > 0 && ply <= path.length) {
+      const targetNode = path[ply - 1];
+      if (targetNode.data.comments) {
+        return targetNode.data.comments.join(' ');
+      }
+    } else if (ply === 0) {
+      if (
+        path.length > 0 &&
+        path[0].data.startingComments &&
+        path[0].data.startingComments.length > 0
+      ) {
+        return path[0].data.startingComments.join(' ');
+      } else if (this.rootComments.length > 0) {
+        return this.rootComments.join(' ');
+      }
+    }
+    return '';
+  }
+
+  public setRawCommentAtPly(ply: number, comment: string): void {
+    const path = this.getActivePath();
+    if (ply < 0 || ply > path.length) return;
+
+    const trimmed = comment.trim();
+    if (ply === 0) {
+      if (path.length > 0) {
+        path[0].data.startingComments = trimmed ? [trimmed] : [];
+      } else {
+        this.rootComments = trimmed ? [trimmed] : [];
+      }
+    } else {
+      const targetNode = path[ply - 1];
+      if (isChildNode(targetNode)) {
+        targetNode.data.comments = trimmed ? [trimmed] : [];
+      }
+    }
+  }
+
   // --- Position & Fen ---
 
   public safeLoadFen(fenStr: string): boolean {
-    const setupRes = parseFen(fenStr);
-    if (setupRes.isOk) {
-      const chessRes = Chess.fromSetup(setupRes.value);
-      if (chessRes.isOk) {
-        this.pos = chessRes.value;
-        this.resetTree(this.pos);
-        return true;
-      }
-    }
-
-    const parts = fenStr.split(' ');
-    const placement = parts[0];
-
-    let pos = Chess.default();
-    const minSetupRes = parseFen(`4k3/8/8/8/8/8/8/4K3 ${parts[1] === 'b' ? 'b' : 'w'} - - 0 1`);
-    if (minSetupRes.isOk) {
-      const minChess = Chess.fromSetup(minSetupRes.value);
-      if (minChess.isOk) {
-        pos = minChess.value;
-      }
-    }
-    pos.board.take(parseSquare('e1')!);
-    pos.board.take(parseSquare('e8')!);
-    pos.turn = parts[1] === 'b' ? 'black' : 'white';
-
-    const ranks = placement.split('/');
-    for (let r = 0; r < 8; r++) {
-      const rankStr = ranks[r];
-      if (!rankStr) continue;
-      let fileIdx = 0;
-      for (let i = 0; i < rankStr.length; i++) {
-        const char = rankStr[i];
-        if (/[1-8]/.test(char)) {
-          fileIdx += parseInt(char, 10);
-        } else {
-          const color: ChessopsColor = char === char.toUpperCase() ? 'white' : 'black';
-          const role = pieceSymbolToRole[char.toLowerCase()];
-          const square = parseSquare(`${FILES[fileIdx]}${8 - r}`)!;
-          if (fileIdx < 8 && role) {
-            pos.board.set(square, { role, color });
-          }
-          fileIdx++;
-        }
-      }
-    }
-    this.pos = pos;
+    const res = FenManager.safeLoadFen(fenStr);
+    this.pos = res.pos;
     this.resetTree(this.pos);
-    return false;
+    return res.isStandardOk;
   }
 
   public newGame(fen?: string): void {
@@ -790,31 +793,7 @@ export class GameSession {
 
   public getPlacementFen(boardPieces?: Map<Key, { role: Role; color: Color }>): string {
     if (boardPieces) {
-      const ranks: string[] = [];
-      for (let rank = 8; rank >= 1; rank--) {
-        let rankStr = '';
-        let emptyCount = 0;
-        for (let fileIdx = 0; fileIdx < 8; fileIdx++) {
-          const file = String.fromCharCode(97 + fileIdx);
-          const square = `${file}${rank}` as Key;
-          const piece = boardPieces.get(square);
-          if (piece) {
-            if (emptyCount > 0) {
-              rankStr += emptyCount.toString();
-              emptyCount = 0;
-            }
-            const char = roleToPieceSymbol[piece.role] || 'p';
-            rankStr += piece.color === 'white' ? char.toUpperCase() : char;
-          } else {
-            emptyCount++;
-          }
-        }
-        if (emptyCount > 0) {
-          rankStr += emptyCount.toString();
-        }
-        ranks.push(rankStr);
-      }
-      return ranks.join('/');
+      return FenManager.boardPiecesToPlacementFen(boardPieces);
     }
     return this.getFen().split(' ')[0];
   }
@@ -958,90 +937,25 @@ export class GameSession {
   }
 
   public getGameOverReason(lang: 'fr' | 'en' = 'fr'): string {
-    if (this.pos.isCheckmate()) {
-      const turnColor = this.pos.turn === 'white' ? 'white' : 'black';
-      const winner =
-        turnColor === 'white'
-          ? lang === 'fr'
-            ? 'Noirs'
-            : 'Black'
-          : lang === 'fr'
-            ? 'Blancs'
-            : 'White';
-      return lang === 'fr'
-        ? `Échec et mat ! Les ${winner} ont gagné.`
-        : `Checkmate! ${winner} won.`;
-    }
-    if (this.pos.isStalemate()) return lang === 'fr' ? 'Match nul par Pat.' : 'Draw by stalemate.';
-    if (this.pos.isInsufficientMaterial())
-      return lang === 'fr'
-        ? 'Match nul par matériel insuffisant.'
-        : 'Draw by insufficient material.';
-    if (
-      this.isThreefoldRepetition(this.isViewingHistory() ? this.getCurrentViewingPly() : undefined)
-    )
-      return lang === 'fr' ? 'Match nul par triple répétition.' : 'Draw by threefold repetition.';
-    if (this.pos.halfmoves >= 100)
-      return lang === 'fr' ? 'Match nul par la règle des 50 coups.' : 'Draw by fifty-move rule.';
-    if (this.pos.isEnd()) return lang === 'fr' ? 'Match nul.' : 'Draw.';
-    return '';
+    const isThreefold = this.isThreefoldRepetition(
+      this.isViewingHistory() ? this.getCurrentViewingPly() : undefined
+    );
+    return BoardHelper.getGameOverReason(this.pos, lang, isThreefold);
   }
 
   public getSquare(square: Key | string) {
-    const sq = parseSquare(square);
-    if (sq === undefined) return undefined;
-    const piece = this.pos.board.get(sq);
-    if (!piece) return null;
-    return {
-      type: roleToPieceSymbol[piece.role],
-      color: piece.color === 'white' ? ('w' as const) : ('b' as const),
-    };
+    return BoardHelper.getSquare(this.pos, square);
   }
 
   public getSquareColor(square: Key | string): 'dark' | 'light' | null {
-    const sq = parseSquare(square);
-    if (sq === undefined) return null;
-    const rank = Math.floor(sq / 8);
-    const file = sq % 8;
-    return (rank + file) % 2 === 0 ? 'dark' : 'light';
+    return BoardHelper.getSquareColor(square);
   }
 
   public getMaterialCount(pieces: Map<Key, { role: Role; color: Color }>) {
-    const piecesValues: Record<string, number> = {
-      pawn: 1,
-      knight: 3,
-      bishop: 3,
-      rook: 5,
-      queen: 9,
-      king: 0,
-    };
-    const materialCount = {
-      materialWhite: 0,
-      materialBlack: 0,
-      materialDiff: 0,
-    };
-    for (const piece of pieces.values()) {
-      if (piece.color === 'white') {
-        materialCount.materialWhite += piecesValues[piece.role] || 0;
-      } else {
-        materialCount.materialBlack += piecesValues[piece.role] || 0;
-      }
-    }
-    materialCount.materialDiff = materialCount.materialWhite - materialCount.materialBlack;
-    return materialCount;
+    return BoardHelper.getMaterialCount(pieces);
   }
 
   public getCapturedPieces(history: Move[]) {
-    const captured = {
-      white: [] as string[],
-      black: [] as string[],
-    };
-    for (const move of history) {
-      if (move.captured) {
-        const capturingColor = move.color === 'w' ? 'white' : 'black';
-        captured[capturingColor].push(move.captured);
-      }
-    }
-    return captured;
+    return BoardHelper.getCapturedPieces(history);
   }
 }

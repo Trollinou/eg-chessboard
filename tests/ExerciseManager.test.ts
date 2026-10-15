@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { Chess } from 'chessops';
 import { ExerciseManager } from '../src/core/ExerciseManager';
 import type { Key, Role, Color } from '@lichess-org/chessground/types';
-import type { Move } from '../src/types';
 
 describe('ExerciseManager', () => {
   let exerciseManager: ExerciseManager;
@@ -76,37 +75,5 @@ describe('ExerciseManager', () => {
       expect(pieces.get('e4')).toEqual({ type: 'p', color: 'w' });
     });
   });
-
-  describe('Solo History Tracking', () => {
-    it('records and resets solo moves', () => {
-      const move1: Move = {
-        from: 'e2',
-        to: 'e4',
-        piece: 'p',
-        color: 'w',
-        san: 'e4',
-        before: 'start',
-        after: 'after_e4',
-      };
-      const move2: Move = {
-        from: 'e4',
-        to: 'e5',
-        piece: 'p',
-        color: 'w',
-        san: 'e5',
-        before: 'after_e4',
-        after: 'after_e5',
-      };
-
-      exerciseManager.addSoloMove(move1);
-      exerciseManager.addSoloMove(move2);
-
-      expect(exerciseManager.getSoloHistory()).toHaveLength(2);
-      expect(exerciseManager.getSoloHistory()[0].san).toBe('e4');
-      expect(exerciseManager.getSoloHistory()[1].san).toBe('e5');
-
-      exerciseManager.resetSoloHistory();
-      expect(exerciseManager.getSoloHistory()).toHaveLength(0);
-    });
-  });
 });
+

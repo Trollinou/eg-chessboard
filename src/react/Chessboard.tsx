@@ -148,46 +148,28 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   });
 
   useEffect(() => {
-    if (coreRef.current && pieceSet) {
-      coreRef.current.setPieceSet(pieceSet);
+    const core = coreRef.current;
+    if (!core) return;
+    if (pieceSet) core.setPieceSet(pieceSet);
+    if (boardTheme) core.setBoardTheme(boardTheme);
+    if (mode) core.setMode(mode);
+    if (readOnly !== undefined) core.setReadOnly(readOnly);
+    if (freeMode !== undefined) core.setFreeMode(freeMode);
+    if (soloMode !== undefined) core.setSoloMode(soloMode);
+    if (playerColor) core.setPlayerColor(playerColor);
+    if (preserveShapesOnPositionChange !== undefined) {
+      core.setPreserveShapesOnPositionChange(preserveShapesOnPositionChange);
     }
-  }, [pieceSet]);
-
-  useEffect(() => {
-    if (coreRef.current && boardTheme) {
-      coreRef.current.setBoardTheme(boardTheme);
-    }
-  }, [boardTheme]);
-
-  useEffect(() => {
-    if (coreRef.current && mode) {
-      coreRef.current.setMode(mode);
-    }
-  }, [mode]);
-
-  useEffect(() => {
-    if (coreRef.current && readOnly !== undefined) {
-      coreRef.current.setReadOnly(readOnly);
-    }
-  }, [readOnly]);
-
-  useEffect(() => {
-    if (coreRef.current && freeMode !== undefined) {
-      coreRef.current.setFreeMode(freeMode);
-    }
-  }, [freeMode]);
-
-  useEffect(() => {
-    if (coreRef.current && soloMode !== undefined) {
-      coreRef.current.setSoloMode(soloMode);
-    }
-  }, [soloMode]);
-
-  useEffect(() => {
-    if (coreRef.current && preserveShapesOnPositionChange !== undefined) {
-      coreRef.current.setPreserveShapesOnPositionChange(preserveShapesOnPositionChange);
-    }
-  }, [preserveShapesOnPositionChange]);
+  }, [
+    pieceSet,
+    boardTheme,
+    mode,
+    readOnly,
+    freeMode,
+    soloMode,
+    playerColor,
+    preserveShapesOnPositionChange,
+  ]);
 
   useEffect(() => {
     if (!boardRef.current) return;
@@ -220,21 +202,34 @@ export const Chessboard: React.FC<ChessboardProps> = ({
       },
       (event, ...args) => {
         const cb = callbacksRef.current;
-        if (event === 'move') cb.onMove?.(args[0] as Move);
-        else if (event === 'turn-change')
-          cb.onTurnChange?.(args[0] as 'white' | 'black', args[1] as number);
-        else if (event === 'check') cb.onCheck?.(args[0] as string);
-        else if (event === 'checkmate') cb.onCheckmate?.(args[0] as string);
-        else if (event === 'stalemate') cb.onStalemate?.();
-        else if (event === 'draw') cb.onDraw?.();
-        else if (event === 'promotion')
-          cb.onPromotion?.(args[0] as { from: string; to: string; promotedTo: string });
-        else if (event === 'stockfish-hint') cb.onStockfishHint?.(args[0] as string);
-        else if (event === 'evaluation') cb.onEvaluation?.(args[0] as StockfishEvaluation);
-        else if (event === 'engine-status') cb.onEngineStatus?.(args[0] as EngineStatus);
-        else if (event === 'game-review-progress') cb.onGameReviewProgress?.(args[0] as number);
-        else if (event === 'square-click') cb.onSquareClick?.(args[0] as string);
-        else if (event === 'shapes-change') cb.onShapesChange?.(args[0] as DrawShape[]);
+        switch (event) {
+          case 'move':
+            return cb.onMove?.(args[0] as Move);
+          case 'turn-change':
+            return cb.onTurnChange?.(args[0] as 'white' | 'black', args[1] as number);
+          case 'check':
+            return cb.onCheck?.(args[0] as string);
+          case 'checkmate':
+            return cb.onCheckmate?.(args[0] as string);
+          case 'stalemate':
+            return cb.onStalemate?.();
+          case 'draw':
+            return cb.onDraw?.();
+          case 'promotion':
+            return cb.onPromotion?.(args[0] as { from: string; to: string; promotedTo: string });
+          case 'stockfish-hint':
+            return cb.onStockfishHint?.(args[0] as string);
+          case 'evaluation':
+            return cb.onEvaluation?.(args[0] as StockfishEvaluation);
+          case 'engine-status':
+            return cb.onEngineStatus?.(args[0] as EngineStatus);
+          case 'game-review-progress':
+            return cb.onGameReviewProgress?.(args[0] as number);
+          case 'square-click':
+            return cb.onSquareClick?.(args[0] as string);
+          case 'shapes-change':
+            return cb.onShapesChange?.(args[0] as DrawShape[]);
+        }
       },
       {
         ...boardConfig,
@@ -256,12 +251,6 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (coreRef.current && playerColor) {
-      coreRef.current.setPlayerColor(playerColor);
-    }
-  }, [playerColor]);
 
   useEffect(() => {
     if (coreRef.current && boardConfig) {

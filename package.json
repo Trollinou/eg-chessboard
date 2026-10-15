@@ -49,6 +49,7 @@
     "build": "vite build && vue-tsc --declaration --emitDeclarationOnly --outDir dist --noEmit false",
     "build:analyze": "cross-env ANALYZE=true vite build && vue-tsc --declaration --emitDeclarationOnly --outDir dist --noEmit false",
     "dev": "vite",
+    "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src sandbox",

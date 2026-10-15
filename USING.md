@@ -1,6 +1,10 @@
-# 📚 Guide d'Utilisation & Anti-Sèche : `eg-chessboard` (v1.6.1)
+# 📚 Guide d'Utilisation & Anti-Sèche : `eg-chessboard`
 
-Ce document est votre **anti-sèche d'utilisation**. Il vous permet de retrouver instantanément les réglages et snippets de code prêts à l'emploi selon chaque cas d'usage dans vos applications **Vue 3**, **React** ou **WordPress Gutenberg**.
+Ce document est votre **anti-sèche d'utilisation rapide**. Pour des guides complets et approfondis étape par étape, consultez la documentation dédiée dans [`docs/`](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs) :
+- 🤖 **[Stockfish 19 & Analyse IA](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/STOCKFISH.md)**
+- 📖 **[PGN, Études & Variantes](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/PGN_AND_STUDY.md)**
+- 🎯 **[Exercices & Pédagogie](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/EXERCISES.md)**
+- 🎨 **[Diagrammes & Éditeur FEN](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/DIAGRAMS_AND_EDITOR.md)**
 
 ---
 

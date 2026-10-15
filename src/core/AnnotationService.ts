@@ -1,11 +1,10 @@
 import type { DrawShape } from '@lichess-org/chessground/draw';
 import type { Key } from '@lichess-org/chessground/types';
 import type { Api } from '@lichess-org/chessground/api';
-import { isChildNode } from 'chessops/pgn';
 
 import type { BoardMode } from '../types';
 import { getThreats } from '../BoardHelper';
-import { FenManager } from './FenManager';
+import * as BoardHelper from '../BoardHelper';
 import { DomainEventBus } from './DomainEventBus';
 import { GameSession } from './GameSession';
 
@@ -98,18 +97,10 @@ export class AnnotationService {
     try {
       const shouldPreserve = isPreserve || mode === 'editor';
 
-      if (mode === 'editor') {
-        const boardState = this.board as unknown as {
-          state?: { drawable?: { current?: unknown } };
-        };
-        const isDrawingInChessground = !!boardState?.state?.drawable?.current;
-        if (shapes.length > 0 || isDrawingInChessground) {
+      if (shouldPreserve) {
+        if (shapes.length > 0) {
           this.setPreservedShapes(shapes);
         } else if (this.board && this.getPreservedShapes().length > 0) {
-          this.applyBoardShapes(this.getPreservedShapes(), true, mode);
-        }
-      } else if (mode === 'game' && shouldPreserve) {
-        if (this.board && this.getPreservedShapes().length > 0) {
           this.applyBoardShapes(this.getPreservedShapes(), true, mode);
         }
       } else {
@@ -133,26 +124,8 @@ export class AnnotationService {
     mode?: BoardMode,
     preserveShapesOnPositionChange?: boolean
   ): void {
-    const path = this.session.getActivePath();
-    const ply = this.session.getCurrentViewingPly(path.length);
-
-    let rawComment = '';
-    if (ply > 0 && ply <= path.length) {
-      const targetNode = path[ply - 1];
-      if (targetNode.data.comments) {
-        rawComment = targetNode.data.comments.join(' ');
-      }
-    } else if (ply === 0) {
-      if (
-        path.length > 0 &&
-        path[0].data.startingComments &&
-        path[0].data.startingComments.length > 0
-      ) {
-        rawComment = path[0].data.startingComments.join(' ');
-      } else if (this.session.getRootComments().length > 0) {
-        rawComment = this.session.getRootComments().join(' ');
-      }
-    }
+    const ply = this.session.getCurrentViewingPly();
+    const rawComment = this.session.getRawCommentAtPly(ply);
 
     const currentMode = mode ?? this.getOptions?.().mode ?? 'game';
     const isPreserve =
@@ -186,26 +159,12 @@ export class AnnotationService {
     mode: BoardMode = 'game',
     preserveShapesOnPositionChange = false
   ): void {
-    const path = this.session.getActivePath();
-    if (ply < 0 || ply > path.length) return;
-
     const shapesAnnotation = this.shapesToPgnComment(shapes);
     const combined = `${shapesAnnotation} ${text}`.trim();
 
-    if (ply === 0) {
-      if (path.length > 0) {
-        path[0].data.startingComments = combined ? [combined] : [];
-      } else {
-        this.session.setRootComments(combined ? [combined] : []);
-      }
-    } else {
-      const targetNode = path[ply - 1];
-      if (isChildNode(targetNode)) {
-        targetNode.data.comments = combined ? [combined] : [];
-      }
-    }
+    this.session.setRawCommentAtPly(ply, combined);
 
-    const isViewingThisPly = this.session.getCurrentViewingPly(path.length) === ply;
+    const isViewingThisPly = this.session.getCurrentViewingPly() === ply;
 
     if (isViewingThisPly) {
       this.currentComment = text;
@@ -237,7 +196,7 @@ export class AnnotationService {
 
   public drawThreats(preserveShapes: boolean): void {
     const threats = getThreats(
-      FenManager.getAllLegalMovesAsPojos(this.session.pos, this.session.getFen())
+      BoardHelper.getAllLegalMovesAsPojos(this.session.pos, this.session.getFen())
     );
     this.applyBoardShapes(threats as unknown as DrawShape[], preserveShapes);
   }

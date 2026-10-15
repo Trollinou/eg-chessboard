@@ -1,10 +1,12 @@
-import { Chess } from 'chessops/chess';
+import { Chess, parseSquare } from 'chessops';
 import { chessgroundDests } from 'chessops/compat';
 import { parsePgn, startingPosition } from 'chessops/pgn';
 import { parseSan } from 'chessops/san';
 import { makeFen, parseFen } from 'chessops/fen';
+import type { Role } from 'chessops/types';
 import type { Color, Key } from '@lichess-org/chessground/types';
 import type { Move } from './types';
+import { roleToPieceSymbol, buildMovePojo } from './core/pieceMapping';
 
 export interface Threat {
   orig: Key;
@@ -42,6 +44,122 @@ export function isPromotion(
     return false;
   }
   return (piece.color === 'w' && dest[1] === '8') || (piece.color === 'b' && dest[1] === '1');
+}
+
+export function getSquareColor(square: Key | string): 'dark' | 'light' | null {
+  const sq = parseSquare(square);
+  if (sq === undefined) return null;
+  const rank = Math.floor(sq / 8);
+  const file = sq % 8;
+  return (rank + file) % 2 === 0 ? 'dark' : 'light';
+}
+
+export function getSquare(pos: Chess, square: Key | string) {
+  const sq = parseSquare(square);
+  if (sq === undefined) return undefined;
+  const piece = pos.board.get(sq);
+  if (!piece) return null;
+  return {
+    type: roleToPieceSymbol[piece.role],
+    color: piece.color === 'white' ? ('w' as const) : ('b' as const),
+  };
+}
+
+export function getPossibleMovesForBothColors(pos: Chess): Map<Key, Key[]> {
+  const dests = possibleMoves(pos);
+  const swapped = pos.clone();
+  swapped.turn = swapped.turn === 'white' ? 'black' : 'white';
+  const otherDests = possibleMoves(swapped);
+  for (const [key, value] of otherDests.entries()) {
+    dests.set(key, value);
+  }
+  return dests;
+}
+
+export function getAllLegalMovesAsPojos(pos: Chess, fenBefore: string): Move[] {
+  const moves: Move[] = [];
+  const ctx = pos.ctx();
+  for (const [from, dests] of pos.allDests(ctx)) {
+    for (const destSq of dests) {
+      const temp = pos.clone();
+      const movePojo = buildMovePojo(temp, { from, to: destSq }, fenBefore);
+      moves.push(movePojo);
+    }
+  }
+  return moves;
+}
+
+export function getMaterialCount(pieces: Map<Key, { role: Role; color: Color }>) {
+  const piecesValues: Record<string, number> = {
+    pawn: 1,
+    knight: 3,
+    bishop: 3,
+    rook: 5,
+    queen: 9,
+    king: 0,
+  };
+
+  const materialCount = {
+    materialWhite: 0,
+    materialBlack: 0,
+    materialDiff: 0,
+  };
+
+  for (const piece of pieces.values()) {
+    if (piece.color === 'white') {
+      materialCount.materialWhite += piecesValues[piece.role] || 0;
+    } else {
+      materialCount.materialBlack += piecesValues[piece.role] || 0;
+    }
+  }
+  materialCount.materialDiff = materialCount.materialWhite - materialCount.materialBlack;
+  return materialCount;
+}
+
+export function getCapturedPieces(history: Move[]) {
+  const captured = {
+    white: [] as string[],
+    black: [] as string[],
+  };
+  for (const move of history) {
+    if (move.captured) {
+      const capturingColor = move.color === 'w' ? 'white' : 'black';
+      captured[capturingColor].push(move.captured);
+    }
+  }
+  return captured;
+}
+
+export function getGameOverReason(
+  pos: Chess,
+  lang: 'fr' | 'en' = 'fr',
+  isThreefold: boolean = false
+): string {
+  if (pos.isCheckmate()) {
+    const turnColor = pos.turn === 'white' ? 'white' : 'black';
+    const winner =
+      turnColor === 'white'
+        ? lang === 'fr'
+          ? 'Noirs'
+          : 'Black'
+        : lang === 'fr'
+          ? 'Blancs'
+          : 'White';
+    return lang === 'fr'
+      ? `Échec et mat ! Les ${winner} ont gagné.`
+      : `Checkmate! ${winner} won.`;
+  }
+  if (pos.isStalemate()) return lang === 'fr' ? 'Match nul par Pat.' : 'Draw by stalemate.';
+  if (pos.isInsufficientMaterial())
+    return lang === 'fr'
+      ? 'Match nul par matériel insuffisant.'
+      : 'Draw by insufficient material.';
+  if (isThreefold)
+    return lang === 'fr' ? 'Match nul par triple répétition.' : 'Draw by threefold repetition.';
+  if (pos.halfmoves >= 100)
+    return lang === 'fr' ? 'Match nul par la règle des 50 coups.' : 'Draw by fifty-move rule.';
+  if (pos.isEnd()) return lang === 'fr' ? 'Match nul.' : 'Draw.';
+  return '';
 }
 
 export function getFinalFenFromPgn(

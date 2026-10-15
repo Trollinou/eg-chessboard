@@ -23,6 +23,18 @@ La bibliothèque est construite selon le principe de **source de vérité unique
 
 ---
 
+## 📚 Documentation & Guides Spécialisés
+
+Pour guider l'implémentation selon vos besoins métier, consultez nos guides détaillés dans le dossier [`docs/`](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs) :
+
+- 🤖 **[Stockfish 19 & Analyse IA](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/STOCKFISH.md)** : Moteur WebAssembly unifié, bots de jeu configurables avec niveau Elo, hints tactiques, revue de partie et évaluation WDL.
+- 📖 **[PGN, Études & Variantes](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/PGN_AND_STUDY.md)** : Mode Lecteur vs Éditeur, arbre de sous-variantes, navigation historique et balises graphiques `[%cal]`/`[%csl]`.
+- 🎯 **[Exercices & Pédagogie](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/EXERCISES.md)** : Mode Solo, restrictions de pièces (`restrictMovesToPieces`), détection de cases attaquées (`isSquareAttacked`) et consignes visuelles persistantes.
+- 🎨 **[Diagrammes & Éditeur FEN](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/DIAGRAMS_AND_EDITOR.md)** : Mode composition tolérant, drag & drop libre, structure `ChessDiagram`, palette de pièces et intégration Gutenberg.
+- ⚡ **[Anti-Sèche Générale](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/USING.md)** : Synthèse ultra-rapide des props et réglages prêts à l'emploi.
+
+---
+
 ## 📦 Installation
 
 Pour ajouter la bibliothèque dans votre projet :
@@ -329,7 +341,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 
 ### 6. Moteur d'Analyse et de Jeu Stockfish 19
 
-Pour une documentation exhaustive (architecture, flux UCI, configuration, exemples complets), consultez [STOCKFISH.md](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/STOCKFISH.md).
+Pour une documentation exhaustive (architecture, flux UCI, configuration, exemples complets), consultez [docs/STOCKFISH.md](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/STOCKFISH.md).
 
 | Méthode | Arguments | Description |
 | :--- | :--- | :--- |

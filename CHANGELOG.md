@@ -6,6 +6,35 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+- **Refactorisation Architecturale du Cœur & Source Unique de Vérité (SSOT)** :
+  - **Phase 1 - Unification de `soloHistory` et harmonisation visuelle** :
+    - Déplacement et consolidation de l'historique solo (`soloHistory: Move[]`) exclusivement dans `GameSession.ts` (enregistrement automatique à chaque coup, dépilement synchronisé sur `undoLastMove()`, réinitialisation sur `newGame()`).
+    - Élimination du code mort et du champ dupliqué `soloHistory` dans `ExerciseManager.ts`.
+    - Suppression intégrale du bloc `<style scoped>` de 60 lignes dans `PromotionDialog.vue` au profit de la feuille de style unique `src/styles/base/_dialog.scss` et des variables CSS (`--eg-promo-*`), garantissant une parité visuelle au pixel près entre React et Vue 3.
+  - **Phase 2 - Découplage strict de `FenManager` et `BoardHelper`** :
+    - Recentrage strict de `FenManager.ts` sur le domaine FEN pur (`safeLoadFen`, `boardPiecesToPlacementFen`, `validateFen`, `getFinalFenFromPgn`).
+    - Rapatriement de tous les utilitaires purs d'échiquier et calculs de pièces dans `BoardHelper.ts` (`getSquareColor`, `getSquare`, `getPossibleMovesForBothColors`, `getAllLegalMovesAsPojos`, `getMaterialCount`, `getCapturedPieces`, `getGameOverReason`).
+    - Suppression de plus de 160 lignes de code dupliqué dans `GameSession.ts` en déléguant directement à `FenManager` et `BoardHelper`.
+    - Maintien de ponts statiques de délégation rétrocompatibles dans `FenManager`.
+  - **Phase 3 - Encapsulation de l'arbre PGN et découplage de `BoardAdapter`** :
+    - Encapsulation des commentaires PGN directement dans `GameSession.ts` via les méthodes `getRawCommentAtPly(ply)` et `setRawCommentAtPly(ply, text)`.
+    - Suppression de la mutation directe non sécurisée de `path[ply - 1].data.comments` et des casts `(this.board as any).state?.drawable?.current` dans `AnnotationService.ts`.
+    - Découplage de `BoardAdapter.ts` de la classe `ExerciseManager` via un callback fournisseur `getCustomDests: () => Map<Key, Key[]> | null`.
+    - Suppression du délai arbitraire `setTimeout(..., 50)` lors des promotions de pions au profit d'une synchronisation atomique et réactive.
+    - Ajout d'un verrou de réentrance `isCheckingPromotion` dans `BoardAdapter.checkUnpromotedPawns()`.
+  - **Phase 4 - Optimisation des Wrappers React & Vue 3 et Idempotence des Setters** :
+    - Ajout de gardes d'idempotence (`if (this.state.x === x) return;`) sur l'ensemble des setters de `BoardCore.ts` (`setMode`, `setPieceSet`, `setBoardTheme`, `setReadOnly`, `setFreeMode`, `setSoloMode`, `setPlayerColor`, `setPreserveShapesOnPositionChange`) évitant les recalculs et cycles de redessin inutiles.
+    - Factorisation des 8 hooks `useEffect` dispersés dans `src/react/Chessboard.tsx` en un unique hook coordonné observant le tuple des options.
+    - Factorisation des 8 `watch` individuels dans `src/vue/TheChessboard.vue` en un watcher coordonné sur le tuple d'options réactives.
+    - Remplacement des 13 branches `if / else if` de dispatch d'événements par une instruction `switch (event)` rapide et lisible dans les deux wrappers.
+- **Restructuration & Enrichissement de la Documentation (`docs/`)** :
+  - Centralisation de l'ensemble des guides d'intégration dans le répertoire `docs/`.
+  - Déplacement de `STOCKFISH.md` vers `docs/STOCKFISH.md`.
+  - Rédaction de 3 nouveaux guides complets avec contrats d'API, patterns d'usage et snippets Vue 3 / React prêts à l'emploi :
+    - [`docs/PGN_AND_STUDY.md`](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/PGN_AND_STUDY.md) : Guide PGN, études, navigation historique, variantes et annotations graphiques `[%cal]`/`[%csl]`.
+    - [`docs/EXERCISES.md`](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/EXERCISES.md) : Guide des exercices tactiques et solo, restrictions de déplacements (`restrictMovesToPieces`), détection de cases menacées (`isSquareAttacked`) et validation de captures.
+    - [`docs/DIAGRAMS_AND_EDITOR.md`](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/DIAGRAMS_AND_EDITOR.md) : Guide du mode composition libre, structure `ChessDiagram`, palette de pièces, promotion de pions et intégration Gutenberg.
+  - Mise à jour des index et liens dans `README.md` et `USING.md`.
 - **Mise à niveau Stockfish 19 & Nouvelle Architecture Moteur Unifiée** :
   - Mise à niveau du moteur vers **Stockfish 19** (`stockfish@^19.0.1`, binaire WASM `stockfish-19-lite-single` de 1.84 Mo ne requérant aucun header COOP/COEP).
   - Refonte complète de la gestion multi-workers en une **architecture mono-worker asynchrone robuste** (`StockfishEngine`) avec machine à états finis (`uninitialized`, `loading`, `ready`, `searching`, `stopping`, `error`), préemption immédiate et file d'attente FIFO.
@@ -21,7 +50,7 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
     - **Analyse continue en direct** : `startLiveAnalysis()` / `stopLiveAnalysis()` suivant les coups joués et la navigation historique en temps réel.
     - **Revue de partie post-mortem autonome haute performance** : `reviewGame()` optimisée avec réutilisation des évaluations chaînées (-50% de calcul CPU), support de l'annulation (`AbortSignal` et `core.cancelReview()`), calcul de précision Blancs/Noirs (0 à 100%) et classification affinée des coups.
     - **Réinitialisation propre du moteur** : méthode `core.newGame()` propageant `ucinewgame` à Stockfish pour purger les tables de transposition sans recréer le Worker.
-  - Parité stricte des wrappers React (`Chessboard.tsx`) et Vue 3 (`TheChessboard.vue`), documentation complète dans [`STOCKFISH.md`](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/STOCKFISH.md) et démonstration interactive complète dans le bac à sable `sandbox/DevApp.vue`.
+  - Parité stricte des wrappers React (`Chessboard.tsx`) et Vue 3 (`TheChessboard.vue`), documentation complète dans [`docs/STOCKFISH.md`](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/docs/STOCKFISH.md) et démonstration interactive complète dans le bac à sable `sandbox/DevApp.vue`.
 - **Optimisation du Tree-Shaking & Découplage CSS/JS** :
   - Suppression de l'import forcé `import './style.scss';` du point d'entrée JS `src/index.ts`.
   - Restriction de `sideEffects` à `["*.css", "*.scss"]` dans `package.json` : les bundlers tiers (Webpack, Rollup, Vite) éliminent désormais tout code JS inutilisé sans embarquer l'échiquier ni les feuilles de style lors de l'import de fonctions pures (ex: `getFinalFenFromPgn`).

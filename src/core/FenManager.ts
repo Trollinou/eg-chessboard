@@ -1,22 +1,24 @@
 import { Chess, parseSquare } from 'chessops';
-import { parseFen } from 'chessops/fen';
+import { parseFen, makeFen } from 'chessops/fen';
+import { parsePgn, startingPosition } from 'chessops/pgn';
+import { parseSan } from 'chessops/san';
 import type { Color as ChessopsColor, Role } from 'chessops/types';
 import type { Key, Color } from '@lichess-org/chessground/types';
 
-import { possibleMoves } from '../BoardHelper';
+import * as BoardHelper from '../BoardHelper';
 import type { Move } from '../types';
-import { roleToPieceSymbol, pieceSymbolToRole, buildMovePojo, FILES } from './pieceMapping';
+import { roleToPieceSymbol, pieceSymbolToRole, FILES } from './pieceMapping';
 
 export class FenManager {
   public static safeLoadFen(
     fenStr: string,
-    onResetPgnTree: (pos: Chess) => void
+    onResetPgnTree?: (pos: Chess) => void
   ): { pos: Chess; isStandardOk: boolean } {
     const setupRes = parseFen(fenStr);
     if (setupRes.isOk) {
       const chessRes = Chess.fromSetup(setupRes.value);
       if (chessRes.isOk) {
-        onResetPgnTree(chessRes.value);
+        onResetPgnTree?.(chessRes.value);
         return { pos: chessRes.value, isStandardOk: true };
       }
     }
@@ -57,7 +59,7 @@ export class FenManager {
         }
       }
     }
-    onResetPgnTree(pos);
+    onResetPgnTree?.(pos);
     return { pos, isStandardOk: false };
   }
 
@@ -89,69 +91,58 @@ export class FenManager {
     return ranks.join('/');
   }
 
-  public static getPossibleMovesForBothColors(pos: Chess): Map<Key, Key[]> {
-    const dests = possibleMoves(pos);
-    const swapped = pos.clone();
-    swapped.turn = swapped.turn === 'white' ? 'black' : 'white';
-    const otherDests = possibleMoves(swapped);
-    for (const [key, value] of otherDests.entries()) {
-      dests.set(key, value);
+  public static validateFen(fen: string): { valid: boolean; error?: string } {
+    if (!fen || typeof fen !== 'string') {
+      return { valid: false, error: 'Empty FEN string' };
     }
-    return dests;
+    const setupRes = parseFen(fen.trim());
+    if (setupRes.isErr) {
+      return { valid: false, error: `Invalid FEN syntax: ${setupRes.error}` };
+    }
+    const chessRes = Chess.fromSetup(setupRes.value);
+    if (chessRes.isErr) {
+      return { valid: false, error: `Illegal chess position: ${chessRes.error}` };
+    }
+    return { valid: true };
+  }
+
+  public static getFinalFenFromPgn(
+    pgnStr: string,
+    fallbackFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+  ): string {
+    if (!pgnStr || !pgnStr.trim()) return fallbackFen;
+    try {
+      const games = parsePgn(pgnStr);
+      if (!games.length) return fallbackFen;
+      const g = games[0];
+      const startRes = startingPosition(g.headers);
+      const temp = startRes.isOk ? startRes.value : Chess.default();
+      for (const child of g.moves.mainlineNodes()) {
+        const m = parseSan(temp, child.data.san);
+        if (!m) break;
+        temp.play(m);
+      }
+      return makeFen(temp.toSetup());
+    } catch {
+      return fallbackFen;
+    }
+  }
+
+  // Delegations to BoardHelper for backward compatibility
+  public static getPossibleMovesForBothColors(pos: Chess): Map<Key, Key[]> {
+    return BoardHelper.getPossibleMovesForBothColors(pos);
   }
 
   public static getAllLegalMovesAsPojos(pos: Chess, fenBefore: string): Move[] {
-    const moves: Move[] = [];
-    const ctx = pos.ctx();
-    for (const [from, dests] of pos.allDests(ctx)) {
-      for (const destSq of dests) {
-        const temp = pos.clone();
-        const movePojo = buildMovePojo(temp, { from, to: destSq }, fenBefore);
-        moves.push(movePojo);
-      }
-    }
-    return moves;
+    return BoardHelper.getAllLegalMovesAsPojos(pos, fenBefore);
   }
 
   public static getMaterialCount(pieces: Map<Key, { role: Role; color: Color }>) {
-    const piecesValues: Record<string, number> = {
-      pawn: 1,
-      knight: 3,
-      bishop: 3,
-      rook: 5,
-      queen: 9,
-      king: 0,
-    };
-
-    const materialCount = {
-      materialWhite: 0,
-      materialBlack: 0,
-      materialDiff: 0,
-    };
-
-    for (const piece of pieces.values()) {
-      if (piece.color === 'white') {
-        materialCount.materialWhite += piecesValues[piece.role];
-      } else {
-        materialCount.materialBlack += piecesValues[piece.role];
-      }
-    }
-    materialCount.materialDiff = materialCount.materialWhite - materialCount.materialBlack;
-    return materialCount;
+    return BoardHelper.getMaterialCount(pieces);
   }
 
   public static getCapturedPieces(history: Move[]) {
-    const captured = {
-      white: [] as string[],
-      black: [] as string[],
-    };
-    for (const move of history) {
-      if (move.captured) {
-        const capturingColor = move.color === 'w' ? 'white' : 'black';
-        captured[capturingColor].push(move.captured);
-      }
-    }
-    return captured;
+    return BoardHelper.getCapturedPieces(history);
   }
 
   public static getGameOverReason(
@@ -159,49 +150,14 @@ export class FenManager {
     lang: 'fr' | 'en' = 'fr',
     isThreefold: boolean = false
   ): string {
-    if (pos.isCheckmate()) {
-      const turnColor = pos.turn === 'white' ? 'white' : 'black';
-      const winner =
-        turnColor === 'white'
-          ? lang === 'fr'
-            ? 'Noirs'
-            : 'Black'
-          : lang === 'fr'
-            ? 'Blancs'
-            : 'White';
-      return lang === 'fr'
-        ? `Échec et mat ! Les ${winner} ont gagné.`
-        : `Checkmate! ${winner} won.`;
-    }
-    if (pos.isStalemate()) return lang === 'fr' ? 'Match nul par Pat.' : 'Draw by stalemate.';
-    if (pos.isInsufficientMaterial())
-      return lang === 'fr'
-        ? 'Match nul par matériel insuffisant.'
-        : 'Draw by insufficient material.';
-    if (isThreefold)
-      return lang === 'fr' ? 'Match nul par triple répétition.' : 'Draw by threefold repetition.';
-    if (pos.halfmoves >= 100)
-      return lang === 'fr' ? 'Match nul par la règle des 50 coups.' : 'Draw by fifty-move rule.';
-    if (pos.isEnd()) return lang === 'fr' ? 'Match nul.' : 'Draw.';
-    return '';
+    return BoardHelper.getGameOverReason(pos, lang, isThreefold);
   }
 
   public static getSquareColor(square: Key | string): 'dark' | 'light' | null {
-    const sq = parseSquare(square);
-    if (sq === undefined) return null;
-    const rank = Math.floor(sq / 8);
-    const file = sq % 8;
-    return (rank + file) % 2 === 0 ? 'dark' : 'light';
+    return BoardHelper.getSquareColor(square);
   }
 
   public static getSquare(pos: Chess, square: Key | string) {
-    const sq = parseSquare(square);
-    if (sq === undefined) return undefined;
-    const piece = pos.board.get(sq);
-    if (!piece) return null;
-    return {
-      type: roleToPieceSymbol[piece.role],
-      color: piece.color === 'white' ? ('w' as const) : ('b' as const),
-    };
+    return BoardHelper.getSquare(pos, square);
   }
 }
