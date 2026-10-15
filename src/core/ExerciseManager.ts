@@ -3,12 +3,10 @@ import type { Color as ChessopsColor } from 'chessops/types';
 import type { Key } from '@lichess-org/chessground/types';
 import type { Role, Color } from '@lichess-org/chessground/types';
 import { possibleMoves } from '../BoardHelper';
-import type { Move } from '../types';
 import { roleToPieceSymbol } from './pieceMapping';
 
 export class ExerciseManager {
   private customDests: Map<Key, Key[]> | null = null;
-  private soloHistory: Move[] = [];
 
   public getCustomDests(): Map<Key, Key[]> | null {
     return this.customDests;
@@ -55,17 +53,5 @@ export class ExerciseManager {
       }
     }
     return piecesMap;
-  }
-
-  public addSoloMove(move: Move): void {
-    this.soloHistory.push(move);
-  }
-
-  public getSoloHistory(): Move[] {
-    return this.soloHistory;
-  }
-
-  public resetSoloHistory(): void {
-    this.soloHistory = [];
   }
 }

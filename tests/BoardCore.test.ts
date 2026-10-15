@@ -106,6 +106,23 @@ describe('BoardCore (Façade & Lifecycle)', () => {
       expect(core.getCurrentPlyNumber()).toBe(0);
       expect(core.getTurnColor()).toBe('white');
     });
+
+    it('tracks soloHistory in soloMode', () => {
+      core.setSoloMode(true);
+      core.move({ from: 'e2', to: 'e4' });
+      core.move({ from: 'd2', to: 'd4' });
+
+      expect(core.getSoloHistory()).toHaveLength(2);
+      expect(core.getSoloHistory()[0].san).toBe('e4');
+      expect(core.getSoloHistory()[1].san).toBe('d4');
+
+      core.undoLastMove();
+      expect(core.getSoloHistory()).toHaveLength(1);
+      expect(core.getSoloHistory()[0].san).toBe('e4');
+
+      core.newGame();
+      expect(core.getSoloHistory()).toHaveLength(0);
+    });
   });
 
   describe('Diagram Management (FEN + Shapes)', () => {

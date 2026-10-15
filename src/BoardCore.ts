@@ -647,7 +647,7 @@ export class BoardCore {
 
   public newGame(fen?: string): void {
     this.session.newGame(fen);
-    this.exerciseManager.resetSoloHistory();
+    this.session.resetSoloHistory();
     this.board.set({
       fen: this.getFen(),
       lastMove: undefined,
@@ -775,6 +775,6 @@ export class BoardCore {
   }
 
   public getSoloHistory(): Move[] {
-    return this.exerciseManager.getSoloHistory();
+    return this.session.getSoloHistory();
   }
 }

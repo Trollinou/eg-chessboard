@@ -99,6 +99,7 @@ export class GameSession {
     this.rootNode = new Node<PgnNodeMeta>();
     this.currentNode = this.rootNode;
     this.rootComments = [];
+    this.soloHistory = [];
     this.parentMap = new WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>();
     this.rootPos = startPos ? startPos.clone() : Chess.default();
     const fen = makeFen(this.rootPos.toSetup());
@@ -468,6 +469,10 @@ export class GameSession {
 
     this.setCurrentNode(parentNode);
     this.pos = this.syncGamePosToCurrentNode();
+
+    if (this.soloHistory.length > 0) {
+      this.soloHistory.pop();
+    }
 
     this.eventBus.emit('turn-changed', {
       turnColor: this.getTurnColor(),

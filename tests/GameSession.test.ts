@@ -177,6 +177,25 @@ describe('GameSession', () => {
       const res2 = session.executeMove({ from: 'd2', to: 'd4' }, { soloMode: true });
       expect(res2.success).toBe(true);
       expect(session.getTurnColor()).toBe('white');
+
+      expect(session.getSoloHistory()).toHaveLength(2);
+      expect(session.getSoloHistory()[0].san).toBe('e4');
+      expect(session.getSoloHistory()[1].san).toBe('d4');
+
+      session.undoLastMove();
+      expect(session.getSoloHistory()).toHaveLength(1);
+      expect(session.getSoloHistory()[0].san).toBe('e4');
+
+      session.resetSoloHistory();
+      expect(session.getSoloHistory()).toHaveLength(0);
+    });
+
+    it('resets soloHistory on newGame', () => {
+      session.executeMove({ from: 'e2', to: 'e4' }, { soloMode: true });
+      expect(session.getSoloHistory()).toHaveLength(1);
+
+      session.newGame();
+      expect(session.getSoloHistory()).toHaveLength(0);
     });
 
     it('supports putting and removing pieces directly', () => {
