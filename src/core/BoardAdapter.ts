@@ -13,7 +13,6 @@ import { FenManager } from './FenManager';
 import { DomainEventBus } from './DomainEventBus';
 import { GameSession } from './GameSession';
 import { AnnotationService } from './AnnotationService';
-import type { ExerciseManager } from './ExerciseManager';
 
 export interface BoardAdapterOptions {
   mode?: BoardMode;
@@ -28,6 +27,7 @@ export class BoardAdapter {
   public board!: Api;
   private element: HTMLElement;
   private isSyncing = false;
+  private isCheckingPromotion = false;
 
   private pointerDownState: { x: number; y: number; square: Key } | null = null;
   private domListeners: Array<{
@@ -43,9 +43,9 @@ export class BoardAdapter {
     private eventBus: DomainEventBus,
     private session: GameSession,
     private annotationService: AnnotationService,
-    private exerciseManager: ExerciseManager,
     private getOptions: () => BoardAdapterOptions,
     private promptPromotionDialog: (color: Color) => Promise<string>,
+    private getCustomDests?: () => Map<Key, Key[]> | null,
     initialConfig: Config = {},
     pieceSet: PieceSet = 'cburnett',
     boardTheme: BoardTheme = 'brown'
@@ -202,7 +202,7 @@ export class BoardAdapter {
   }
 
   public getDests(): Map<Key, Key[]> {
-    const customDests = this.exerciseManager.getCustomDests();
+    const customDests = this.getCustomDests?.() ?? null;
     if (customDests !== null) {
       return customDests;
     }
@@ -337,47 +337,53 @@ export class BoardAdapter {
   public async checkUnpromotedPawns(): Promise<void> {
     const options = this.getOptions();
     if (!options.freeMode && options.mode !== 'editor') return;
+    if (this.isCheckingPromotion) return;
+    this.isCheckingPromotion = true;
 
-    for (const f of FILES) {
-      // Rank 8: White Pawn Promotion
-      const sq8Str = `${f}8`;
-      const sq8 = parseSquare(sq8Str)!;
-      const piece8 = this.session.pos.board.get(sq8);
-      if (piece8 && piece8.role === 'pawn' && piece8.color === 'white') {
-        const selectedPromotion = await this.promptPromotionDialog('white');
-        const promotedRole = pieceSymbolToRole[selectedPromotion.toLowerCase()] || 'queen';
-        this.session.pos.board.set(sq8, { role: promotedRole, color: 'white' });
-        if (this.board?.state?.pieces) {
-          this.board.state.pieces.set(sq8Str as Key, {
-            role: promotedRole as Role,
-            color: 'white',
-          });
-          this.board.set({ fen: '' });
-          this.board.set({ fen: this.session.getFen() });
+    try {
+      for (const f of FILES) {
+        // Rank 8: White Pawn Promotion
+        const sq8Str = `${f}8`;
+        const sq8 = parseSquare(sq8Str)!;
+        const piece8 = this.session.pos.board.get(sq8);
+        if (piece8 && piece8.role === 'pawn' && piece8.color === 'white') {
+          const selectedPromotion = await this.promptPromotionDialog('white');
+          const promotedRole = pieceSymbolToRole[selectedPromotion.toLowerCase()] || 'queen';
+          this.session.pos.board.set(sq8, { role: promotedRole, color: 'white' });
+          if (this.board?.state?.pieces) {
+            this.board.state.pieces.set(sq8Str as Key, {
+              role: promotedRole as Role,
+              color: 'white',
+            });
+            this.board.set({ fen: '' });
+            this.board.set({ fen: this.session.getFen() });
+          }
+          this.updateGameState();
+          return;
         }
-        this.updateGameState();
-        return;
-      }
 
-      // Rank 1: Black Pawn Promotion
-      const sq1Str = `${f}1`;
-      const sq1 = parseSquare(sq1Str)!;
-      const piece1 = this.session.pos.board.get(sq1);
-      if (piece1 && piece1.role === 'pawn' && piece1.color === 'black') {
-        const selectedPromotion = await this.promptPromotionDialog('black');
-        const promotedRole = pieceSymbolToRole[selectedPromotion.toLowerCase()] || 'queen';
-        this.session.pos.board.set(sq1, { role: promotedRole, color: 'black' });
-        if (this.board?.state?.pieces) {
-          this.board.state.pieces.set(sq1Str as Key, {
-            role: promotedRole as Role,
-            color: 'black',
-          });
-          this.board.set({ fen: '' });
-          this.board.set({ fen: this.session.getFen() });
+        // Rank 1: Black Pawn Promotion
+        const sq1Str = `${f}1`;
+        const sq1 = parseSquare(sq1Str)!;
+        const piece1 = this.session.pos.board.get(sq1);
+        if (piece1 && piece1.role === 'pawn' && piece1.color === 'black') {
+          const selectedPromotion = await this.promptPromotionDialog('black');
+          const promotedRole = pieceSymbolToRole[selectedPromotion.toLowerCase()] || 'queen';
+          this.session.pos.board.set(sq1, { role: promotedRole, color: 'black' });
+          if (this.board?.state?.pieces) {
+            this.board.state.pieces.set(sq1Str as Key, {
+              role: promotedRole as Role,
+              color: 'black',
+            });
+            this.board.set({ fen: '' });
+            this.board.set({ fen: this.session.getFen() });
+          }
+          this.updateGameState();
+          return;
         }
-        this.updateGameState();
-        return;
       }
+    } finally {
+      this.isCheckingPromotion = false;
     }
   }
 
@@ -472,11 +478,6 @@ export class BoardAdapter {
     if (!res.wasViewingHistory) {
       if (res.move) {
         this.board.move(res.move.from as Key, res.move.to as Key);
-      }
-      if (res.isNormalPromo) {
-        setTimeout(() => {
-          this.board.set({ fen: this.session.getFen() });
-        }, 50);
       }
       this.updateGameState({ updateFen: true, animate: true });
     } else {

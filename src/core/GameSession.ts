@@ -715,6 +715,48 @@ export class GameSession {
     return headersObj;
   }
 
+  // --- PGN Comments Encapsulation ---
+
+  public getRawCommentAtPly(ply: number): string {
+    const path = this.getActivePath();
+    if (ply > 0 && ply <= path.length) {
+      const targetNode = path[ply - 1];
+      if (targetNode.data.comments) {
+        return targetNode.data.comments.join(' ');
+      }
+    } else if (ply === 0) {
+      if (
+        path.length > 0 &&
+        path[0].data.startingComments &&
+        path[0].data.startingComments.length > 0
+      ) {
+        return path[0].data.startingComments.join(' ');
+      } else if (this.rootComments.length > 0) {
+        return this.rootComments.join(' ');
+      }
+    }
+    return '';
+  }
+
+  public setRawCommentAtPly(ply: number, comment: string): void {
+    const path = this.getActivePath();
+    if (ply < 0 || ply > path.length) return;
+
+    const trimmed = comment.trim();
+    if (ply === 0) {
+      if (path.length > 0) {
+        path[0].data.startingComments = trimmed ? [trimmed] : [];
+      } else {
+        this.rootComments = trimmed ? [trimmed] : [];
+      }
+    } else {
+      const targetNode = path[ply - 1];
+      if (isChildNode(targetNode)) {
+        targetNode.data.comments = trimmed ? [trimmed] : [];
+      }
+    }
+  }
+
   // --- Position & Fen ---
 
   public safeLoadFen(fenStr: string): boolean {

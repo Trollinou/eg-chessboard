@@ -122,7 +122,6 @@ export class BoardCore {
       this.eventBus,
       this.session,
       this.annotationService,
-      this.exerciseManager,
       () => ({
         mode: this.state.mode,
         playerColor: this.state.playerColor,
@@ -132,6 +131,7 @@ export class BoardCore {
         preserveShapesOnPositionChange: this.state.preserveShapesOnPositionChange,
       }),
       (color) => this.promptPromotion(color),
+      () => this.exerciseManager.getCustomDests(),
       initialConfig,
       this.state.pieceSet,
       this.state.boardTheme
