@@ -219,6 +219,9 @@ Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une
 | `onDraw` | `@draw` | `() => void` | Émis en cas de partie nulle (nulle acceptée, matériel insuffisant, répétition, 50 coups). |
 | `onPromotion` | `@promotion` | `(detail: { from: string, to: string, promotedTo: string }) => void` | Émis lorsqu'une promotion de pion est effectuée. |
 | `onStockfishHint`| `@stockfish-hint` | `(bestMove: string) => void` | Émis lorsque le moteur Stockfish retourne une suggestion de coup (mode `hint`). |
+| `onEvaluation` | `@evaluation` | `(eval: StockfishEvaluation) => void` | Émis en temps réel lors des calculs d'évaluation (score cp/mat, WDL, profondeur, pv). |
+| `onEngineStatus` | `@engine-status` | `(status: EngineStatus) => void` | Émis lors des transitions d'état du moteur (`uninitialized`, `loading`, `ready`, `searching`, `stopping`, `error`). |
+| `onGameReviewProgress` | `@game-review-progress` | `(progress: { currentPly: number; totalPlies: number; percent: number }) => void` | Émis durant la revue de partie post-mortem. |
 | `onSquareClick` | `@square-click` | `(square: string) => void` | Émis lors du clic sur une case de l'échiquier. |
 | `onShapesChange` | `@shapes-change` | `(shapes: DrawShape[]) => void` | Émis lorsque l'utilisateur dessine ou efface des formes interactives au clic droit. |
 
@@ -324,7 +327,20 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `isSquareAttacked(square, byColor)`| `square: Key, byColor: 'white' \| 'black'` | Indique si une case est attaquée par la couleur spécifiée. |
 | `getSoloHistory()` | `none` | Renvoie l'historique des coups joués en mode solo. |
 
-### 6. Nettoyage (Lifecycle) & Rendu Impératif
+### 6. Moteur d'Analyse et de Jeu Stockfish 19
+
+Pour une documentation exhaustive (architecture, flux UCI, configuration, exemples complets), consultez [STOCKFISH.md](file:///c:/Users/egagnon/Personnel/Dev/eg-chessboard/STOCKFISH.md).
+
+| Méthode | Arguments | Description |
+| :--- | :--- | :--- |
+| `startLiveAnalysis(options?)` | `options?: { depth?: number; multiPv?: number }` | Démarre l'évaluation continue en arrière-plan avec émission d'événements `@evaluation`. |
+| `stopLiveAnalysis()` | `none` | Arrête l'analyse en direct. |
+| `requestHint(options?)` | `options?: { depth?: number; multiPv?: number; drawArrows?: boolean }` | Calcule le ou les meilleurs coups (MultiPV) et affiche optionnellement les flèches d'indication. |
+| `reviewGame(options?)` | `options?: { depth?: number; onProgress?: (p: any) => void }` | Exécute une revue de partie post-mortem autonome (précision %, classification des coups). |
+| `getEngineStatus()` | `none` | Retourne le statut courant du moteur (`uninitialized`, `loading`, `ready`, `searching`, `stopping`, `error`). |
+| `getLastEvaluation()` | `none` | Retourne la dernière évaluation calculée (`StockfishEvaluation \| null`). |
+
+### 7. Nettoyage (Lifecycle) & Rendu Impératif
 
 | Méthode | Arguments | Description |
 | :--- | :--- | :--- |
@@ -333,18 +349,19 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 
 ---
 
-### 7. Fonctions Utilitaires Autonomes (Helper Functions)
+### 8. Fonctions Utilitaires Autonomes (Helper Functions)
 
 Ces fonctions d'aide sont directement exportées à la racine de la bibliothèque (`eg-chessboard`, `eg-chessboard/vue`, `eg-chessboard/react`) et n'exigent pas d'instancier un échiquier :
 
 | Fonction | Arguments | Type de retour | Description |
 | :--- | :--- | :--- | :--- |
 | `getFinalFenFromPgn(pgn, fallbackFen?)` | `pgn: string, fallbackFen?: string` | `string` | Déroule la variante principale d'une chaîne PGN via `chessops` et retourne la FEN finale calculée. Renvoie `fallbackFen` (position initiale par défaut) si le PGN est invalide ou vide. |
+| `validateFen(fen)` | `fen: string` | `{ valid: boolean; error?: string }` | Valide une chaîne FEN stricte via `chessops` (sécurise les entrées avant envoi à Stockfish 19). |
+| `computeEvalBarPercentage(turn, scoreType, scoreValue, wdl?)` | `turn: 'white' \| 'black', scoreType: 'cp' \| 'mate', scoreValue: number, wdl?: { win: number; draw: number; loss: number }` | `number` | Calcule le pourcentage (0 à 100) pour la barre d'évaluation visuelle (normalisation centipions ou WDL). |
 | `possibleMoves(game)` | `game: Chess` | `Map<Key, Key[]>` | Calcule la carte des coups légaux pour Chessground. |
 | `getThreats(moves)` | `moves: Move[]` | `Threat[]` | Génère la liste des attaques et menaces visuelles. |
 | `isPromotion(dest, piece)` | `dest: Key, piece: Piece` | `boolean` | Indique si le déplacement spécifié correspond à une promotion de pion. |
 | `shortToLongColor(color)` | `color: 'w' \| 'b'` | `'white' \| 'black'` | Convertit la notation courte de couleur vers la notation longue. |
-
 
 ---
 
@@ -357,6 +374,11 @@ import type {
   BoardCore, 
   BoardCoreState, 
   StockfishConfig, 
+  StockfishEvaluation,
+  EngineStatus,
+  GameReviewReport,
+  MoveAnalysisReport,
+  MoveJudgement,
   ChessDiagram, 
   Move,
   VariationInfo,
@@ -366,7 +388,14 @@ import type {
   PieceSet,
   BoardTheme
 } from 'eg-chessboard';
-import { getFinalFenFromPgn, AVAILABLE_PIECE_SETS, AVAILABLE_BOARD_THEMES } from 'eg-chessboard';
+import { 
+  getFinalFenFromPgn, 
+  validateFen, 
+  computeEvalBarPercentage, 
+  StockfishEngine, 
+  AVAILABLE_PIECE_SETS, 
+  AVAILABLE_BOARD_THEMES 
+} from 'eg-chessboard';
 ```
 
 ### `BoardCoreState`
