@@ -1,5 +1,4 @@
 import { Chess, parseSquare } from 'chessops';
-import { equalsIgnoreMoves } from 'chessops/chess';
 import { makeFen, parseFen } from 'chessops/fen';
 import { parseSan } from 'chessops/san';
 import {
@@ -856,47 +855,36 @@ export class GameSession {
     this.soloHistory = [];
   }
 
+  private static extractRepetitionKey(fen: string): string {
+    const parts = fen.trim().split(/\s+/);
+    return parts.slice(0, 4).join(' ');
+  }
+
   public isThreefoldRepetition(targetPly?: number): boolean {
     const path = this.getActivePath();
     const limit = targetPly !== undefined ? Math.min(targetPly, path.length) : path.length;
 
-    const positions: Chess[] = [this.rootPos.clone()];
+    const targetFen =
+      limit === 0
+        ? makeFen(this.rootPos.toSetup())
+        : path[limit - 1]?.data.fen || this.getFen();
+    const targetKey = GameSession.extractRepetitionKey(targetFen);
 
-    for (let i = 0; i < limit; i++) {
-      const fen = path[i].data.fen;
-      let posSnapshot: Chess | undefined;
-      if (fen) {
-        const setup = parseFen(fen);
-        if (setup.isOk) {
-          const res = Chess.fromSetup(setup.value);
-          if (res.isOk) {
-            posSnapshot = res.value;
-          }
-        }
-      }
-      if (posSnapshot) {
-        positions.push(posSnapshot);
-      } else {
-        const prev = positions[positions.length - 1].clone();
-        const m = parseSan(prev, path[i].data.san);
-        if (m) {
-          prev.play(m);
-          positions.push(prev);
-        }
-      }
-    }
+    const halfmoves =
+      targetPly !== undefined && limit < path.length
+        ? parseInt(targetFen.trim().split(/\s+/)[4] || '0', 10)
+        : this.pos.halfmoves;
 
-    const halfmoves = this.pos.halfmoves;
-    const startIndex = Math.max(0, positions.length - 1 - halfmoves);
-
+    const startPly = Math.max(0, limit - halfmoves);
     let count = 0;
-    for (let i = positions.length - 1; i >= startIndex; i--) {
-      if (positions[i].turn === this.pos.turn) {
-        if (equalsIgnoreMoves(this.pos, positions[i])) {
-          count++;
-          if (count >= 3) {
-            return true;
-          }
+
+    for (let ply = limit; ply >= startPly; ply -= 2) {
+      const fenAtPly =
+        ply === 0 ? makeFen(this.rootPos.toSetup()) : path[ply - 1]?.data.fen;
+      if (fenAtPly && GameSession.extractRepetitionKey(fenAtPly) === targetKey) {
+        count++;
+        if (count >= 3) {
+          return true;
         }
       }
     }

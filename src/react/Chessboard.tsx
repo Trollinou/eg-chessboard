@@ -60,8 +60,11 @@ export interface ChessboardProps extends BoardEvents {
   diagram?: ChessDiagram;
 }
 
+const DEFAULT_BOARD_CONFIG: Config = {};
+const DEFAULT_STOCKFISH_CONFIG: StockfishConfig = {};
+
 export const Chessboard: React.FC<ChessboardProps> = ({
-  boardConfig = {},
+  boardConfig = DEFAULT_BOARD_CONFIG,
   mode = 'game',
   playerColor,
   freeMode = false,
@@ -71,7 +74,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   preserveShapesOnPositionChange = false,
   pieceSet = 'cburnett',
   boardTheme = 'brown',
-  stockfishConfig = {},
+  stockfishConfig = DEFAULT_STOCKFISH_CONFIG,
   diagram,
   onBoardCreated,
   onMove,

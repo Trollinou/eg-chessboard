@@ -1,4 +1,7 @@
-import { makeFen } from 'chessops/fen';
+import { Chess, parseUci } from 'chessops';
+import { makeFen, parseFen } from 'chessops/fen';
+import { makeSan } from 'chessops/san';
+import { getNodesForElo } from '../BoardHelper';
 import { DomainEventBus } from './DomainEventBus';
 import { GameSession } from './GameSession';
 import { StockfishEngine } from './StockfishEngine';
@@ -186,10 +189,13 @@ export class StockfishManager {
       const ok = this.engine.setPosition(baseCmd, moves, currentFen);
       if (!ok) return;
 
-      const moveTime =
-        this.stockfishConfig.searchLimit?.movetime || this.stockfishConfig.stockfishMoveTime || 1000;
+      const explicitMoveTime =
+        this.stockfishConfig.searchLimit?.movetime ?? this.stockfishConfig.stockfishMoveTime;
       const depth = this.stockfishConfig.searchLimit?.depth;
-      const nodes = this.stockfishConfig.searchLimit?.nodes;
+      const nodes =
+        this.stockfishConfig.searchLimit?.nodes ??
+        (mode === 'elo' && !explicitMoveTime && !depth ? getNodesForElo(targetElo) : undefined);
+      const moveTime = explicitMoveTime || 1000;
 
       this.engine.search({
         movetime: depth || nodes ? undefined : moveTime,
@@ -417,6 +423,12 @@ export class StockfishManager {
           blackSummary[judgement]++;
         }
 
+        const bestMoveUci = evalBefore.bestMove || moveUci;
+        const bestMoveSan =
+          bestMoveUci === moveUci
+            ? move.san
+            : this.uciToSan(move.before, bestMoveUci);
+
         movesReport.push({
           ply: i + 1,
           san: move.san,
@@ -426,8 +438,8 @@ export class StockfishManager {
           playedMoveScore: playedWinChance,
           bestMoveScore: bestWinChance,
           diffPercentage: Number(diff.toFixed(1)),
-          bestMoveUci: evalBefore.bestMove || moveUci,
-          bestMoveSan: evalBefore.bestMove || moveUci,
+          bestMoveUci,
+          bestMoveSan,
         });
 
         evalGraph.push({
@@ -590,6 +602,16 @@ export class StockfishManager {
     if (diff <= 20.0) return 'inaccuracy';
     if (diff <= 35.0) return 'mistake';
     return 'blunder';
+  }
+
+  private uciToSan(fen: string, uci: string): string {
+    const parsedMove = parseUci(uci);
+    if (!parsedMove) return uci;
+    const setupRes = parseFen(fen);
+    if (setupRes.isErr) return uci;
+    const posRes = Chess.fromSetup(setupRes.value);
+    if (posRes.isErr) return uci;
+    return makeSan(posRes.value, parsedMove) || uci;
   }
 
   private calculateAccuracy(losses: number[]): number {

@@ -83,17 +83,17 @@ npm run optimize-assets
 
 La bibliothèque offre plusieurs modes de chargement des styles pour s'adapter à tous les environnements :
 
-### 1. Import CSS Tout-en-un (Rapide / Sans outil Sass)
-Charge la structure et l'ensemble des 10 jeux de pièces inclus (~374 kB) :
-```typescript
-import 'eg-chessboard/style.css';
-```
-
-### 2. Import CSS Modulaire (Recommandé en Production sans Sass)
+### 1. Import CSS Modulaire (Recommandé pour WordPress & PWA)
 Charge uniquement la structure de base (~13 kB / 2.5 kB gzip) et le(s) jeu(x) de pièces utilisé(s) (~12 à 85 kB par thème) :
 ```typescript
 import 'eg-chessboard/base.css';
 import 'eg-chessboard/pieces/cburnett.css'; // ou alpha, cardinal, dubrovny, fantasy, firi, maestro, merida, staunty, tatiana
+```
+
+### 2. Import CSS Tout-en-un (@deprecated)
+> **[!WARNING] Déprécié** : Préférez l'import modulaire (`eg-chessboard/base.css` + `eg-chessboard/pieces/<set>.css`) pour éviter de charger les 10 jeux de pièces simultanément (~365 kB).
+```typescript
+import 'eg-chessboard/style.css';
 ```
 
 ### 3. Import SCSS avec Personnalisation (Projets avec Sass / Vite / Webpack)

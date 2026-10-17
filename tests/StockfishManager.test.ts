@@ -256,4 +256,52 @@ describe('StockfishManager', () => {
 
     await expect(reviewPromise).rejects.toThrow('aborted');
   });
+
+  it('automatically applies getNodesForElo in elo mode when no explicit search limit is provided', async () => {
+    const manager = new StockfishManager(eventBus, session, {
+      workerUrl: '/stockfish.js',
+      whiteMode: 'elo',
+      whiteElo: 1300,
+    });
+
+    manager.initStockfish(false);
+    await new Promise((r) => setTimeout(r, 30));
+
+    manager.triggerStockfish(false);
+
+    expect(mockWorkerInstance?.messagesPosted).toContain(
+      'setoption name UCI_LimitStrength value true'
+    );
+    expect(mockWorkerInstance?.messagesPosted).toContain('setoption name UCI_Elo value 1300');
+    expect(mockWorkerInstance?.messagesPosted).toContain('go nodes 5000');
+  });
+
+  it('converts bestMoveUci to SAN notation in reviewGame report', async () => {
+    session.loadPgn('1. e4 e5');
+
+    const manager = new StockfishManager(eventBus, session, {
+      workerUrl: '/stockfish.js',
+      whiteMode: 'hint',
+    });
+
+    manager.initStockfish(false);
+    await new Promise((r) => setTimeout(r, 30));
+
+    if (mockWorkerInstance) {
+      const origPostMessage = mockWorkerInstance.postMessage.bind(mockWorkerInstance);
+      mockWorkerInstance.postMessage = (msg: string) => {
+        origPostMessage(msg);
+        if (msg.startsWith('go depth')) {
+          setTimeout(() => {
+            mockWorkerInstance?.simulateMessage('info depth 10 score cp 35 wdl 200 750 50 pv g1f3');
+            mockWorkerInstance?.simulateMessage('bestmove g1f3');
+          }, 0);
+        }
+      };
+    }
+
+    const report = await manager.reviewGame({ depth: 8 });
+    expect(report.moves[0].bestMoveUci).toBe('g1f3');
+    expect(report.moves[0].bestMoveSan).toBe('Nf3');
+  });
 });

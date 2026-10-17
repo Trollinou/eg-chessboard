@@ -1,7 +1,5 @@
 import { Chess, parseSquare } from 'chessops';
-import { parseFen, makeFen } from 'chessops/fen';
-import { parsePgn, startingPosition } from 'chessops/pgn';
-import { parseSan } from 'chessops/san';
+import { parseFen } from 'chessops/fen';
 import type { Color as ChessopsColor, Role } from 'chessops/types';
 import type { Key, Color } from '@lichess-org/chessground/types';
 
@@ -92,40 +90,14 @@ export class FenManager {
   }
 
   public static validateFen(fen: string): { valid: boolean; error?: string } {
-    if (!fen || typeof fen !== 'string') {
-      return { valid: false, error: 'Empty FEN string' };
-    }
-    const setupRes = parseFen(fen.trim());
-    if (setupRes.isErr) {
-      return { valid: false, error: `Invalid FEN syntax: ${setupRes.error}` };
-    }
-    const chessRes = Chess.fromSetup(setupRes.value);
-    if (chessRes.isErr) {
-      return { valid: false, error: `Illegal chess position: ${chessRes.error}` };
-    }
-    return { valid: true };
+    return BoardHelper.validateFen(fen);
   }
 
   public static getFinalFenFromPgn(
     pgnStr: string,
     fallbackFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
   ): string {
-    if (!pgnStr || !pgnStr.trim()) return fallbackFen;
-    try {
-      const games = parsePgn(pgnStr);
-      if (!games.length) return fallbackFen;
-      const g = games[0];
-      const startRes = startingPosition(g.headers);
-      const temp = startRes.isOk ? startRes.value : Chess.default();
-      for (const child of g.moves.mainlineNodes()) {
-        const m = parseSan(temp, child.data.san);
-        if (!m) break;
-        temp.play(m);
-      }
-      return makeFen(temp.toSetup());
-    } catch {
-      return fallbackFen;
-    }
+    return BoardHelper.getFinalFenFromPgn(pgnStr, fallbackFen);
   }
 
   // Delegations to BoardHelper for backward compatibility

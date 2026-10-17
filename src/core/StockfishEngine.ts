@@ -325,35 +325,53 @@ export class StockfishEngine {
     if (this.status === 'stopping') return;
     const ctx = this.activeContext || this.stagedContext;
 
-    const depthMatch = line.match(/\bdepth\s+(\d+)/);
-    const seldepthMatch = line.match(/\bseldepth\s+(\d+)/);
-    const multipvMatch = line.match(/\bmultipv\s+(\d+)/);
-    const nodesMatch = line.match(/\bnodes\s+(\d+)/);
-    const npsMatch = line.match(/\bnps\s+(\d+)/);
-    const timeMatch = line.match(/\btime\s+(\d+)/);
-    const wdlMatch = line.match(/\bwdl\s+(\d+)\s+(\d+)\s+(\d+)/);
-    const scoreCpMatch = line.match(/\bscore\s+cp\s+(-?\d+)/);
-    const scoreMateMatch = line.match(/\bscore\s+mate\s+(-?\d+)/);
-
-    let scoreType: 'cp' | 'mate' = 'cp';
+    const tokens = line.split(/\s+/);
+    let depth = 0;
+    let seldepth: number | undefined;
+    let multipvIndex = 1;
+    let nodes: number | undefined;
+    let nps: number | undefined;
+    let time: number | undefined;
+    let wdl: [number, number, number] | undefined;
+    let scoreType: 'cp' | 'mate' | null = null;
     let scoreValue = 0;
+    let pvMoves: string[] = [];
 
-    if (scoreMateMatch) {
-      scoreType = 'mate';
-      scoreValue = parseInt(scoreMateMatch[1], 10);
-    } else if (scoreCpMatch) {
-      scoreType = 'cp';
-      scoreValue = parseInt(scoreCpMatch[1], 10);
-    } else {
-      return;
+    for (let i = 1; i < tokens.length; i++) {
+      const token = tokens[i];
+      if (token === 'depth' && i + 1 < tokens.length) {
+        depth = parseInt(tokens[++i], 10);
+      } else if (token === 'seldepth' && i + 1 < tokens.length) {
+        seldepth = parseInt(tokens[++i], 10);
+      } else if (token === 'multipv' && i + 1 < tokens.length) {
+        multipvIndex = parseInt(tokens[++i], 10);
+      } else if (token === 'nodes' && i + 1 < tokens.length) {
+        nodes = parseInt(tokens[++i], 10);
+      } else if (token === 'nps' && i + 1 < tokens.length) {
+        nps = parseInt(tokens[++i], 10);
+      } else if (token === 'time' && i + 1 < tokens.length) {
+        time = parseInt(tokens[++i], 10);
+      } else if (token === 'wdl' && i + 3 < tokens.length) {
+        wdl = [
+          parseInt(tokens[++i], 10),
+          parseInt(tokens[++i], 10),
+          parseInt(tokens[++i], 10),
+        ];
+      } else if (token === 'score' && i + 2 < tokens.length) {
+        const type = tokens[++i];
+        if (type === 'cp' || type === 'mate') {
+          scoreType = type;
+          scoreValue = parseInt(tokens[++i], 10);
+        }
+      } else if (token === 'pv') {
+        pvMoves = tokens.slice(i + 1);
+        break;
+      }
     }
 
-    const wdl: [number, number, number] | undefined = wdlMatch
-      ? [parseInt(wdlMatch[1], 10), parseInt(wdlMatch[2], 10), parseInt(wdlMatch[3], 10)]
-      : undefined;
-
-    const pvMatch = line.match(/\bpv\s+(.+)$/);
-    const pvMoves = pvMatch ? pvMatch[1].trim().split(/\s+/) : [];
+    if (!scoreType) {
+      return;
+    }
 
     const isWhite = ctx.turn === 'white';
     const sign = isWhite ? 1 : -1;
@@ -368,8 +386,8 @@ export class StockfishEngine {
     const evaluation: StockfishEvaluation = {
       ply: ctx.ply,
       fen: ctx.fen,
-      depth: depthMatch ? parseInt(depthMatch[1], 10) : 0,
-      seldepth: seldepthMatch ? parseInt(seldepthMatch[1], 10) : undefined,
+      depth,
+      seldepth,
       scoreType,
       scoreValue,
       whiteScoreValue,
@@ -377,10 +395,10 @@ export class StockfishEngine {
       wdl,
       bestMove: pvMoves[0],
       pv: pvMoves,
-      multipvIndex: multipvMatch ? parseInt(multipvMatch[1], 10) : 1,
-      nodes: nodesMatch ? parseInt(nodesMatch[1], 10) : undefined,
-      nps: npsMatch ? parseInt(npsMatch[1], 10) : undefined,
-      time: timeMatch ? parseInt(timeMatch[1], 10) : undefined,
+      multipvIndex,
+      nodes,
+      nps,
+      time,
     };
 
     this.lastEvaluation = evaluation;
