@@ -163,7 +163,11 @@ export class StockfishEngine {
   }
 
   public search(options: SearchOptions = {}): void {
-    if (!this.worker) return;
+    if (this.status === 'error' || !this.worker) {
+      this.pendingSearch = () => this.search(options);
+      this.init().catch(() => {});
+      return;
+    }
 
     if (this.status === 'loading') {
       this.pendingSearch = () => this.search(options);
@@ -223,7 +227,11 @@ export class StockfishEngine {
   }
 
   public newGame(): void {
-    if (!this.worker || this.status === 'uninitialized') return;
+    if (this.status === 'error' || !this.worker) {
+      this.init().catch(() => {});
+      return;
+    }
+    if (this.status === 'uninitialized') return;
     this.pendingSearch = null;
     this.pendingPosition = null;
     if (this.status === 'searching' || this.status === 'stopping') {
@@ -313,10 +321,11 @@ export class StockfishEngine {
       const next = this.pendingSearch;
       this.pendingSearch = null;
 
+      if (bestMove) {
+        this.handlers.onBestMove?.(bestMove, ponder);
+      }
       if (next) {
         next();
-      } else if (bestMove) {
-        this.handlers.onBestMove?.(bestMove, ponder);
       }
     }
   }

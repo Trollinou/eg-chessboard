@@ -53,6 +53,27 @@ export class StockfishManager {
     this.stockfishConfig = stockfishConfig;
     this.eventBus.on('history-navigated', () => {
       if (this.isLiveAnalysis) {
+        const { isGameOver } = this.getEnginePosition();
+        if (isGameOver) {
+          this.engine?.stop();
+          const isCheckmate = this.session.getIsCheckmate();
+          const turnColor = this.session.getTurnColor();
+          const winChance = isCheckmate ? (turnColor === 'white' ? 0 : 100) : 50;
+          this.eventBus.emit('stockfish-eval', {
+            evaluation: {
+              ply: this.session.getCurrentViewingPly(),
+              fen: this.session.getFen(),
+              scoreType: isCheckmate ? 'mate' : 'cp',
+              scoreValue: 0,
+              whiteScoreValue: isCheckmate ? (turnColor === 'white' ? -10000 : 10000) : 0,
+              winChancePercentage: winChance,
+              depth: 0,
+              pv: [],
+              multipvIndex: 1,
+            },
+          });
+          return;
+        }
         this.triggerStockfish(false);
       }
     });
@@ -60,6 +81,10 @@ export class StockfishManager {
 
   public newGame(): void {
     this.isHintRequested = false;
+    if (!this.engine || this.engine.getStatus() === 'error') {
+      this.initStockfish(false);
+      return;
+    }
     this.engine?.newGame();
   }
 
@@ -111,7 +136,11 @@ export class StockfishManager {
       return;
     }
 
-    if (!this.engine) {
+    if (!this.engine || this.engine.getStatus() === 'error') {
+      if (this.engine) {
+        this.engine.terminate();
+        this.engine = null;
+      }
       this.engine = new StockfishEngine(workerUrl, wasmUrl, {
         onStatusChange: (status) => {
           this.eventBus.emit('stockfish-status', { status });
@@ -241,7 +270,7 @@ export class StockfishManager {
     if (this.isReviewRunning) return;
     this.isHintRequested = true;
 
-    if (!this.engine) {
+    if (!this.engine || this.engine.getStatus() === 'error') {
       this.initStockfish(false);
     }
     if (!this.engine) {
@@ -268,7 +297,7 @@ export class StockfishManager {
   public startLiveAnalysis(): void {
     if (this.isReviewRunning) return;
     this.isLiveAnalysis = true;
-    if (!this.engine) {
+    if (!this.engine || this.engine.getStatus() === 'error') {
       this.initStockfish(false);
     }
     if (!this.engine) return;
@@ -314,7 +343,7 @@ export class StockfishManager {
     } = {}
   ): Promise<GameReviewReport> {
     this.isReviewRunning = true;
-    if (!this.engine) {
+    if (!this.engine || this.engine.getStatus() === 'error') {
       this.initStockfish(false);
     }
     if (!this.engine) {
@@ -374,7 +403,14 @@ export class StockfishManager {
         const evalBefore = currentEval;
 
         // 2. Play the move and evaluate position after move
-        const moveUci = move.from + move.to + (move.promotion ? move.promotion.toLowerCase() : '');
+        let moveUci = move.from + move.to;
+        const san = move.san ? move.san.trim() : '';
+        if (san.startsWith('O-O-O') || san.startsWith('0-0-0') || moveUci === 'e1a1' || moveUci === 'e8a8') {
+          moveUci = moveColor === 'white' ? 'e1c1' : 'e8c8';
+        } else if (san.startsWith('O-O') || san.startsWith('0-0') || moveUci === 'e1h1' || moveUci === 'e8h8') {
+          moveUci = moveColor === 'white' ? 'e1g1' : 'e8g8';
+        }
+        moveUci += move.promotion ? move.promotion.toLowerCase() : '';
         playedMovesUci.push(moveUci);
 
         let evalAfter: StockfishEvaluation;
@@ -513,7 +549,7 @@ export class StockfishManager {
         return;
       }
 
-      if (!this.engine) {
+      if (!this.engine || this.engine.getStatus() === 'error') {
         resolve({
           ply: moves.length,
           fen: rootFen,
@@ -576,6 +612,9 @@ export class StockfishManager {
           lastEval = ev;
         },
         onBestMove: () => {
+          finish();
+        },
+        onError: () => {
           finish();
         },
       };
@@ -655,9 +694,16 @@ export class StockfishManager {
       currentFen = this.session.getFen();
     }
 
-    const moves = history.map(
-      (m) => m.from + m.to + (m.promotion ? m.promotion.toLowerCase() : '')
-    );
+    const moves = history.map((m) => {
+      let uci = m.from + m.to;
+      const san = m.san ? m.san.trim() : '';
+      if (san.startsWith('O-O-O') || san.startsWith('0-0-0') || uci === 'e1a1' || uci === 'e8a8') {
+        uci = m.color === 'w' ? 'e1c1' : 'e8c8';
+      } else if (san.startsWith('O-O') || san.startsWith('0-0') || uci === 'e1h1' || uci === 'e8h8') {
+        uci = m.color === 'w' ? 'e1g1' : 'e8g8';
+      }
+      return uci + (m.promotion ? m.promotion.toLowerCase() : '');
+    });
 
     return { baseCmd, moves, currentFen, currentTurn, isGameOver };
   }

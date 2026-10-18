@@ -30,6 +30,7 @@ export {
   shortToLongColor,
   getThreats,
   getFinalFenFromPgn,
+  normalizePgn,
   validateFen,
   computeEvalBarPercentage,
   getNodesForElo,

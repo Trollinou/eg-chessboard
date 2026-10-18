@@ -62,6 +62,13 @@ export function buildMovePojo(pos: Chess, parsedMove: ChessopsMove, fenBefore: s
       : undefined;
 
   const sanStr = makeSanAndPlay(pos, parsedMove);
+  let finalToStr = toStr;
+  if (sanStr.startsWith('O-O-O')) {
+    finalToStr = colorBefore === 'w' ? 'c1' : 'c8';
+  } else if (sanStr.startsWith('O-O')) {
+    finalToStr = colorBefore === 'w' ? 'g1' : 'g8';
+  }
+
   const fenAfter = makeFen(pos.toSetup());
   const turnAfter: 'white' | 'black' = pos.turn === 'white' ? 'white' : 'black';
   const plyAfter = (pos.fullmoves - 1) * 2 + (pos.turn === 'black' ? 1 : 2);
@@ -69,7 +76,7 @@ export function buildMovePojo(pos: Chess, parsedMove: ChessopsMove, fenBefore: s
 
   return {
     from: fromStr,
-    to: toStr,
+    to: finalToStr,
     piece: pieceBefore ? roleToPieceSymbol[pieceBefore.role] : 'p',
     color: colorBefore,
     san: sanStr,

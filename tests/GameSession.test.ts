@@ -207,5 +207,56 @@ describe('GameSession', () => {
       session.removePiece('d4');
       expect(session.getSquare('d4')).toBeNull();
     });
+
+    it('loads the user game with figurines and 0-0-0 / O-O-O', () => {
+      const pgnStandard = `1. d4 a5
+2. e4 d6
+3. Nc3 c6
+4. Be3 e5
+5. Qe2 Nd7
+6. O-O-O Qc7
+7. a4 Be7
+8. g4 Ngf6
+9. g5 Nxe4
+10. Nxe4 O-O
+11. dxe5 Nxe5
+12. f4 d5
+13. Nf6+ Bxf6
+14. gxf6 Nc4
+15. Qg2 Bg4
+16. Qxg4 g5
+17. Qxg5+ Kh8
+18. Qg7#`;
+      session.loadPgn(pgnStandard);
+      expect(session.getHistory(true).length).toBe(35);
+      expect(session.getLastMove()?.san).toBe('Qg7#');
+
+      const pgnFigurinesAndZeros = `1. d4 a5
+2. e4 d6
+3. ♞c3 c6
+4. ♝e3 e5
+5. ♛e2 ♞d7
+6. 0-0-0 ♛c7
+7. a4 ♝e7
+8. g4 ♞gf6
+9. g5 ♞xe4
+10. ♞xe4 0-0
+11. dxe5 ♞xe5
+12. f4 d5
+13. ♞f6+ ♝xf6
+14. gxf6 ♞c4
+15. ♛g2 ♝g4
+16. ♛xg4 g5
+17. ♛xg5+ ♚h8
+18. ♛g7#`;
+      session.loadPgn(pgnFigurinesAndZeros);
+      expect(session.getHistory(true).length).toBe(35);
+      expect(session.getLastMove()?.san).toBe('Qg7#');
+      const whiteCastle = session.getHistory(true)[10];
+      expect(whiteCastle.san).toBe('O-O-O');
+      expect(whiteCastle.from).toBe('e1');
+      expect(whiteCastle.to).toBe('c1');
+    });
   });
 });
+

@@ -295,6 +295,7 @@ export class GameSession {
     isNormalPromo?: boolean;
     colorBefore?: 'w' | 'b';
   } {
+    const normalizedMoveObj = typeof moveObj === 'string' ? BoardHelper.normalizePgn(moveObj) : moveObj;
     const wasViewingHistory = this.isViewingHistory();
 
     if (wasViewingHistory) {
@@ -305,11 +306,11 @@ export class GameSession {
       if (options.readOnly) {
         const tempPos = this.syncGamePosToPly(ply);
         let tempParsed: ChessopsMove | undefined;
-        if (typeof moveObj === 'string') {
-          tempParsed = parseSan(tempPos, moveObj);
+        if (typeof normalizedMoveObj === 'string') {
+          tempParsed = parseSan(tempPos, normalizedMoveObj);
         } else {
-          const fromSq = parseSquare(moveObj.from);
-          const toSq = parseSquare(moveObj.to);
+          const fromSq = parseSquare(normalizedMoveObj.from);
+          const toSq = parseSquare(normalizedMoveObj.to);
           if (fromSq !== undefined && toSq !== undefined) {
             tempParsed = { from: fromSq, to: toSq };
           }
@@ -337,28 +338,28 @@ export class GameSession {
     let parsedMove: ChessopsMove | undefined;
 
     if (options.freeMode) {
-      if (typeof moveObj === 'string') {
+      if (typeof normalizedMoveObj === 'string') {
         const posWhite = this.pos.clone();
         posWhite.turn = 'white';
-        const moveWhite = parseSan(posWhite, moveObj);
+        const moveWhite = parseSan(posWhite, normalizedMoveObj);
         if (moveWhite && posWhite.isLegal(moveWhite)) {
           this.pos.turn = 'white';
           parsedMove = moveWhite;
         } else {
           const posBlack = this.pos.clone();
           posBlack.turn = 'black';
-          const moveBlack = parseSan(posBlack, moveObj);
+          const moveBlack = parseSan(posBlack, normalizedMoveObj);
           if (moveBlack && posBlack.isLegal(moveBlack)) {
             this.pos.turn = 'black';
             parsedMove = moveBlack;
           }
         }
       } else {
-        const fromSq = parseSquare(moveObj.from);
-        const toSq = parseSquare(moveObj.to);
+        const fromSq = parseSquare(normalizedMoveObj.from);
+        const toSq = parseSquare(normalizedMoveObj.to);
         if (fromSq !== undefined && toSq !== undefined) {
-          const promoRole = moveObj.promotion
-            ? pieceSymbolToRole[moveObj.promotion.toLowerCase()]
+          const promoRole = normalizedMoveObj.promotion
+            ? pieceSymbolToRole[normalizedMoveObj.promotion.toLowerCase()]
             : undefined;
           parsedMove = { from: fromSq, to: toSq, promotion: promoRole };
           const piece = this.pos.board.get(fromSq);
@@ -368,14 +369,14 @@ export class GameSession {
         }
       }
     } else {
-      if (typeof moveObj === 'string') {
-        parsedMove = parseSan(this.pos, moveObj);
+      if (typeof normalizedMoveObj === 'string') {
+        parsedMove = parseSan(this.pos, normalizedMoveObj);
       } else {
-        const fromSq = parseSquare(moveObj.from);
-        const toSq = parseSquare(moveObj.to);
+        const fromSq = parseSquare(normalizedMoveObj.from);
+        const toSq = parseSquare(normalizedMoveObj.to);
         if (fromSq !== undefined && toSq !== undefined) {
-          const promoRole = moveObj.promotion
-            ? pieceSymbolToRole[moveObj.promotion.toLowerCase()]
+          const promoRole = normalizedMoveObj.promotion
+            ? pieceSymbolToRole[normalizedMoveObj.promotion.toLowerCase()]
             : undefined;
           parsedMove = { from: fromSq, to: toSq, promotion: promoRole };
         }
@@ -613,7 +614,8 @@ export class GameSession {
   // --- PGN Serializing & Loading ---
 
   public loadPgn(pgnStr: string): void {
-    const games = parsePgn(pgnStr);
+    const normalized = BoardHelper.normalizePgn(pgnStr);
+    const games = parsePgn(normalized);
     if (!games.length) return;
     const game = games[0];
     this.headers = game.headers || defaultHeaders();
