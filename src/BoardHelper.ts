@@ -162,13 +162,31 @@ export function getGameOverReason(
   return '';
 }
 
+/**
+ * Normalise une chaîne PGN en remplaçant les roques avec zéros (0-0-0 / 0-0)
+ * par la notation officielle (O-O-O / O-O) et les figurines Unicode (FAN)
+ * par les lettres standard SAN anglophones (NBRQK).
+ */
+export function normalizePgn(pgn: string): string {
+  if (!pgn) return '';
+  return pgn
+    .replace(/0-0-0/g, 'O-O-O')
+    .replace(/0-0/g, 'O-O')
+    .replace(/[♘♞]/g, 'N')
+    .replace(/[♗♝]/g, 'B')
+    .replace(/[♖♜]/g, 'R')
+    .replace(/[♕♛]/g, 'Q')
+    .replace(/[♔♚]/g, 'K')
+    .replace(/[♙♟]/g, '');
+}
+
 export function getFinalFenFromPgn(
   pgnStr: string,
   fallbackFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 ): string {
   if (!pgnStr || !pgnStr.trim()) return fallbackFen;
   try {
-    const games = parsePgn(pgnStr);
+    const games = parsePgn(normalizePgn(pgnStr));
     if (!games.length) return fallbackFen;
     const g = games[0];
     const startRes = startingPosition(g.headers);
@@ -209,6 +227,9 @@ export function computeEvalBarPercentage(
   const sign = isWhite ? 1 : -1;
 
   if (scoreType === 'mate') {
+    if (scoreValue === 0) {
+      return isWhite ? 0 : 100;
+    }
     const whiteMate = scoreValue * sign;
     return whiteMate > 0 ? 100 : 0;
   }

@@ -1,5 +1,4 @@
 import { Chess, parseSquare } from 'chessops';
-import { equalsIgnoreMoves } from 'chessops/chess';
 import { makeFen, parseFen } from 'chessops/fen';
 import { parseSan } from 'chessops/san';
 import {
@@ -296,6 +295,7 @@ export class GameSession {
     isNormalPromo?: boolean;
     colorBefore?: 'w' | 'b';
   } {
+    const normalizedMoveObj = typeof moveObj === 'string' ? BoardHelper.normalizePgn(moveObj) : moveObj;
     const wasViewingHistory = this.isViewingHistory();
 
     if (wasViewingHistory) {
@@ -306,11 +306,11 @@ export class GameSession {
       if (options.readOnly) {
         const tempPos = this.syncGamePosToPly(ply);
         let tempParsed: ChessopsMove | undefined;
-        if (typeof moveObj === 'string') {
-          tempParsed = parseSan(tempPos, moveObj);
+        if (typeof normalizedMoveObj === 'string') {
+          tempParsed = parseSan(tempPos, normalizedMoveObj);
         } else {
-          const fromSq = parseSquare(moveObj.from);
-          const toSq = parseSquare(moveObj.to);
+          const fromSq = parseSquare(normalizedMoveObj.from);
+          const toSq = parseSquare(normalizedMoveObj.to);
           if (fromSq !== undefined && toSq !== undefined) {
             tempParsed = { from: fromSq, to: toSq };
           }
@@ -338,28 +338,28 @@ export class GameSession {
     let parsedMove: ChessopsMove | undefined;
 
     if (options.freeMode) {
-      if (typeof moveObj === 'string') {
+      if (typeof normalizedMoveObj === 'string') {
         const posWhite = this.pos.clone();
         posWhite.turn = 'white';
-        const moveWhite = parseSan(posWhite, moveObj);
+        const moveWhite = parseSan(posWhite, normalizedMoveObj);
         if (moveWhite && posWhite.isLegal(moveWhite)) {
           this.pos.turn = 'white';
           parsedMove = moveWhite;
         } else {
           const posBlack = this.pos.clone();
           posBlack.turn = 'black';
-          const moveBlack = parseSan(posBlack, moveObj);
+          const moveBlack = parseSan(posBlack, normalizedMoveObj);
           if (moveBlack && posBlack.isLegal(moveBlack)) {
             this.pos.turn = 'black';
             parsedMove = moveBlack;
           }
         }
       } else {
-        const fromSq = parseSquare(moveObj.from);
-        const toSq = parseSquare(moveObj.to);
+        const fromSq = parseSquare(normalizedMoveObj.from);
+        const toSq = parseSquare(normalizedMoveObj.to);
         if (fromSq !== undefined && toSq !== undefined) {
-          const promoRole = moveObj.promotion
-            ? pieceSymbolToRole[moveObj.promotion.toLowerCase()]
+          const promoRole = normalizedMoveObj.promotion
+            ? pieceSymbolToRole[normalizedMoveObj.promotion.toLowerCase()]
             : undefined;
           parsedMove = { from: fromSq, to: toSq, promotion: promoRole };
           const piece = this.pos.board.get(fromSq);
@@ -369,14 +369,14 @@ export class GameSession {
         }
       }
     } else {
-      if (typeof moveObj === 'string') {
-        parsedMove = parseSan(this.pos, moveObj);
+      if (typeof normalizedMoveObj === 'string') {
+        parsedMove = parseSan(this.pos, normalizedMoveObj);
       } else {
-        const fromSq = parseSquare(moveObj.from);
-        const toSq = parseSquare(moveObj.to);
+        const fromSq = parseSquare(normalizedMoveObj.from);
+        const toSq = parseSquare(normalizedMoveObj.to);
         if (fromSq !== undefined && toSq !== undefined) {
-          const promoRole = moveObj.promotion
-            ? pieceSymbolToRole[moveObj.promotion.toLowerCase()]
+          const promoRole = normalizedMoveObj.promotion
+            ? pieceSymbolToRole[normalizedMoveObj.promotion.toLowerCase()]
             : undefined;
           parsedMove = { from: fromSq, to: toSq, promotion: promoRole };
         }
@@ -614,7 +614,8 @@ export class GameSession {
   // --- PGN Serializing & Loading ---
 
   public loadPgn(pgnStr: string): void {
-    const games = parsePgn(pgnStr);
+    const normalized = BoardHelper.normalizePgn(pgnStr);
+    const games = parsePgn(normalized);
     if (!games.length) return;
     const game = games[0];
     this.headers = game.headers || defaultHeaders();
@@ -856,47 +857,36 @@ export class GameSession {
     this.soloHistory = [];
   }
 
+  private static extractRepetitionKey(fen: string): string {
+    const parts = fen.trim().split(/\s+/);
+    return parts.slice(0, 4).join(' ');
+  }
+
   public isThreefoldRepetition(targetPly?: number): boolean {
     const path = this.getActivePath();
     const limit = targetPly !== undefined ? Math.min(targetPly, path.length) : path.length;
 
-    const positions: Chess[] = [this.rootPos.clone()];
+    const targetFen =
+      limit === 0
+        ? makeFen(this.rootPos.toSetup())
+        : path[limit - 1]?.data.fen || this.getFen();
+    const targetKey = GameSession.extractRepetitionKey(targetFen);
 
-    for (let i = 0; i < limit; i++) {
-      const fen = path[i].data.fen;
-      let posSnapshot: Chess | undefined;
-      if (fen) {
-        const setup = parseFen(fen);
-        if (setup.isOk) {
-          const res = Chess.fromSetup(setup.value);
-          if (res.isOk) {
-            posSnapshot = res.value;
-          }
-        }
-      }
-      if (posSnapshot) {
-        positions.push(posSnapshot);
-      } else {
-        const prev = positions[positions.length - 1].clone();
-        const m = parseSan(prev, path[i].data.san);
-        if (m) {
-          prev.play(m);
-          positions.push(prev);
-        }
-      }
-    }
+    const halfmoves =
+      targetPly !== undefined && limit < path.length
+        ? parseInt(targetFen.trim().split(/\s+/)[4] || '0', 10)
+        : this.pos.halfmoves;
 
-    const halfmoves = this.pos.halfmoves;
-    const startIndex = Math.max(0, positions.length - 1 - halfmoves);
-
+    const startPly = Math.max(0, limit - halfmoves);
     let count = 0;
-    for (let i = positions.length - 1; i >= startIndex; i--) {
-      if (positions[i].turn === this.pos.turn) {
-        if (equalsIgnoreMoves(this.pos, positions[i])) {
-          count++;
-          if (count >= 3) {
-            return true;
-          }
+
+    for (let ply = limit; ply >= startPly; ply -= 2) {
+      const fenAtPly =
+        ply === 0 ? makeFen(this.rootPos.toSetup()) : path[ply - 1]?.data.fen;
+      if (fenAtPly && GameSession.extractRepetitionKey(fenAtPly) === targetKey) {
+        count++;
+        if (count >= 3) {
+          return true;
         }
       }
     }

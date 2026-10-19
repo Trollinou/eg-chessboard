@@ -1,6 +1,6 @@
 {
   "name": "eg-chessboard",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -41,9 +41,11 @@
     "./react": {
       "types": "./dist/react/Chessboard.d.ts",
       "import": "./dist/react.js"
-    }
+    },
+    "./stockfish.js": "./dist/stockfish.js",
+    "./stockfish.wasm": "./dist/stockfish.wasm"
   },
-  "style": "./dist/eg-chessboard.css",
+  "style": "./dist/base.css",
   "sass": "./dist/scss/style.scss",
   "scripts": {
     "build": "vite build && vue-tsc --declaration --emitDeclarationOnly --outDir dist --noEmit false",

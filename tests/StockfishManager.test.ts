@@ -256,4 +256,124 @@ describe('StockfishManager', () => {
 
     await expect(reviewPromise).rejects.toThrow('aborted');
   });
+
+  it('automatically applies getNodesForElo in elo mode when no explicit search limit is provided', async () => {
+    const manager = new StockfishManager(eventBus, session, {
+      workerUrl: '/stockfish.js',
+      whiteMode: 'elo',
+      whiteElo: 1300,
+    });
+
+    manager.initStockfish(false);
+    await new Promise((r) => setTimeout(r, 30));
+
+    manager.triggerStockfish(false);
+
+    expect(mockWorkerInstance?.messagesPosted).toContain(
+      'setoption name UCI_LimitStrength value true'
+    );
+    expect(mockWorkerInstance?.messagesPosted).toContain('setoption name UCI_Elo value 1300');
+    expect(mockWorkerInstance?.messagesPosted).toContain('go nodes 5000');
+  });
+
+  it('converts bestMoveUci to SAN notation in reviewGame report', async () => {
+    session.loadPgn('1. e4 e5');
+
+    const manager = new StockfishManager(eventBus, session, {
+      workerUrl: '/stockfish.js',
+      whiteMode: 'hint',
+    });
+
+    manager.initStockfish(false);
+    await new Promise((r) => setTimeout(r, 30));
+
+    if (mockWorkerInstance) {
+      const origPostMessage = mockWorkerInstance.postMessage.bind(mockWorkerInstance);
+      mockWorkerInstance.postMessage = (msg: string) => {
+        origPostMessage(msg);
+        if (msg.startsWith('go depth')) {
+          setTimeout(() => {
+            mockWorkerInstance?.simulateMessage('info depth 10 score cp 35 wdl 200 750 50 pv g1f3');
+            mockWorkerInstance?.simulateMessage('bestmove g1f3');
+          }, 0);
+        }
+      };
+    }
+
+    const report = await manager.reviewGame({ depth: 8 });
+    expect(report.moves[0].bestMoveUci).toBe('g1f3');
+    expect(report.moves[0].bestMoveSan).toBe('Nf3');
+  });
+
+  it('handles queenside castle (0-0-0 and O-O-O) during reviewGame', async () => {
+    // 0-0-0 with zeros and standard O-O-O
+    const pgnWithZeros = '1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. Bf4 Bf5 5. Qb3 Qb6 6. 0-0-0 Nbd7 7. e3 0-0-0';
+    session.loadPgn(pgnWithZeros);
+    expect(session.getHistory(true).length).toBe(14);
+
+    const whiteCastle = session.getHistory(true)[10];
+    expect(whiteCastle.san).toBe('O-O-O');
+    expect(whiteCastle.from).toBe('e1');
+    expect(whiteCastle.to).toBe('c1');
+
+    const blackCastle = session.getHistory(true)[13];
+    expect(blackCastle.san).toBe('O-O-O');
+    expect(blackCastle.from).toBe('e8');
+    expect(blackCastle.to).toBe('c8');
+
+    const manager = new StockfishManager(eventBus, session, {
+      workerUrl: '/stockfish.js',
+      whiteMode: 'hint',
+    });
+
+    manager.initStockfish(false);
+    await new Promise((r) => setTimeout(r, 30));
+
+    const postedPositions: string[] = [];
+    if (mockWorkerInstance) {
+      const origPostMessage = mockWorkerInstance.postMessage.bind(mockWorkerInstance);
+      mockWorkerInstance.postMessage = (msg: string) => {
+        origPostMessage(msg);
+        if (msg.startsWith('position')) {
+          postedPositions.push(msg);
+        }
+        if (msg.startsWith('go depth')) {
+          setTimeout(() => {
+            mockWorkerInstance?.simulateMessage('info depth 10 score cp 50 wdl 250 700 50 pv a4a5');
+            mockWorkerInstance?.simulateMessage('bestmove a4a5');
+          }, 0);
+        }
+      };
+    }
+
+    const report = await manager.reviewGame({ depth: 10 });
+    expect(report.moves.length).toBe(14);
+    // Ensure standard chess UCI e1c1 and e8c8 were sent to Stockfish, not e1a1/e8a8
+    const evalCmd = postedPositions.find((p) => p.includes('e8c8'));
+    expect(evalCmd).toBeDefined();
+    expect(evalCmd).toContain('e1c1');
+    expect(postedPositions.some((p) => p.includes('e1a1') || p.includes('e8a8'))).toBe(false);
+  });
+
+  it('re-initializes Stockfish when engine is in error state upon new request', async () => {
+    const manager = new StockfishManager(eventBus, session, {
+      workerUrl: '/stockfish.js',
+      whiteMode: 'hint',
+    });
+
+    manager.initStockfish(false);
+    await new Promise((r) => setTimeout(r, 30));
+
+    // Force engine into error state
+    mockWorkerInstance?.simulateMessage('info string CRITICAL ERROR: simulation');
+    expect(manager.getEngineStatus()).toBe('error');
+
+    // Subsequent requestHint should recover the engine
+    manager.requestHint({ movetime: 1000 });
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(manager.getEngineStatus()).not.toBe('error');
+    expect(mockWorkerInstance?.terminated).toBe(false);
+  });
 });
+

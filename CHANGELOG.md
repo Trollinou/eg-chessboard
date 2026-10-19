@@ -6,6 +6,27 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-10-18
+
+### Corrigé & Amélioré
+
+- **Correction critique de la génération des coups UCI pour le roque (Stockfish)** :
+  - Correction du bug où la représentation interne de `chessops` pour le roque cible la case de la tour (`e1a1` / `e8a8` pour le grand roque `O-O-O` et `e1h1` / `e8h8` pour le petit roque `O-O`).
+  - Normalisation systématique des coups UCI générés au standard UCI des échecs classiques (`e1c1` / `e8c8` et `e1g1` / `e8g8`) dans `StockfishManager.ts` (`reviewGame` et `getEnginePosition`) ainsi que dans `pieceMapping.ts` (`buildMovePojo`).
+  - Élimination des plantages du worker WebAssembly Stockfish 19 (`CRITICAL ERROR: Illegal move`), évitant le blocage irréversible du moteur lors de l'analyse ou de la revue de partie (`reviewGame`).
+- **Auto-récupération et résilience du moteur Stockfish (`StockfishEngine` & `StockfishManager`)** :
+  - Détection automatique de l'état `error` ou de l'absence de worker dans `search()`, `newGame()`, `initStockfish()`, `requestHint()`, `startLiveAnalysis()`, et `reviewGame()` avec réinitialisation et recyclage transparent du worker Stockfish sans rechargement de page.
+  - Ajout d'une gestion d'erreur `onError` immédiate dans `evaluatePosition()` évitant les blocages de 5 secondes par coup en cas d'échec du moteur.
+  - Garantie de l'émission de `onBestMove` avant le déclenchement de la recherche suivante dans la file d'attente FIFO.
+- **Normalisation PGN (`normalizePgn`) & support des notations hétérogènes et figurines Unicode** :
+  - Ajout et export de l'utilitaire `normalizePgn(pgn: string)` dans `BoardHelper.ts` et à la racine d'`eg-chessboard`.
+  - Conversion automatique des notations de roques avec zéros (`0-0-0` $\rightarrow$ `O-O-O`, `0-0` $\rightarrow$ `O-O`).
+  - Conversion automatique des figurines d'échecs Unicode (`♔♕♖♗♘♙♚♛♜♝♞♟`) en lettres de pièces SAN standard (`K`, `Q`, `R`, `B`, `N`).
+  - Intégration transparente dans `GameSession.loadPgn()`, `GameSession.executeMove()` et `BoardHelper.getFinalFenFromPgn()`.
+- **Correction des évaluations sur les positions de mat (`computeEvalBarPercentage` & historique)** :
+  - Prise en charge du score de mat terminal (`scoreType === 'mate'` et `scoreValue === 0`) dans `computeEvalBarPercentage()` retournant 0% ou 100% au lieu du point neutre (50%).
+  - Arrêt automatique du calcul Stockfish et émission d'une évaluation terminale instantanée lors de la navigation dans l'historique sur une position d'échec et mat.
+
 - **Refactorisation Architecturale du Cœur & Source Unique de Vérité (SSOT)** :
   - **Phase 1 - Unification de `soloHistory` et harmonisation visuelle** :
     - Déplacement et consolidation de l'historique solo (`soloHistory: Move[]`) exclusivement dans `GameSession.ts` (enregistrement automatique à chaque coup, dépilement synchronisé sur `undoLastMove()`, réinitialisation sur `newGame()`).
