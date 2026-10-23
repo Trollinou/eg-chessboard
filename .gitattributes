@@ -6,6 +6,8 @@
 *.js text eol=lf
 *.ts text eol=lf
 *.tsx text eol=lf
+*.cjs text eol=lf
+*.mjs text eol=lf
 *.vue text eol=lf
 *.json text eol=lf
 *.md text eol=lf
@@ -17,10 +19,36 @@
 *.yaml text eol=lf
 *.xml text eol=lf
 *.svg text eol=lf
+*.sql text eol=lf
+
+# Fichers de configuration
 .gitignore text eol=lf
 .gitattributes text eol=lf
 .eslintrc.json text eol=lf
+.editorconfig text eol=lf
 .distignore text eol=lf
+.htaccess text eol=lf
+.browserlistrc text eol=lf
+.geminirc text eol=lf
+.prettierrc text eol=lf
+.prettierignore text eol=lf
+*.env.* text eol=lf
+
+# Fichiers de templates/dist et locks
+*.dist text eol=lf
+*.lock text eol=lf
+
+# Fichiers de jeux échiquéens
+*.pgn text eol=lf
+*.fen text eol=lf
+
+# Scripts shell Unix (en miroir de *.bat/*.cmd/*.ps1)
+*.sh text eol=lf
+
+# Exceptions : scripts spécifiques à Windows qui exigent du CRLF pour s'exécuter
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
 
 # Binary files (do not touch line endings)
 *.png binary

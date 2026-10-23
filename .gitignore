@@ -67,8 +67,6 @@ stats.html
 *.local
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
 .idea/
 .DS_Store
 *.suo
@@ -78,3 +76,12 @@ stats.html
 *.sw?
 Thumbs.db
 .antigravityrules
+
+# Ignorer tout le dossier .vscode par défaut (sécurité)
+.vscode/*
+
+# Mais versionner la configuration standardisée du projet
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
