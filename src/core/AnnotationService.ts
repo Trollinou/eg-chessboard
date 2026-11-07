@@ -1,25 +1,71 @@
 import type { DrawShape } from '@lichess-org/chessground/draw';
 import type { Key } from '@lichess-org/chessground/types';
 import type { Api } from '@lichess-org/chessground/api';
+import { glyphToSvg, analysisGlyphs } from '@lichess-org/chessground/glyph';
 
-import type { BoardMode } from '../types';
+import type { BoardMode, BoardGlyph, GameReviewReport, MoveJudgement } from '../types';
 import { getThreats } from '../BoardHelper';
 import * as BoardHelper from '../BoardHelper';
 import { DomainEventBus } from './DomainEventBus';
 import { GameSession } from './GameSession';
 
+export function judgementToGlyph(judgement: MoveJudgement): BoardGlyph {
+  switch (judgement) {
+    case 'brilliant':
+      return '!!';
+    case 'best':
+    case 'excellent':
+    case 'good':
+      return '!';
+    case 'inaccuracy':
+      return '?!';
+    case 'mistake':
+      return '?';
+    case 'blunder':
+    case 'missed_win':
+      return '??';
+  }
+}
+
 export class AnnotationService {
   private currentPreservedShapes: DrawShape[] = [];
+  private currentGlyphs = new Map<Key, BoardGlyph>();
   private currentComment = '';
   private isDrawingUpdate = false;
   private isProgrammaticShapeUpdate = false;
+  private lastReviewReport: GameReviewReport | null = null;
   private board: Api | null = null;
 
   constructor(
     private eventBus: DomainEventBus,
     private session: GameSession,
     private getOptions?: () => { mode?: BoardMode; preserveShapesOnPositionChange?: boolean }
-  ) {}
+  ) {
+    this.eventBus.on('stockfish-game-review', (data) => {
+      if (data && data.isComplete && data.report) {
+        this.lastReviewReport = data.report;
+      }
+    });
+
+    this.eventBus.on('history-navigated', ({ ply }) => {
+      if (this.lastReviewReport) {
+        const moveAnalysis = this.lastReviewReport.moves.find((m) => m.ply === ply);
+        this.clearGlyphs();
+        if (moveAnalysis && moveAnalysis.uci.length >= 4) {
+          const destSq = moveAnalysis.uci.substring(2, 4) as Key;
+          const glyph = judgementToGlyph(moveAnalysis.judgement);
+          this.setGlyph(destSq, glyph);
+        }
+      }
+    });
+
+    this.eventBus.on('position-changed', () => {
+      if (this.lastReviewReport && !this.session.isViewingHistory()) {
+        this.lastReviewReport = null;
+        this.clearGlyphs();
+      }
+    });
+  }
 
   public setBoard(board: Api | null): void {
     this.board = board;
@@ -38,7 +84,76 @@ export class AnnotationService {
   }
 
   public setPreservedShapes(shapes: DrawShape[]): void {
-    this.currentPreservedShapes = shapes;
+    this.currentPreservedShapes = shapes.filter((s) => !s.customSvg);
+  }
+
+  public getGlyphSvg(glyph: BoardGlyph): string | null {
+    const analysis = analysisGlyphs(1);
+    if (analysis[glyph]) {
+      return analysis[glyph](0);
+    }
+    const general = glyphToSvg(1);
+    if (general[glyph]) {
+      return general[glyph](0);
+    }
+    return null;
+  }
+
+  public buildGlyphShapes(): DrawShape[] {
+    const shapes: DrawShape[] = [];
+    for (const [square, glyph] of this.currentGlyphs.entries()) {
+      const svgHtml = this.getGlyphSvg(glyph);
+      if (svgHtml) {
+        shapes.push({
+          orig: square,
+          customSvg: {
+            html: svgHtml,
+            center: 'orig',
+          },
+        });
+      }
+    }
+    return shapes;
+  }
+
+  public setGlyph(square: Key | string, glyph: BoardGlyph | null): void {
+    const sq = square as Key;
+    if (!glyph) {
+      this.currentGlyphs.delete(sq);
+    } else {
+      this.currentGlyphs.set(sq, glyph);
+    }
+    this.syncBoardShapes();
+  }
+
+  public clearGlyphs(): void {
+    if (this.currentGlyphs.size === 0) return;
+    this.currentGlyphs.clear();
+    this.syncBoardShapes();
+  }
+
+  public getGlyphs(): Map<Key, BoardGlyph> {
+    return new Map(this.currentGlyphs);
+  }
+
+  public getGlyph(square: Key | string): BoardGlyph | null {
+    return this.currentGlyphs.get(square as Key) ?? null;
+  }
+
+  public syncBoardShapes(): void {
+    if (!this.board) return;
+    this.isProgrammaticShapeUpdate = true;
+    const allShapes = [...this.currentPreservedShapes, ...this.buildGlyphShapes()];
+    this.board.setShapes(allShapes);
+    if (typeof requestAnimationFrame !== 'undefined') {
+      requestAnimationFrame(() => {
+        this.isProgrammaticShapeUpdate = false;
+      });
+    } else {
+      setTimeout(() => {
+        this.isProgrammaticShapeUpdate = false;
+      }, 0);
+    }
   }
 
   public getShapes(preserveShapesOnPositionChange: boolean): DrawShape[] {
@@ -50,7 +165,7 @@ export class AnnotationService {
       this.board?.state?.drawable?.autoShapes ||
       this.currentPreservedShapes ||
       []
-    );
+    ).filter((s) => !s.customSvg);
   }
 
   public applyBoardShapes(
@@ -62,10 +177,11 @@ export class AnnotationService {
     const isPreserve =
       preserveShapesOnPositionChange ??
       (!!this.getOptions?.().preserveShapesOnPositionChange || currentMode === 'editor');
-    this.currentPreservedShapes = shapes;
+    this.currentPreservedShapes = shapes.filter((s) => !s.customSvg);
     this.isProgrammaticShapeUpdate = true;
     if (this.board) {
-      this.board.setShapes(shapes);
+      const allShapes = [...this.currentPreservedShapes, ...this.buildGlyphShapes()];
+      this.board.setShapes(allShapes);
       const isGameMode = currentMode === 'game';
       this.board.set({
         drawable: {
@@ -96,20 +212,21 @@ export class AnnotationService {
     this.isDrawingUpdate = true;
     try {
       const shouldPreserve = isPreserve || mode === 'editor';
+      const userShapes = shapes.filter((s) => !s.customSvg);
 
       if (shouldPreserve) {
-        if (shapes.length > 0) {
-          this.setPreservedShapes(shapes);
+        if (userShapes.length > 0) {
+          this.setPreservedShapes(userShapes);
         } else if (this.board && this.getPreservedShapes().length > 0) {
           this.applyBoardShapes(this.getPreservedShapes(), true, mode);
         }
       } else {
-        this.setPreservedShapes(shapes);
+        this.setPreservedShapes(userShapes);
       }
 
       if (mode === 'study' && !readOnly) {
         const ply = this.session.getCurrentViewingPly();
-        this.setCommentAtPly(ply, this.currentComment, shapes, false, mode, shouldPreserve);
+        this.setCommentAtPly(ply, this.currentComment, userShapes, false, mode, shouldPreserve);
       }
 
       this.eventBus.emit('shapes-changed', { shapes: this.getPreservedShapes() });
@@ -248,6 +365,7 @@ export class AnnotationService {
     const csl: string[] = [];
 
     for (const s of shapes) {
+      if (s.customSvg) continue;
       const brushChar = this.getBrushChar(s.brush || 'green');
       if (s.orig && s.dest) {
         cal.push(`${brushChar}${s.orig}${s.dest}`);

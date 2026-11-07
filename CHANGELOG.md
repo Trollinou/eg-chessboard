@@ -6,6 +6,15 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+### Ajouté & Amélioré
+
+- **Support complet de `@lichess-org/chessground@10.5.0` & API de Glyphes Tactiques** :
+  - Support natif du nouveau glyphe d'analyse `trapped` (pièce piégée) ainsi que `pin`, `undefended`, `checkable` et des jugements NAG (`!`, `?`, `!!`, `??`, `?!`, `!?`).
+  - Ajout des méthodes publiques sur `BoardCore` et `AnnotationService` : `setGlyph(square, glyph)`, `clearGlyphs()`, `getGlyphs()`, `getGlyph(square)`.
+  - Intégration automatique des badges de jugement de coup sur la case d'arrivée lors de la navigation dans la revue de partie Stockfish (`reviewGame`).
+  - Ségrégation stricte des glyphes SVG visuels évitant toute pollution lors de l'export des commentaires et formes PGN (`shapesToPgnComment`).
+  - Bénéfice de l'animation native fluide des prises en passant (glissement et fondu simultanés sans réinitialisation FEN).
+
 ### Sécurité & Durcissement (DevSecOps)
 
 - **Validation stricte des URLs du Worker Stockfish (`StockfishEngine`)** :

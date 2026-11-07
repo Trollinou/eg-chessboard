@@ -15,6 +15,7 @@ import type {
   StockfishEvaluation,
   EngineStatus,
   GameReviewReport,
+  BoardGlyph,
 } from './types';
 
 import { DomainEventBus } from './core/DomainEventBus';
@@ -427,6 +428,22 @@ export class BoardCore {
       shapes as DrawShape[],
       !!this.state.preserveShapesOnPositionChange
     );
+  }
+
+  public setGlyph(square: Key | string, glyph: BoardGlyph | null): void {
+    this.annotationService.setGlyph(square, glyph);
+  }
+
+  public clearGlyphs(): void {
+    this.annotationService.clearGlyphs();
+  }
+
+  public getGlyphs(): Map<Key, BoardGlyph> {
+    return this.annotationService.getGlyphs();
+  }
+
+  public getGlyph(square: Key | string): BoardGlyph | null {
+    return this.annotationService.getGlyph(square);
   }
 
   public getState(): Readonly<BoardCoreState> {

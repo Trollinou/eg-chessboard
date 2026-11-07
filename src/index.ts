@@ -22,6 +22,9 @@ export type {
   GameReviewReport,
   MoveAnalysisReport,
   MoveJudgement,
+  TacticalGlyph,
+  AssessmentGlyph,
+  BoardGlyph,
 } from './types';
 export { AVAILABLE_PIECE_SETS, AVAILABLE_BOARD_THEMES } from './types';
 export {

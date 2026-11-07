@@ -117,6 +117,13 @@ export interface StockfishEvaluation {
   time?: number;
 }
 
+export type TacticalGlyph = 'pin' | 'undefended' | 'checkable' | 'trapped';
+
+export type AssessmentGlyph =
+  '!' | '?' | '!!' | '??' | '!?' | '?!' | '✓' | '✗' | '□' | '⨀' | '=' | '+-' | '-+';
+
+export type BoardGlyph = TacticalGlyph | AssessmentGlyph;
+
 export type MoveJudgement =
   'brilliant' | 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder' | 'missed_win';
 

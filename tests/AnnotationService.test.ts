@@ -108,4 +108,108 @@ describe('AnnotationService', () => {
       expect(annotationService.getBrushChar('unknown')).toBe('G');
     });
   });
+
+  describe('Glyphs & Tactical Badges', () => {
+    it('sets, retrieves and clears tactical glyphs including trapped', () => {
+      annotationService.setGlyph('d4', 'trapped');
+      annotationService.setGlyph('f7', 'undefended');
+      annotationService.setGlyph('e1', 'pin');
+
+      expect(annotationService.getGlyph('d4')).toBe('trapped');
+      expect(annotationService.getGlyph('f7')).toBe('undefended');
+      expect(annotationService.getGlyph('e1')).toBe('pin');
+      expect(annotationService.getGlyph('a1')).toBeNull();
+
+      const glyphs = annotationService.getGlyphs();
+      expect(glyphs.size).toBe(3);
+      expect(glyphs.get('d4')).toBe('trapped');
+
+      const shapes = annotationService.buildGlyphShapes();
+      expect(shapes).toHaveLength(3);
+      const trappedShape = shapes.find((s) => s.orig === 'd4');
+      expect(trappedShape?.customSvg?.html).toBeDefined();
+
+      annotationService.setGlyph('d4', null);
+      expect(annotationService.getGlyph('d4')).toBeNull();
+
+      annotationService.clearGlyphs();
+      expect(annotationService.getGlyphs().size).toBe(0);
+      expect(annotationService.buildGlyphShapes()).toHaveLength(0);
+    });
+
+    it('generates SVG for assessment glyphs and excludes customSvg from PGN comments', () => {
+      annotationService.setGlyph('e4', '!!');
+      const shapesWithGlyph: DrawShape[] = [
+        { orig: 'e2', dest: 'e4', brush: 'green' },
+        ...annotationService.buildGlyphShapes(),
+      ];
+
+      expect(shapesWithGlyph).toHaveLength(2);
+      const pgnComment = annotationService.shapesToPgnComment(shapesWithGlyph);
+      // Only the arrow should be serialized to PGN, not the customSvg glyph
+      expect(pgnComment).toBe('[%cal Ge2e4]');
+    });
+
+    it('automatically displays move judgement glyphs during game review navigation', () => {
+      eventBus.emit('stockfish-game-review', {
+        isComplete: true,
+        report: {
+          accuracy: { white: 85, black: 80 },
+          summary: {
+            white: {
+              brilliant: 1,
+              best: 0,
+              excellent: 0,
+              good: 0,
+              inaccuracy: 0,
+              mistake: 0,
+              blunder: 0,
+              missed_win: 0,
+            },
+            black: {
+              brilliant: 0,
+              best: 0,
+              excellent: 0,
+              good: 0,
+              inaccuracy: 0,
+              mistake: 0,
+              blunder: 0,
+              missed_win: 0,
+            },
+          },
+          moves: [
+            {
+              ply: 1,
+              san: 'e4',
+              uci: 'e2e4',
+              color: 'white',
+              judgement: 'brilliant',
+              playedMoveScore: 50,
+              bestMoveScore: 50,
+              diffPercentage: 0,
+              bestMoveUci: 'e2e4',
+              bestMoveSan: 'e4',
+            },
+          ],
+          evalGraph: [{ ply: 1, whiteWinChance: 55 }],
+        },
+      });
+
+      eventBus.emit('history-navigated', {
+        ply: 1,
+        fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
+        isViewingHistory: true,
+      });
+
+      expect(annotationService.getGlyph('e4')).toBe('!!');
+
+      eventBus.emit('history-navigated', {
+        ply: 0,
+        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        isViewingHistory: true,
+      });
+
+      expect(annotationService.getGlyph('e4')).toBeNull();
+    });
+  });
 });

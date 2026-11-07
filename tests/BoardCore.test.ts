@@ -145,4 +145,18 @@ describe('BoardCore (Façade & Lifecycle)', () => {
       }).not.toThrow();
     });
   });
+
+  describe('Glyph Management via Facade', () => {
+    it('sets, retrieves and clears glyphs through BoardCore', () => {
+      core.setGlyph('e4', 'trapped');
+      expect(core.getGlyph('e4')).toBe('trapped');
+
+      const glyphs = core.getGlyphs();
+      expect(glyphs.size).toBe(1);
+      expect(glyphs.get('e4')).toBe('trapped');
+
+      core.clearGlyphs();
+      expect(core.getGlyphs().size).toBe(0);
+    });
+  });
 });

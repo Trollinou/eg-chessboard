@@ -21,37 +21,31 @@ Pour encapsuler à la fois la position des pièces et les annotations visuelles 
 
 ```typescript
 export interface ChessDiagram {
-  fen: string;             // Chaîne FEN complète ou FEN de placement (ex: "8/8/4k3/8/8/4K3/8/8")
-  shapes?: DrawShape[];    // Tableau des flèches et cercles annotés sur le diagramme
+  fen: string; // Chaîne FEN complète ou FEN de placement (ex: "8/8/4k3/8/8/4K3/8/8")
+  shapes?: DrawShape[]; // Tableau des flèches et cercles annotés sur le diagramme
 }
 ```
 
 ### 2.1 Utilisation via la prop `diagram`
+
 Vous pouvez passer directement un objet `diagram` au composant. Toute modification de cette prop est synchronisée réactivement :
 
 ```html
 <!-- Vue 3 -->
-<TheChessboard
-  mode="editor"
-  :diagram="currentDiagram"
-  @shapes-change="onShapesChange"
-/>
+<TheChessboard mode="editor" :diagram="currentDiagram" @shapes-change="onShapesChange" />
 ```
 
 ```tsx
 // React
-<Chessboard
-  mode="editor"
-  diagram={currentDiagram}
-  onShapesChange={onShapesChange}
-/>
+<Chessboard mode="editor" diagram={currentDiagram} onShapesChange={onShapesChange} />
 ```
 
 ### 2.2 Lecture et écriture impératives via `BoardCore`
+
 ```typescript
 // Récupérer le snapshot complet du diagramme courant :
 const diagram: ChessDiagram = core.getDiagram();
-console.log(diagram.fen);    // Position actuelle
+console.log(diagram.fen); // Position actuelle
 console.log(diagram.shapes); // Formes graphiques
 
 // Mettre à jour position et formes en une seule opération :
@@ -59,8 +53,8 @@ core.setDiagram({
   fen: 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R b KQkq - 0 5',
   shapes: [
     { orig: 'c4', dest: 'f7', brush: 'red' },
-    { orig: 'e1', dest: 'g1', brush: 'green' }
-  ]
+    { orig: 'e1', dest: 'g1', brush: 'green' },
+  ],
 });
 ```
 
@@ -71,6 +65,7 @@ core.setDiagram({
 Pour concevoir une palette de pièces d'édition (type "pièces à glisser" ou "clic pour poser") :
 
 ### 3.1 Poser une pièce (`putPiece`)
+
 ```typescript
 // Pose une Dame blanche en d5 :
 core.putPiece({ type: 'queen', color: 'w' }, 'd5');
@@ -80,12 +75,14 @@ core.putPiece({ type: 'pawn', color: 'b' }, 'e4');
 ```
 
 ### 3.2 Supprimer une pièce (`removePiece`)
+
 ```typescript
 // Supprime la pièce présente sur la case f7 :
 core.removePiece('f7');
 ```
 
 ### 3.3 Vider ou Réinitialiser l'échiquier
+
 ```typescript
 // Échiquier totalement vide :
 core.setPosition('8/8/8/8/8/8/8/8 w - - 0 1');
@@ -99,6 +96,7 @@ core.newGame();
 ## 4. Extraction & Validation FEN
 
 ### 4.1 FEN de Placement (`getPlacementFen`)
+
 Lors de la composition d'une position, les informations de roque, de prise en passant ou d'horloge ne sont souvent pas encore définies. Vous pouvez extraire directement la FEN de placement des pièces :
 
 ```typescript
@@ -107,6 +105,7 @@ const placement: string = core.getPlacementFen();
 ```
 
 ### 4.2 Validation de la FEN (`validateFen`)
+
 Pour vérifier si la chaîne FEN saisie par l'utilisateur est valide syntaxiquement et structurellement avant de l'appliquer :
 
 ```typescript
@@ -116,7 +115,7 @@ const result = validateFen(userInputFen);
 if (result.valid) {
   core.setPosition(userInputFen);
 } else {
-  console.error("FEN invalide :", result.error);
+  console.error('FEN invalide :', result.error);
 }
 ```
 
@@ -219,7 +218,29 @@ function copyFen() {
 
 ---
 
-### 5.2 Exemple React : Bloc Gutenberg WordPress (Inspecteur & Éditeur)
+## 6. Glyphes & Badges Tactiques (`Chessground 10.5.0`)
+
+`eg-chessboard` supporte nativement les glyphes vectoriels d'évaluation et d'analyse tactique via l'API `BoardCore` :
+
+```typescript
+// Assigner un glyphe tactique sur une case :
+core.setGlyph('d4', 'trapped'); // Pièce piégée (nouveau dans 10.5.0)
+core.setGlyph('f7', 'undefended'); // Pièce non défendue
+core.setGlyph('e1', 'pin'); // Clouage
+core.setGlyph('g1', 'checkable'); // Case donnant échec
+
+// Assigner un badge de jugement de coup (NAG) :
+core.setGlyph('e4', '!!'); // Coup brillant
+core.setGlyph('c5', '?!'); // Imprécision
+core.setGlyph('f6', '??'); // Gaffe
+
+// Récupérer et nettoyer :
+const glyph = core.getGlyph('d4'); // 'trapped'
+const allGlyphs = core.getGlyphs();
+core.clearGlyphs(); // Supprime tous les glyphes
+```
+
+Les glyphes sont rendus de façon vectorielle au-dessus des cases sans altérer les flèches ou cercles d'annotations, et sont automatiquement exclus des commentaires PGN sérialisés.
 
 ```tsx
 import React, { useRef, useState, useCallback } from 'react';
@@ -244,15 +265,18 @@ export const GutenbergChessBlock: React.FC<GutenbergChessBlockProps> = ({
     coreRef.current = core;
   }, []);
 
-  const onShapesChange = useCallback((shapes: DrawShape[]) => {
-    if (!coreRef.current) return;
-    setAttributes({
-      diagram: {
-        fen: coreRef.current.getFen(),
-        shapes,
-      },
-    });
-  }, [setAttributes]);
+  const onShapesChange = useCallback(
+    (shapes: DrawShape[]) => {
+      if (!coreRef.current) return;
+      setAttributes({
+        diagram: {
+          fen: coreRef.current.getFen(),
+          shapes,
+        },
+      });
+    },
+    [setAttributes]
+  );
 
   const onMove = useCallback(() => {
     if (!coreRef.current) return;
@@ -269,7 +293,7 @@ export const GutenbergChessBlock: React.FC<GutenbergChessBlockProps> = ({
       <Chessboard
         mode="editor"
         diagram={attributes.diagram}
-        boardTheme={attributes.theme as any || 'brown'}
+        boardTheme={(attributes.theme as any) || 'brown'}
         onBoardCreated={onBoardCreated}
         onShapesChange={onShapesChange}
         onMove={onMove}
