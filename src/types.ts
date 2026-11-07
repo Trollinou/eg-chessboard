@@ -120,12 +120,31 @@ export interface StockfishEvaluation {
 export type TacticalGlyph = 'pin' | 'undefended' | 'checkable' | 'trapped';
 
 export type AssessmentGlyph =
-  '!' | '?' | '!!' | '??' | '!?' | '?!' | '✓' | '✗' | '□' | '⨀' | '=' | '+-' | '-+';
+  | '!'
+  | '?'
+  | '!!'
+  | '??'
+  | '!?'
+  | '?!'
+  | '✓'
+  | '✗'
+  | '□'
+  | '⨀'
+  | '='
+  | '+-'
+  | '-+';
 
 export type BoardGlyph = TacticalGlyph | AssessmentGlyph;
 
 export type MoveJudgement =
-  'brilliant' | 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder' | 'missed_win';
+  | 'brilliant'
+  | 'best'
+  | 'excellent'
+  | 'good'
+  | 'inaccuracy'
+  | 'mistake'
+  | 'blunder'
+  | 'missed_win';
 
 export interface MoveAnalysisReport {
   ply: number;
