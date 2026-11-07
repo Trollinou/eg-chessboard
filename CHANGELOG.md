@@ -6,6 +6,14 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.7.5] - 2026-11-07
+
+### Corrigé & Amélioré
+
+- **Superposition et affichage des glyphes tactiques (`.cg-custom-svgs`)** :
+  - Élévation du `z-index` de 4 à 25 sur le calque `.cg-custom-svgs` afin que les badges d'évaluation tactique et de jugement s'affichent au premier plan, au-dessus des pièces animées (`piece.anim` à `z-index: 8`) et en cours de déplacement (`z-index: 9`).
+  - Définition d'`overflow: visible` sur le conteneur `.cg-custom-svgs` et sur ses éléments `svg` pour empêcher le rognage des glyphes et badges débordant sur les cases adjacentes.
+
 ### Ajouté & Amélioré
 
 - **Support complet de `@lichess-org/chessground@10.5.0` & API de Glyphes Tactiques** :

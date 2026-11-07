@@ -157,7 +157,12 @@ cg-container {
   }
 
   .cg-custom-svgs {
-    z-index: 4;
+    z-index: 25;
+    overflow: visible;
+
+    svg {
+      overflow: visible;
+    }
   }
 
   .cg-shapes,
