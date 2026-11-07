@@ -25,35 +25,38 @@ L'objet `stockfishConfig` se passe en prop au composant Vue (`:stockfish-config`
 
 ```typescript
 export interface StockfishConfig {
-  workerUrl?: string;          // Chemin vers stockfish.js (ex: '/stockfish.js')
-  wasmUrl?: string;            // Chemin vers stockfish.wasm (optionnel si dans le même dossier)
+  workerUrl?: string; // Chemin vers stockfish.js (ex: '/stockfish.js')
+  wasmUrl?: string; // Chemin vers stockfish.wasm (optionnel si dans le même dossier)
   whiteMode?: 'disabled' | 'hint' | 'bot' | 'elo';
-  whiteElo?: number;           // Niveau Elo cible (1320 à 3190)
+  whiteElo?: number; // Niveau Elo cible (1320 à 3190)
   blackMode?: 'disabled' | 'hint' | 'bot' | 'elo';
-  blackElo?: number;           // Niveau Elo cible (1320 à 3190)
-  stockfishMoveTime?: number;  // Temps de réflexion en millisecondes (défaut: 1000)
-  threads?: number;            // Nombre de threads (défaut: 1)
-  hashSize?: number;           // Taille de la mémoire de hachage en Mo (défaut: 16)
-  showWdl?: boolean;           // Activation des probabilités WDL (défaut: true)
-  multiPv?: number;            // Nombre de variantes principales calculées (défaut: 1)
+  blackElo?: number; // Niveau Elo cible (1320 à 3190)
+  stockfishMoveTime?: number; // Temps de réflexion en millisecondes (défaut: 1000)
+  threads?: number; // Nombre de threads (défaut: 1)
+  hashSize?: number; // Taille de la mémoire de hachage en Mo (défaut: 16)
+  showWdl?: boolean; // Activation des probabilités WDL (défaut: true)
+  multiPv?: number; // Nombre de variantes principales calculées (défaut: 1)
   searchLimit?: {
-    movetime?: number;         // Temps limite par coup (ms)
-    depth?: number;            // Profondeur limite (plies)
-    nodes?: number;            // Nœuds max calculés
+    movetime?: number; // Temps limite par coup (ms)
+    depth?: number; // Profondeur limite (plies)
+    nodes?: number; // Nœuds max calculés
   };
 }
 ```
+
+> [!NOTE]
+> **Sécurité & Confinement Worker** : `workerUrl` et `wasmUrl` sont strictement validés (protocoles autorisés : relatifs, `http:`, `https:`, `blob:`). Les protocoles non sécurisés (`javascript:`, `data:`) sont automatiquement rejetés. De plus, les paramètres et coups transmis sont assainis contre toute injection de commandes CRLF dans le protocole UCI.
 
 ---
 
 ## 3. Événements Émis par l'Échiquier
 
-| Événement Vue 3 | Événement React | Payload | Description |
-| :--- | :--- | :--- | :--- |
-| `@evaluation` | `onEvaluation` | `StockfishEvaluation` | Émis en continu pendant le calcul avec l'évaluation en centipions/mat, le WDL, le PV et le pourcentage d'avantage Blancs (0 à 100 %). |
-| `@engine-status` | `onEngineStatus` | `EngineStatus` | Changement de statut du moteur : `'uninitialized' \| 'loading' \| 'ready' \| 'searching' \| 'stopping' \| 'error'`. |
-| `@stockfish-hint` | `onStockfishHint` | `string` (UCI) | Émis lorsque le meilleur coup de conseil est calculé (ex: `"e2e4"`). |
-| `@game-review-progress` | `onGameReviewProgress` | `number` (0 à 100) | Pourcentage de progression lors d'une analyse complète de partie. |
+| Événement Vue 3         | Événement React        | Payload               | Description                                                                                                                           |
+| :---------------------- | :--------------------- | :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------ |
+| `@evaluation`           | `onEvaluation`         | `StockfishEvaluation` | Émis en continu pendant le calcul avec l'évaluation en centipions/mat, le WDL, le PV et le pourcentage d'avantage Blancs (0 à 100 %). |
+| `@engine-status`        | `onEngineStatus`       | `EngineStatus`        | Changement de statut du moteur : `'uninitialized' \| 'loading' \| 'ready' \| 'searching' \| 'stopping' \| 'error'`.                   |
+| `@stockfish-hint`       | `onStockfishHint`      | `string` (UCI)        | Émis lorsque le meilleur coup de conseil est calculé (ex: `"e2e4"`).                                                                  |
+| `@game-review-progress` | `onGameReviewProgress` | `number` (0 à 100)    | Pourcentage de progression lors d'une analyse complète de partie.                                                                     |
 
 ### Structure de l'évaluation (`StockfishEvaluation`)
 
@@ -64,13 +67,13 @@ export interface StockfishEvaluation {
   depth: number;
   seldepth?: number;
   scoreType: 'cp' | 'mate';
-  scoreValue: number;          // Valeur brute vue du joueur ayant le trait
-  whiteScoreValue: number;     // Normalisé vue des Blancs (+ = avantage blanc)
+  scoreValue: number; // Valeur brute vue du joueur ayant le trait
+  whiteScoreValue: number; // Normalisé vue des Blancs (+ = avantage blanc)
   winChancePercentage: number; // 0% à 100% (idéal pour la barre d'évaluation)
   wdl?: [number, number, number]; // [Win, Draw, Loss] en millièmes
-  bestMove?: string;           // Ex: "g1f3"
-  pv: string[];                // Suite des meilleurs coups calculés
-  multipvIndex: number;        // Indice de variante (1 si multiPv=1)
+  bestMove?: string; // Ex: "g1f3"
+  pv: string[]; // Suite des meilleurs coups calculés
+  multipvIndex: number; // Indice de variante (1 si multiPv=1)
   nodes?: number;
   nps?: number;
   time?: number;
@@ -84,7 +87,9 @@ export interface StockfishEvaluation {
 Accessibles via l'instance `core` reçue sur `@board-created` (Vue) ou `onBoardCreated` (React) :
 
 ### A. Demande de conseil (`requestHint`)
+
 Calcule le meilleur coup pour le camp actif à **force maximale (3500+ ELO, `UCI_LimitStrength: false`)** pour garantir une aide pédagogique optimale :
+
 ```typescript
 // Par défaut : recherche pendant 1200 ms (go movetime 1200) à pleine puissance
 core.requestHint();
@@ -92,10 +97,13 @@ core.requestHint();
 // Avec options personnalisées (ex: 2 variantes principales, 1500 ms)
 core.requestHint({ multiPv: 2, movetime: 1500 });
 ```
+
 > **Note de conception** : Le calcul de conseil est totalement découplé du bridage ELO de l'adversaire et fonctionne même si aucun bot n'est configuré (`whiteMode: 'disabled'`, `blackMode: 'disabled'`). Si le moteur n'est pas encore instancié, `requestHint()` l'initialise automatiquement à la volée.
 
 ### B. Analyse en continu (`startLiveAnalysis` / `stopLiveAnalysis`)
+
 Active l'évaluation continue en temps réel (`go infinite`) sans limite de profondeur :
+
 ```typescript
 // Active l'analyse continue sur la position affichée à l'écran
 core.startLiveAnalysis();
@@ -103,10 +111,12 @@ core.startLiveAnalysis();
 // Arrête l'analyse en continu
 core.stopLiveAnalysis();
 ```
+
 > **Synchronisation réactive avec l'historique** : Lors de la navigation dans les coups (`core.viewHistory(ply)`, `core.viewPrevious()`, `core.viewNext()`), l'analyse en direct s'adapte instantanément et évalue la position visualisée à l'écran.
 > **Alternance transparente avec le Bot** : Si l'analyse en direct est active pendant une partie contre l'ordinateur, le moteur évalue en continu pendant que l'humain réfléchit. Dès que l'humain joue son coup, le moteur met en pause l'analyse, calcule le coup du bot adverse selon l'ELO et le temps/nœuds configurés, le joue sur l'échiquier, puis reprend instantanément l'analyse en direct pour le tour de l'humain !
 
 ### C. Revue de partie autonome (`reviewGame` / `cancelReview`)
+
 Analyse séquentielle complète de l'ensemble des coups de la partie avec classification tactique et calcul du score d'accuracy global. Optimisée avec chaînage d'évaluations (réduction de 50 % des requêtes de calcul) et support d'annulation via `AbortSignal` :
 
 ```typescript
@@ -115,7 +125,7 @@ const controller = new AbortController();
 const report = await core.reviewGame({
   depth: 12, // Profondeur par position (défaut: 12)
   signal: controller.signal, // Optionnel : signal d'annulation
-  onProgress: (percent) => console.log(`Analyse : ${percent}%`)
+  onProgress: (percent) => console.log(`Analyse : ${percent}%`),
 });
 
 // Annulation possible à tout moment :
@@ -127,6 +137,7 @@ console.log('Nombre de gaffes :', report.summary.white.blunder);
 ```
 
 #### Classification des coups (`MoveJudgement`)
+
 - `'brilliant'` : Coup spectaculaire, sacrifice ou mat tactique décisif (`!!`).
 - `'best'` : Meilleur coup théorique de la position (`!`).
 - `'excellent'` : Coup solide quasi-optimal.
@@ -137,6 +148,7 @@ console.log('Nombre de gaffes :', report.summary.white.blunder);
 - `'missed_win'` : Gain immédiat ou mat forcé non exploité.
 
 ### D. Réinitialisation et mémoire (`newGame`)
+
 ```typescript
 // Réinitialise la partie, l'arbre PGN et transmet 'ucinewgame' à Stockfish
 // pour purger les tables de transposition sans détruire le Worker.
@@ -148,6 +160,7 @@ core.newGame();
 ## 5. Fonctions Utilitaires Exportées
 
 ### `computeEvalBarPercentage`
+
 Calcule le pourcentage de remplissage d'une jauge d'avantage (de 0 % pour les Noirs à 100 % pour les Blancs, avec 50 % pour l'équilibre parfait) :
 
 ```typescript
@@ -164,6 +177,7 @@ const pctMate = computeEvalBarPercentage('w', 'mate', 3); // 100%
 ```
 
 ### `validateFen`
+
 Valide la syntaxe et la légalité échiquéenne d'une chaîne FEN avant toute manipulation :
 
 ```typescript
@@ -176,6 +190,7 @@ if (!result.valid) {
 ```
 
 ### `getNodesForElo`
+
 Calcule une limite de recherche déterministe en nombre de nœuds selon le niveau ELO via la formule exponentielle standard (type Lichess/Maïa) : `Math.round(500 * Math.pow(10, (elo - 800) / 500))` :
 
 ```typescript
@@ -227,7 +242,7 @@ const config: StockfishConfig = {
   blackMode: 'bot',
   blackElo: 1600,
   stockfishMoveTime: 1200,
-  showWdl: true
+  showWdl: true,
 };
 
 const onBoardCreated = (api: BoardCore) => {

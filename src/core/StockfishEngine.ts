@@ -44,6 +44,37 @@ export class StockfishEngine {
     private handlers: EngineHandlers = {}
   ) {}
 
+  private sanitizeUci(input: string | number | boolean): string {
+    return String(input)
+      .replace(/[\r\n]+/g, ' ')
+      .trim();
+  }
+
+  private isValidWorkerUrl(url: string): boolean {
+    if (!url || typeof url !== 'string') return false;
+    const trimmed = url.trim();
+    if (/^(?:javascript|data):/i.test(trimmed)) {
+      return false;
+    }
+    if (/^(?!\/\/)(?:\/|\.\/|\.\.\/)/.test(trimmed)) {
+      return true;
+    }
+    if (/^blob:/i.test(trimmed)) {
+      return true;
+    }
+    try {
+      const parsed = new URL(
+        trimmed,
+        typeof window !== 'undefined' ? window.location?.href : 'http://localhost'
+      );
+      return (
+        parsed.protocol === 'http:' || parsed.protocol === 'https:' || parsed.protocol === 'blob:'
+      );
+    } catch {
+      return false;
+    }
+  }
+
   public getStatus(): EngineStatus {
     return this.status;
   }
@@ -75,6 +106,13 @@ export class StockfishEngine {
       this.initResolve = resolve;
       this.initReject = reject;
       try {
+        if (!this.isValidWorkerUrl(this.workerUrl)) {
+          throw new Error(`Invalid or unsafe workerUrl protocol: ${this.workerUrl}`);
+        }
+        if (this.wasmUrl && !this.isValidWorkerUrl(this.wasmUrl)) {
+          throw new Error(`Invalid or unsafe wasmUrl protocol: ${this.wasmUrl}`);
+        }
+
         const fullWorkerUrl = this.wasmUrl
           ? `${this.workerUrl}#${encodeURIComponent(this.wasmUrl)}`
           : this.workerUrl;
@@ -105,7 +143,9 @@ export class StockfishEngine {
 
   public setOption(name: string, value: string | number | boolean): void {
     if (!this.worker) return;
-    this.worker.postMessage(`setoption name ${name} value ${value}`);
+    const safeName = this.sanitizeUci(name);
+    const safeValue = this.sanitizeUci(value);
+    this.worker.postMessage(`setoption name ${safeName} value ${safeValue}`);
   }
 
   public setPosition(fenOrStartpos: string, moves: string[] = [], currentFen?: string): boolean {
@@ -133,11 +173,7 @@ export class StockfishEngine {
     }
 
     const calculatedTurn: 'white' | 'black' =
-      moves.length % 2 === 0
-        ? rootTurn
-        : rootTurn === 'white'
-          ? 'black'
-          : 'white';
+      moves.length % 2 === 0 ? rootTurn : rootTurn === 'white' ? 'black' : 'white';
 
     this.stagedContext = {
       fen: currentFen || baseFen,
@@ -145,8 +181,10 @@ export class StockfishEngine {
       ply: moves.length,
     };
 
-    const movesStr = moves.length > 0 ? ` moves ${moves.join(' ')}` : '';
-    const baseCmd = isStartpos ? 'position startpos' : `position fen ${trimmed}`;
+    const safeMoves = moves.map((m) => this.sanitizeUci(m)).filter(Boolean);
+    const movesStr = safeMoves.length > 0 ? ` moves ${safeMoves.join(' ')}` : '';
+    const safeFen = this.sanitizeUci(trimmed);
+    const baseCmd = isStartpos ? 'position startpos' : `position fen ${safeFen}`;
     const fullCmd = `${baseCmd}${movesStr}`;
 
     if (this.status === 'searching' || this.status === 'stopping') {
@@ -210,7 +248,10 @@ export class StockfishEngine {
     }
 
     if (options.searchmoves && options.searchmoves.length > 0) {
-      cmd += ` searchmoves ${options.searchmoves.join(' ')}`;
+      const safeSearchmoves = options.searchmoves.map((m) => this.sanitizeUci(m)).filter(Boolean);
+      if (safeSearchmoves.length > 0) {
+        cmd += ` searchmoves ${safeSearchmoves.join(' ')}`;
+      }
     }
 
     this.setStatus('searching');
@@ -361,11 +402,7 @@ export class StockfishEngine {
       } else if (token === 'time' && i + 1 < tokens.length) {
         time = parseInt(tokens[++i], 10);
       } else if (token === 'wdl' && i + 3 < tokens.length) {
-        wdl = [
-          parseInt(tokens[++i], 10),
-          parseInt(tokens[++i], 10),
-          parseInt(tokens[++i], 10),
-        ];
+        wdl = [parseInt(tokens[++i], 10), parseInt(tokens[++i], 10), parseInt(tokens[++i], 10)];
       } else if (token === 'score' && i + 2 < tokens.length) {
         const type = tokens[++i];
         if (type === 'cp' || type === 'mate') {
@@ -385,12 +422,7 @@ export class StockfishEngine {
     const isWhite = ctx.turn === 'white';
     const sign = isWhite ? 1 : -1;
     const whiteScoreValue = scoreValue * sign;
-    const winChancePercentage = computeEvalBarPercentage(
-      ctx.turn,
-      scoreType,
-      scoreValue,
-      wdl
-    );
+    const winChancePercentage = computeEvalBarPercentage(ctx.turn, scoreType, scoreValue, wdl);
 
     const evaluation: StockfishEvaluation = {
       ply: ctx.ply,

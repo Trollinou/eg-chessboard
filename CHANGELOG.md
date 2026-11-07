@@ -6,6 +6,21 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+### Sécurité & Durcissement (DevSecOps)
+
+- **Validation stricte des URLs du Worker Stockfish (`StockfishEngine`)** :
+  - Validation et restriction des protocoles autorisés pour `workerUrl` et `wasmUrl` (chemins relatifs, `http:`, `https:`, `blob:`).
+  - Rejet automatique des protocoles arbitraires non sécurisés (`javascript:`, `data:`, URIs malformées) pour prévenir tout risque d'exécution de code au sein du Web Worker (CWE-79, CWE-829).
+- **Assainissement des commandes UCI contre l'injection CRLF (`StockfishEngine`)** :
+  - Neutralisation systématique des sauts de ligne (`\r`, `\n`) dans les options (`setOption`), les coups (`setPosition`) et les coups de recherche (`searchmoves`) transmis via le protocole texte UCI (CWE-93).
+- **Confinement des Sourcemaps et durcissement de la configuration de build (`vite.config.ts`)** :
+  - Désactivation de l'émission inconditionnelle des sourcemaps en production (`sourcemap: process.env.SOURCE_MAP === 'true'`) afin d'éviter l'exposition publique du code source (CWE-200, CWE-540).
+  - Ajout des en-têtes défensifs `X-Content-Type-Options: nosniff` et `X-Frame-Options: DENY` sur le serveur Vite.
+- **Sécurisation de la réactivité Vue 3 (`TheChessboard.vue`)** :
+  - Remplacement de la fusion globale `Object.assign` par une assignation explicite et typée des propriétés de `BoardCoreState`, éliminant le risque de pollution d'état et alignant l'implémentation sur le composant React.
+- **Couverture de tests unitaires dédiée (`tests/StockfishEngine.test.ts`)** :
+  - Ajout de tests de non-régression validant le rejet des URLs de worker non fiables et la neutralisation des retours à la ligne dans les flux UCI.
+
 ## [1.7.2] - 2026-10-18
 
 ### Corrigé & Amélioré
@@ -78,7 +93,7 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
   - Définition d'une entrée de build dédiée `style: src/styles/style.scss` dans `vite.config.ts` pour générer de manière autonome `dist/eg-chessboard.css`.
   - Réduction de la taille du point d'entrée `dist/index.js` à **0.29 kB** (gzippé : 0.22 kB).
   - Possibilité de consommation modulaire ultra-légère du style via `eg-chessboard/base.css` + `eg-chessboard/pieces/cburnett.css` (**~25 kB** brut / **~4.6 kB** gzip, soit **-93% de CSS** par rapport au pack complet).
-- **Bibliothèque autonome (*Batteries-included*) & Compatibilité WordPress** :
+- **Bibliothèque autonome (_Batteries-included_) & Compatibilité WordPress** :
   - Intégration et tree-shaking direct de `chessops` et `@lichess-org/chessground` dans le bundle de la bibliothèque (retirés de `external`). Les projets consommateurs (notamment les extensions et blocs WordPress Gutenberg) n'ont aucune dépendance tierce d'échecs à installer ou configurer.
   - Externalisation stricte via expressions régulières de `react`, `react-dom` et `vue` (avec leurs sous-chemins `react/*`, `react-dom/*`, `vue/*`).
   - Maintien strict de la compatibilité React 18 (`"react": "^17.0.0 || ^18.0.0"`, `"react-dom": "^17.0.0 || ^18.0.0"`) pour s'aligner sur l'environnement d'exécution WordPress (`@wordpress/element`).
@@ -124,7 +139,7 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
     - Déréférencement du plateau dans `AnnotationService`.
     - Nettoyage et désabonnement complet de tous les écouteurs sur `DomainEventBus.clear()`.
 - **Réactivité et robustesse des wrappers Frameworks (React & Vue 3)** :
-  - **React (`Chessboard.tsx`)** : Ajout d'une référence stable `callbacksRef` synchronisée via `useEffect` pour éliminer tout risque de *stale closures* sur les écouteurs d'événements publics (`onMove`, `onTurnChange`, `onCheck`, etc.) sans induire de cycles de re-render.
+  - **React (`Chessboard.tsx`)** : Ajout d'une référence stable `callbacksRef` synchronisée via `useEffect` pour éliminer tout risque de _stale closures_ sur les écouteurs d'événements publics (`onMove`, `onTurnChange`, `onCheck`, etc.) sans induire de cycles de re-render.
   - **Vue 3 (`TheChessboard.vue`)** : Déclaration systématique des watchers réactifs (`playerColor`, `boardConfig`, `stockfishConfig`, `diagram`) à la racine du `<script setup>` pour garantir un cycle de vie prévisible et prévenir les fuites mémoire lors de ré-instanciations.
 - **Optimisations algorithmiques de session PGN (`GameSession`)** :
   - Indexation et calcul du chemin d'ancêtres en temps constant / linéaire amorti via `parentMap` (`WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>`) et méthode interne `indexParents()`.
@@ -194,7 +209,7 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 ### Corrigé & Amélioré
 
 - **Standardisation des annotations de cases colorées (`[%csl ...]`) & compatibilité (`[%cpl ...]`)** :
-  - Support de la balise Lichess standard `[%csl ...]` (*Colored Squares List*) et maintien de la compatibilité avec `[%cpl ...]` lors du parsing dans `AnnotationService.parseComment()`.
+  - Support de la balise Lichess standard `[%csl ...]` (_Colored Squares List_) et maintien de la compatibilité avec `[%cpl ...]` lors du parsing dans `AnnotationService.parseComment()`.
   - Sérialisation standardisée en `[%csl ...]` dans `AnnotationService.shapesToPgnComment()`.
 - **Rattachement des commentaires et annotations initiales (ply 0)** :
   - Transmission des commentaires racines du jeu (`game.comments`) aux `startingComments` du premier coup dans `GameSession.loadPgn()`.
@@ -312,7 +327,7 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 - **Simplification du calcul de FEN & suppression du cache FEN (`cachedFen` / `resetFenCache`)** :
   - Suppression de la variable d'état `cachedFen` dans `BoardCore` au profit d'un calcul direct et déterministe à la volée via `makeFen(this.pos.toSetup())`.
   - Suppression du callback `resetFenCache` dans les contextes et interfaces internes (`BoardConfigContext`, `MoveManagerContext`, `PromotionManager`).
-  - Élimination des risques de désynchronisation d'état (*stale cache*) et allègement des contrats de dépendance entre `BoardCore` et ses sous-managers.
+  - Élimination des risques de désynchronisation d'état (_stale cache_) et allègement des contrats de dépendance entre `BoardCore` et ses sous-managers.
 
 ## [1.5.0] - 2026-08-18
 

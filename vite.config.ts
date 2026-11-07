@@ -16,8 +16,14 @@ const copyDistAssetsPlugin = () => ({
     if (!existsSync(publicDir)) {
       mkdirSync(publicDir, { recursive: true });
     }
-    const srcJs = resolve(import.meta.dirname, 'node_modules/stockfish/bin/stockfish-19-lite-single.js');
-    const srcWasm = resolve(import.meta.dirname, 'node_modules/stockfish/bin/stockfish-19-lite-single.wasm');
+    const srcJs = resolve(
+      import.meta.dirname,
+      'node_modules/stockfish/bin/stockfish-19-lite-single.js'
+    );
+    const srcWasm = resolve(
+      import.meta.dirname,
+      'node_modules/stockfish/bin/stockfish-19-lite-single.wasm'
+    );
     if (existsSync(srcJs)) {
       copyFileSync(srcJs, resolve(distDir, 'stockfish.js'));
       copyFileSync(srcJs, resolve(publicDir, 'stockfish.js'));
@@ -36,7 +42,7 @@ const copyDistAssetsPlugin = () => ({
     if (existsSync(assetsSrc)) {
       cpSync(assetsSrc, assetsDest, { recursive: true });
     }
-  }
+  },
 });
 
 export default defineConfig(({ command }) => {
@@ -67,11 +73,13 @@ export default defineConfig(({ command }) => {
       headers: {
         'Cross-Origin-Opener-Policy': 'same-origin',
         'Cross-Origin-Embedder-Policy': 'require-corp',
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
       },
     },
     build: {
       target: 'es2021',
-      sourcemap: true,
+      sourcemap: process.env.SOURCE_MAP === 'true',
       cssCodeSplit: true,
       minify: true,
       lib: {
@@ -95,11 +103,7 @@ export default defineConfig(({ command }) => {
         formats: ['es'],
       },
       rollupOptions: {
-        external: [
-          /^react(\/.*)?$/,
-          /^react-dom(\/.*)?$/,
-          /^vue(\/.*)?$/,
-        ],
+        external: [/^react(\/.*)?$/, /^react-dom(\/.*)?$/, /^vue(\/.*)?$/],
         output: {
           entryFileNames: '[name].js',
           chunkFileNames: 'chunks/[name]-[hash].js',

@@ -186,7 +186,24 @@ onMounted(() => {
     () => {
       // Triggered when reactive states change inside Core
       if (core.value) {
-        Object.assign(state, core.value.getState());
+        const next = core.value.getState();
+        state.showThreats = next.showThreats;
+        state.mode = next.mode;
+        state.playerColor = next.playerColor;
+        state.freeMode = next.freeMode;
+        state.soloMode = next.soloMode;
+        state.readOnly = next.readOnly;
+        state.preserveShapesOnPositionChange = next.preserveShapesOnPositionChange;
+        state.pieceSet = next.pieceSet;
+        state.boardTheme = next.boardTheme;
+        state.promotionDialogState = { ...next.promotionDialogState };
+        state.historyViewerState = { ...next.historyViewerState };
+        state.currentComment = next.currentComment;
+        state.turnColor = next.turnColor;
+        state.ply = next.ply;
+        state.fen = next.fen;
+        state.isCheck = next.isCheck;
+        state.isGameOver = next.isGameOver;
       }
     },
     (event, ...args) => {

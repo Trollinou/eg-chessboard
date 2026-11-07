@@ -295,4 +295,38 @@ describe('StockfishEngine', () => {
     expect(mockWorkerInstance?.messagesPosted).toContain('ucinewgame');
     expect(mockWorkerInstance?.messagesPosted).toContain('isready');
   });
+
+  it('rejects unsafe workerUrl or wasmUrl protocols', async () => {
+    const unsafeWorkerEngine = new StockfishEngine('javascript:alert(1)');
+    await expect(unsafeWorkerEngine.init()).rejects.toThrow('Invalid or unsafe workerUrl protocol');
+
+    const unsafeDataWorkerEngine = new StockfishEngine('data:text/javascript,console.log(1)');
+    await expect(unsafeDataWorkerEngine.init()).rejects.toThrow(
+      'Invalid or unsafe workerUrl protocol'
+    );
+
+    const unsafeWasmEngine = new StockfishEngine('/stockfish.js', 'javascript:alert(1)');
+    await expect(unsafeWasmEngine.init()).rejects.toThrow('Invalid or unsafe wasmUrl protocol');
+  });
+
+  it('sanitizes CRLF sequences in UCI commands', async () => {
+    const engine = new StockfishEngine('/stockfish.js');
+    const initPromise = engine.init();
+    mockWorkerInstance?.simulateMessage('uciok');
+    mockWorkerInstance?.simulateMessage('readyok');
+    await initPromise;
+
+    engine.setOption('UCI_Elo\nquit', '1500\r\nisready');
+    expect(mockWorkerInstance?.messagesPosted).toContain(
+      'setoption name UCI_Elo quit value 1500 isready'
+    );
+
+    engine.setPosition('startpos', ['e2e4\nquit', 'e7e5\r\nstop']);
+    expect(mockWorkerInstance?.messagesPosted).toContain(
+      'position startpos moves e2e4 quit e7e5 stop'
+    );
+
+    engine.search({ searchmoves: ['e2e4\nquit'] });
+    expect(mockWorkerInstance?.messagesPosted).toContain('go movetime 1000 searchmoves e2e4 quit');
+  });
 });
