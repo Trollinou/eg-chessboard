@@ -164,7 +164,8 @@ Lorsque `stockfishConfig.coachMode` vaut `true`, chaque coup joué par un humain
 - **Pause sans destruction du Worker** : En cas de gaffe détectée, `BoardCore` pose les glyphes `'undefended'` et `'??'`, passe `state.isCoachPaused` à `true`, émet `@coach-alert` (`onCoachAlert`) et suspend l'appel à `triggerStockfish()` en conservant le Web Worker Stockfish actif en mémoire :
 
 ```typescript
-// Annuler le coup suite à l'alerte du Coach et redonner le trait au joueur :
+// Annuler le coup suite à l'alerte du Coach et redonner le trait au joueur
+// (le nouveau coup joué sera promu en ligne principale PGN et la gaffe conservée en variante) :
 core.coachUndo();
 
 // Maintenir le coup malgré l'alerte et déclencher immédiatement la réponse de Stockfish :

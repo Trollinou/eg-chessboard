@@ -124,6 +124,28 @@ describe('GameSession', () => {
       const pgnOutput = session.getPgn();
       expect(pgnOutput).toContain('1. e4 e5');
     });
+
+    it('promotes the new move to mainline and keeps undone moves as variations after undoLastMove()', () => {
+      session.executeMove({ from: 'e2', to: 'e4' });
+      session.executeMove({ from: 'e7', to: 'e5' });
+      // Blunder on move 2
+      session.executeMove({ from: 'd1', to: 'h5' });
+      // Undo the blunder
+      expect(session.undoLastMove()).toBe(true);
+      // Play a better move and continue the game
+      session.executeMove({ from: 'g1', to: 'f3' });
+      session.executeMove({ from: 'b8', to: 'c6' });
+      session.executeMove({ from: 'f1', to: 'c4' });
+
+      const pgnOutput = session.getPgn();
+      // Mainline should continue with 2. Nf3 ... Nc6 3. Bc4 and keep ( 2. Qh5 ) as variation
+      expect(pgnOutput).toContain('1. e4 e5 2. Nf3 ( 2. Qh5 ) 2... Nc6 3. Bc4');
+      const variationsAtPly3 = session.getVariationsAtPly(3);
+      expect(variationsAtPly3[0].san).toBe('Nf3');
+      expect(variationsAtPly3[0].isMainline).toBe(true);
+      expect(variationsAtPly3[1].san).toBe('Qh5');
+      expect(variationsAtPly3[1].isMainline).toBe(false);
+    });
   });
 
   describe('Arbitration & Game Over Rules', () => {

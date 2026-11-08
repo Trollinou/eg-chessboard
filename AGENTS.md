@@ -213,7 +213,7 @@ Pour interroger l'état interne de l'échiquier et gérer le nettoyage de maniè
 - `core.acceptDraw(): boolean` : Alias pour accepter une proposition de nulle (`agreeDraw()`).
 - `core.declineDraw(byColor?: 'white' | 'black', reason?: 'too_early' | 'advantage'): void` : Notifie le refus d'une proposition de nulle via l'événement `draw-declined`.
 - `core.getTermination(): GameTermination | null` : Retourne le détail de terminaison s'il y a eu abandon ou accord de nulle.
-- `core.coachUndo(): boolean` : Annule le dernier coup suite à une alerte du Coach, nettoie les glyphes, réinitialise `isCoachPaused` et réactive le tour du joueur.
+- `core.coachUndo(): boolean` : Annule le dernier coup suite à une alerte du Coach, nettoie les glyphes, réinitialise `isCoachPaused` et réactive le tour du joueur. Le coup rejoué ensuite devient automatiquement la ligne principale (*mainline*) du PGN tandis que le coup annulé est conservé en sous-variante.
 - `core.coachProceed(): void` : Confirme le coup malgré l'alerte du Coach (`isCoachPaused = false`) et déclenche immédiatement la réponse de Stockfish sans recréer le Web Worker.
 - `analyzeMoveTactics(posAfter: Chess, playerColor: Color, move?: Move): TacticalAnalysisResult` : Moteur d'analyse tactique contextuel (exporté depuis `BoardHelper` et à la racine d'`eg-chessboard`).
 - `getFinalFenFromPgn(pgnStr: string, fallbackFen?: string): string` : Fonction utilitaire autonome (exportée depuis `BoardHelper` et à la racine d'`eg-chessboard`) qui calcule la FEN finale en rejouant la variante principale du PGN via `chessops`. Permet aux applications hôtes (ex: plugin ROI) de déterminer la position finale d'un PGN sans manipuler directement l'API de `chessops`.

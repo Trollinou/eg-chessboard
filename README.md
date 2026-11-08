@@ -290,7 +290,7 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `getDiagram()` | `none` | Retourne l'objet `{ fen, shapes }` représentant la position et les dessins actuels. |
 | `loadPgn(pgn)` | `pgn: string` | Charge une partie PGN complète avec toutes ses sous-variantes et positionne automatiquement l'échiquier sur la position de départ (ply 0) avec restitution des formes et commentaires initiaux. |
 | `resetBoard()` | `none` | Réinitialise l'échiquier à la position de départ standard. |
-| `undoLastMove()` | `none` | Annule le dernier coup joué et remonte au nœud parent dans l'arbre PGN. |
+| `undoLastMove()` | `none` | Annule le dernier coup joué et remonte au nœud parent dans l'arbre PGN (le prochain coup joué prendra la ligne principale et conservera le coup annulé en variante). |
 | `toggleOrientation()` | `none` | Inverse l'orientation du plateau (Blancs / Noirs). |
 | `putPiece(piece, square)`| `piece: Piece, square: Key \| string` | Dépose une pièce sur une case. |
 | `removePiece(square)` | `square: Key \| string` | Supprime la pièce située sur la case. |

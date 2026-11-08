@@ -55,6 +55,7 @@ export class GameSession {
   private historyState: HistoryViewerState = { isEnabled: false };
   private soloHistory: Move[] = [];
   private parentMap = new WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>();
+  private undoneNodes = new WeakSet<Node<PgnNodeMeta>>();
   private termination: GameTermination | null = null;
 
   constructor(private eventBus: DomainEventBus) {
@@ -102,6 +103,7 @@ export class GameSession {
     this.rootComments = [];
     this.soloHistory = [];
     this.parentMap = new WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>();
+    this.undoneNodes = new WeakSet<Node<PgnNodeMeta>>();
     this.rootPos = startPos ? startPos.clone() : Chess.default();
     const fen = makeFen(this.rootPos.toSetup());
     if (fen !== 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1') {
@@ -423,8 +425,19 @@ export class GameSession {
         ];
         this.rootComments = [];
       }
-      currentNode.children.push(childNode);
+      if (currentNode.children.length > 0 && this.undoneNodes.has(currentNode.children[0])) {
+        currentNode.children.unshift(childNode);
+      } else {
+        currentNode.children.push(childNode);
+      }
+    } else if (currentNode.children[0] !== childNode && this.undoneNodes.has(currentNode.children[0])) {
+      const idx = currentNode.children.indexOf(childNode);
+      if (idx > 0) {
+        currentNode.children.splice(idx, 1);
+        currentNode.children.unshift(childNode);
+      }
     }
+    this.undoneNodes.delete(childNode);
     this.parentMap.set(childNode, currentNode);
     this.setCurrentNode(childNode);
 
@@ -467,6 +480,8 @@ export class GameSession {
   public undoLastMove(): boolean {
     const parentNode = this.findParentNode(this.rootNode, this.currentNode);
     if (!parentNode) return false;
+
+    this.undoneNodes.add(this.currentNode);
 
     if (
       this.historyState.isEnabled &&
