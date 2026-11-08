@@ -6,6 +6,21 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-11-08
+
+### Ajouté & Amélioré
+
+- **Mode Coach Bienveillant Natif (`stockfishConfig.coachMode`, `TacticalAnalyzer`, `coachUndo`, `coachProceed`)** :
+  - Ajout de l'option `coachMode?: boolean` dans `StockfishConfig`, de l'état `isCoachPaused?: boolean` dans `BoardCoreState` et de l'événement `onCoachAlert` (`@coach-alert`) exposant `CoachAlertDetail` (`hanging_piece`, `bad_trade`, `blunder`, `missed_win`).
+  - Moteur d'analyse tactique contextuel `analyzeMoveTactics(posAfter, playerColor, move)` basé sur les coups légaux (`pos.dests()`), prenant en compte les fins de partie (`isCheckmate`/`isEnd`), les clouages adverses, les interdictions de capture du Roi adverse sur case défendue, les défenseurs/attaquants en rayons X (batteries), la valeur des échanges (`move.captured`) et le delta avant/après (`move.before`).
+  - Immunité native du coup suggéré par Stockfish (`lastSuggestedMove`) qui reçoit systématiquement le glyphe `'!'` sans déclencher d'alerte Coach.
+  - Suspension native de la réponse de Stockfish lors d'une alerte Coach sans détruire ni recharger le Web Worker WASM, pilotable via `core.coachUndo()` et `core.coachProceed()`.
+  - Harmonisation du calcul de `winChancePercentage` dans `StockfishEngine` en utilisant la sigmoïde centipawns lorsque `UCI_LimitStrength` est actif afin d'éviter la distorsion du modèle WDL bridé par `UCI_Elo`.
+- **Arbitrage Complet de Fin de Partie (Abandon, Offre de Nulle & Triple Répétition)** :
+  - Ajout de `resign()`, `agreeDraw()`, `offerDraw()`, `acceptDraw()`, `declineDraw()`, `getIsThreefoldRepetition()`, `getIsDraw()`, `getTermination()` et des événements `onResign`/`resign`, `onDrawOffer`/`draw-offer`, `onDrawDeclined`/`draw-declined`.
+  - Évaluation automatique des propositions de nulle par Stockfish selon `minDrawMoves` (défaut 20 coups) et `drawAcceptanceThresholdPawns` (défaut 0.30 pion).
+  - Calibration exponentielle de recherche par nœuds (`getNodesForElo`) en mode `elo`.
+
 ## [1.7.5] - 2026-11-07
 
 ### Corrigé & Amélioré

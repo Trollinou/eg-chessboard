@@ -1,5 +1,6 @@
 import type { BoardCore } from './BoardCore';
 import type { DrawShape } from '@lichess-org/chessground/draw';
+import type { Key } from '@lichess-org/chessground/types';
 
 export type BoardMode = 'editor' | 'game' | 'study';
 
@@ -79,6 +80,21 @@ export interface PromotionDetail {
   promotedTo: string;
 }
 
+export type GameTerminationReason =
+  | 'checkmate'
+  | 'stalemate'
+  | 'insufficient_material'
+  | 'threefold_repetition'
+  | 'fifty_moves'
+  | 'resignation'
+  | 'mutual_agreement';
+
+export interface GameTermination {
+  reason: GameTerminationReason;
+  winner?: 'white' | 'black' | null;
+  resignedColor?: 'white' | 'black';
+}
+
 export interface BoardEvents {
   onBoardCreated?: (api: BoardCore) => void;
   onMove?: (move: Move) => void;
@@ -94,6 +110,14 @@ export interface BoardEvents {
   onGameReviewProgress?: (percent: number) => void;
   onSquareClick?: (square: string) => void;
   onShapesChange?: (shapes: DrawShape[]) => void;
+  onResign?: (detail: { color: 'white' | 'black'; winner: 'white' | 'black' }) => void;
+  onDrawOffer?: (fromColor: 'white' | 'black') => void;
+  onDrawDeclined?: (detail: {
+    byColor: 'white' | 'black';
+    reason: 'too_early' | 'advantage';
+    score?: number;
+  }) => void;
+  onCoachAlert?: (detail: CoachAlertDetail) => void;
 }
 
 export type EngineStatus =
@@ -145,6 +169,29 @@ export type MoveJudgement =
   | 'mistake'
   | 'blunder'
   | 'missed_win';
+
+export type CoachAlertReason =
+  | 'hanging_piece'
+  | 'bad_trade'
+  | 'blunder'
+  | 'missed_win';
+
+export interface TacticalAnalysisResult {
+  undefendedSquares: Key[];
+  pinnedSquares: Key[];
+  isKingInCheck: boolean;
+  hasMajorThreat: boolean;
+}
+
+export interface CoachAlertDetail {
+  ply: number;
+  move: Move;
+  judgement: MoveJudgement;
+  glyph: BoardGlyph;
+  reason: CoachAlertReason;
+  undefendedSquares: Key[];
+  pinnedSquares: Key[];
+}
 
 export interface MoveAnalysisReport {
   ply: number;

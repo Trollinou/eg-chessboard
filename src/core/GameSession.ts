@@ -19,7 +19,7 @@ import {
 } from 'chessops/types';
 import type { Key, Color } from '@lichess-org/chessground/types';
 
-import type { Move, PgnNodeMeta, VariationInfo, PgnTreeNode } from '../types';
+import type { Move, PgnNodeMeta, VariationInfo, PgnTreeNode, GameTermination } from '../types';
 import { pieceSymbolToRole, buildMovePojo } from './pieceMapping';
 import { DomainEventBus } from './DomainEventBus';
 import { FenManager } from './FenManager';
@@ -55,6 +55,7 @@ export class GameSession {
   private historyState: HistoryViewerState = { isEnabled: false };
   private soloHistory: Move[] = [];
   private parentMap = new WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>();
+  private termination: GameTermination | null = null;
 
   constructor(private eventBus: DomainEventBus) {
     this.resetTree(this.pos);
@@ -94,6 +95,7 @@ export class GameSession {
   }
 
   public resetTree(startPos?: Chess): void {
+    this.termination = null;
     this.headers = defaultHeaders();
     this.rootNode = new Node<PgnNodeMeta>();
     this.currentNode = this.rootNode;
@@ -295,6 +297,10 @@ export class GameSession {
     isNormalPromo?: boolean;
     colorBefore?: 'w' | 'b';
   } {
+    if (this.termination !== null) {
+      return { success: false };
+    }
+
     const normalizedMoveObj = typeof moveObj === 'string' ? BoardHelper.normalizePgn(moveObj) : moveObj;
     const wasViewingHistory = this.isViewingHistory();
 
@@ -435,17 +441,19 @@ export class GameSession {
       isDraw: this.getIsDraw(),
     });
 
-    this.eventBus.emit('turn-changed', {
-      turnColor: this.getTurnColor(),
-      ply: this.getCurrentPlyNumber(),
-    });
+    if (this.getCurrentNode() === childNode) {
+      this.eventBus.emit('turn-changed', {
+        turnColor: this.getTurnColor(),
+        ply: this.getCurrentPlyNumber(),
+      });
 
-    this.eventBus.emit('position-changed', {
-      fen: this.getFen(),
-      posUpdated: true,
-    });
+      this.eventBus.emit('position-changed', {
+        fen: this.getFen(),
+        posUpdated: true,
+      });
 
-    this.eventBus.emit('state-changed');
+      this.eventBus.emit('state-changed');
+    }
 
     return {
       success: true,
@@ -614,6 +622,7 @@ export class GameSession {
   // --- PGN Serializing & Loading ---
 
   public loadPgn(pgnStr: string): void {
+    this.termination = null;
     const normalized = BoardHelper.normalizePgn(pgnStr);
     const games = parsePgn(normalized);
     if (!games.length) return;
@@ -909,8 +918,67 @@ export class GameSession {
     return this.pos.isInsufficientMaterial();
   }
 
+  public getTermination(): GameTermination | null {
+    return this.termination ? { ...this.termination } : null;
+  }
+
+  public resign(color?: 'white' | 'black'): {
+    success: boolean;
+    color: 'white' | 'black';
+    winner: 'white' | 'black';
+  } {
+    if (this.getIsGameOver()) {
+      const activeColor = color ?? this.getTurnColor();
+      return {
+        success: false,
+        color: activeColor,
+        winner: activeColor === 'white' ? 'black' : 'white',
+      };
+    }
+
+    const resignedColor = color ?? this.getTurnColor();
+    const winner: 'white' | 'black' = resignedColor === 'white' ? 'black' : 'white';
+
+    this.termination = {
+      reason: 'resignation',
+      resignedColor,
+      winner,
+    };
+
+    const pgnResult = winner === 'white' ? '1-0' : '0-1';
+    this.headers.set('Result', pgnResult);
+
+    this.eventBus.emit('game-resigned', { color: resignedColor, winner });
+    this.eventBus.emit('state-changed', undefined);
+
+    return {
+      success: true,
+      color: resignedColor,
+      winner,
+    };
+  }
+
+  public agreeDraw(): { success: boolean } {
+    if (this.getIsGameOver()) {
+      return { success: false };
+    }
+
+    this.termination = {
+      reason: 'mutual_agreement',
+      winner: null,
+    };
+
+    this.headers.set('Result', '1/2-1/2');
+
+    this.eventBus.emit('draw-agreed', {});
+    this.eventBus.emit('state-changed', undefined);
+
+    return { success: true };
+  }
+
   public getIsDraw(): boolean {
     return (
+      this.termination?.reason === 'mutual_agreement' ||
       this.pos.isStalemate() ||
       this.pos.isInsufficientMaterial() ||
       this.pos.halfmoves >= 100 ||
@@ -919,7 +987,7 @@ export class GameSession {
   }
 
   public getIsGameOver(): boolean {
-    return this.getIsCheckmate() || this.getIsDraw();
+    return this.termination !== null || this.getIsCheckmate() || this.getIsDraw();
   }
 
   public getInCheckColor(): 'white' | 'black' | null {
@@ -930,7 +998,7 @@ export class GameSession {
     const isThreefold = this.isThreefoldRepetition(
       this.isViewingHistory() ? this.getCurrentViewingPly() : undefined
     );
-    return BoardHelper.getGameOverReason(this.pos, lang, isThreefold);
+    return BoardHelper.getGameOverReason(this.pos, lang, isThreefold, this.termination);
   }
 
   public getSquare(square: Key | string) {

@@ -375,5 +375,69 @@ describe('StockfishManager', () => {
     expect(manager.getEngineStatus()).not.toBe('error');
     expect(mockWorkerInstance?.terminated).toBe(false);
   });
+
+  describe('evaluateDrawOffer (Stockfish Draw Arbitration)', () => {
+    it('declines draw offer if fewer than minDrawMoves have been played', async () => {
+      const manager = new StockfishManager(eventBus, session, {
+        workerUrl: '/stockfish.js',
+        blackMode: 'bot',
+        minDrawMoves: 20,
+      });
+
+      // Play 1 move (2 plies: 1 coup complet)
+      session.executeMove({ from: 'e2', to: 'e4' });
+      session.executeMove({ from: 'e7', to: 'e5' });
+
+      const result = await manager.evaluateDrawOffer('white');
+      expect(result.accepted).toBe(false);
+      expect(result.reason).toBe('too_early');
+    });
+
+    it('accepts draw offer when Stockfish evaluation is equal or worse (<= threshold)', async () => {
+      const manager = new StockfishManager(eventBus, session, {
+        workerUrl: '/stockfish.js',
+        blackMode: 'bot',
+        minDrawMoves: 5,
+        drawAcceptanceThresholdPawns: 0.30,
+      });
+
+      manager.initStockfish(false);
+      await new Promise((r) => setTimeout(r, 20));
+
+      // Simulate playing 5 moves (10 plies)
+      vi.spyOn(session, 'getCurrentPlyNumber').mockReturnValue(10);
+
+      // Simulate Stockfish evaluation: white has +0.10 pawn (score cp 10, whiteScoreValue 10)
+      // For Black (Stockfish), score is -0.10 pawn <= 0.30 pawn threshold -> accept!
+      mockWorkerInstance?.simulateMessage('info depth 10 score cp 10 pv e7e5');
+
+      const result = await manager.evaluateDrawOffer('white');
+      expect(result.accepted).toBe(true);
+      expect(result.reason).toBe('equal_or_worse');
+      expect(result.score).toBe(-0.1);
+    });
+
+    it('declines draw offer when Stockfish has an advantage (> threshold)', async () => {
+      const manager = new StockfishManager(eventBus, session, {
+        workerUrl: '/stockfish.js',
+        blackMode: 'bot',
+        minDrawMoves: 5,
+        drawAcceptanceThresholdPawns: 0.30,
+      });
+
+      manager.initStockfish(false);
+      await new Promise((r) => setTimeout(r, 20));
+
+      vi.spyOn(session, 'getCurrentPlyNumber').mockReturnValue(10);
+
+      // Simulate Stockfish evaluation: White is -1.50 pawn (Black/Stockfish is +1.50)
+      mockWorkerInstance?.simulateMessage('info depth 10 score cp -150 pv e7e5');
+
+      const result = await manager.evaluateDrawOffer('white');
+      expect(result.accepted).toBe(false);
+      expect(result.reason).toBe('advantage');
+      expect(result.score).toBe(1.5);
+    });
+  });
 });
 

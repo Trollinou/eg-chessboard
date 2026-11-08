@@ -13,6 +13,9 @@ import {
   type GameReviewReport,
   type MoveAnalysisReport,
   type MoveJudgement,
+  type CoachAlertReason,
+  type TacticalAnalysisResult,
+  type CoachAlertDetail,
   AVAILABLE_PIECE_SETS,
   AVAILABLE_BOARD_THEMES,
 } from '../types';
@@ -40,6 +43,9 @@ export {
   type GameReviewReport,
   type MoveAnalysisReport,
   type MoveJudgement,
+  type CoachAlertReason,
+  type TacticalAnalysisResult,
+  type CoachAlertDetail,
   AVAILABLE_PIECE_SETS,
   AVAILABLE_BOARD_THEMES,
 };
@@ -90,6 +96,10 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   onGameReviewProgress,
   onSquareClick,
   onShapesChange,
+  onResign,
+  onDrawOffer,
+  onDrawDeclined,
+  onCoachAlert,
 }) => {
   const boardRef = useRef<HTMLDivElement>(null);
   const coreRef = useRef<BoardCore | null>(null);
@@ -109,6 +119,10 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     onGameReviewProgress,
     onSquareClick,
     onShapesChange,
+    onResign,
+    onDrawOffer,
+    onDrawDeclined,
+    onCoachAlert,
   });
 
   useEffect(() => {
@@ -127,6 +141,10 @@ export const Chessboard: React.FC<ChessboardProps> = ({
       onGameReviewProgress,
       onSquareClick,
       onShapesChange,
+      onResign,
+      onDrawOffer,
+      onDrawDeclined,
+      onCoachAlert,
     };
   });
 
@@ -148,6 +166,8 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     fen: '',
     isCheck: false,
     isGameOver: false,
+    termination: null,
+    isCoachPaused: false,
   });
 
   useEffect(() => {
@@ -201,6 +221,8 @@ export const Chessboard: React.FC<ChessboardProps> = ({
           fen: coreState.fen,
           isCheck: coreState.isCheck,
           isGameOver: coreState.isGameOver,
+          termination: coreState.termination,
+          isCoachPaused: coreState.isCoachPaused,
         });
       },
       (event, ...args) => {
@@ -232,6 +254,20 @@ export const Chessboard: React.FC<ChessboardProps> = ({
             return cb.onSquareClick?.(args[0] as string);
           case 'shapes-change':
             return cb.onShapesChange?.(args[0] as DrawShape[]);
+          case 'resign':
+            return cb.onResign?.(args[0] as { color: 'white' | 'black'; winner: 'white' | 'black' });
+          case 'draw-offer':
+            return cb.onDrawOffer?.(args[0] as 'white' | 'black');
+          case 'draw-declined':
+            return cb.onDrawDeclined?.(
+              args[0] as {
+                byColor: 'white' | 'black';
+                reason: 'too_early' | 'advantage';
+                score?: number;
+              }
+            );
+          case 'coach-alert':
+            return cb.onCoachAlert?.(args[0] as CoachAlertDetail);
         }
       },
       {

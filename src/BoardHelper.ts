@@ -5,7 +5,7 @@ import { parseSan } from 'chessops/san';
 import { makeFen, parseFen } from 'chessops/fen';
 import type { Role } from 'chessops/types';
 import type { Color, Key } from '@lichess-org/chessground/types';
-import type { Move } from './types';
+import type { Move, GameTermination } from './types';
 import { roleToPieceSymbol, buildMovePojo } from './core/pieceMapping';
 
 export interface Threat {
@@ -133,8 +133,29 @@ export function getCapturedPieces(history: Move[]) {
 export function getGameOverReason(
   pos: Chess,
   lang: 'fr' | 'en' = 'fr',
-  isThreefold: boolean = false
+  isThreefold: boolean = false,
+  termination?: GameTermination | null
 ): string {
+  if (termination) {
+    if (termination.reason === 'resignation') {
+      const resignedColor =
+        termination.resignedColor ?? (termination.winner === 'white' ? 'black' : 'white');
+      const winner = termination.winner ?? (resignedColor === 'white' ? 'black' : 'white');
+      if (lang === 'fr') {
+        const resignedLabel = resignedColor === 'white' ? 'Blancs' : 'Noirs';
+        const winnerLabel = winner === 'white' ? 'Blancs' : 'Noirs';
+        return `Abandon des ${resignedLabel}. Les ${winnerLabel} ont gagné.`;
+      } else {
+        const resignedLabel = resignedColor === 'white' ? 'White' : 'Black';
+        const winnerLabel = winner === 'white' ? 'White' : 'Black';
+        return `${resignedLabel} resigned. ${winnerLabel} won.`;
+      }
+    }
+    if (termination.reason === 'mutual_agreement') {
+      return lang === 'fr' ? 'Match nul par accord mutuel.' : 'Draw by mutual agreement.';
+    }
+  }
+
   if (pos.isCheckmate()) {
     const turnColor = pos.turn === 'white' ? 'white' : 'black';
     const winner =
@@ -255,3 +276,5 @@ export function computeEvalBarPercentage(
 export function getNodesForElo(elo: number): number {
   return Math.round(500 * Math.pow(10, (elo - 800) / 500));
 }
+
+export { analyzeMoveTactics } from './core/TacticalAnalyzer';

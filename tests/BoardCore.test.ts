@@ -159,4 +159,160 @@ describe('BoardCore (Façade & Lifecycle)', () => {
       expect(core.getGlyphs().size).toBe(0);
     });
   });
+
+  describe('Resignation & Draw via Façade', () => {
+    it('handles resign() and emits resign event', () => {
+      const res = core.resign('white');
+      expect(res).toBe(true);
+
+      const resignEvent = emittedEvents.find((e) => e.event === 'resign');
+      expect(resignEvent).toBeDefined();
+      expect(resignEvent?.args[0]).toEqual({ color: 'white', winner: 'black' });
+
+      const stateSnapshot = core.getState();
+      expect(stateSnapshot.isGameOver).toBe(true);
+      expect(stateSnapshot.termination?.reason).toBe('resignation');
+      expect(core.getGameOverReason('fr')).toBe('Abandon des Blancs. Les Noirs ont gagné.');
+    });
+
+    it('handles agreeDraw() and emits draw event', () => {
+      const res = core.agreeDraw();
+      expect(res).toBe(true);
+
+      const drawEvent = emittedEvents.find((e) => e.event === 'draw');
+      expect(drawEvent).toBeDefined();
+
+      const stateSnapshot = core.getState();
+      expect(stateSnapshot.isGameOver).toBe(true);
+      expect(stateSnapshot.termination?.reason).toBe('mutual_agreement');
+      expect(core.getGameOverReason('fr')).toBe('Match nul par accord mutuel.');
+    });
+
+    it('handles offerDraw() in Human vs Human mode by emitting draw-offer', async () => {
+      const result = await core.offerDraw('white');
+      expect(result.accepted).toBe(false);
+      expect(result.reason).toBe('pending_opponent');
+
+      const drawOfferEvent = emittedEvents.find((e) => e.event === 'draw-offer');
+      expect(drawOfferEvent).toBeDefined();
+      expect(drawOfferEvent?.args[0]).toBe('white');
+    });
+
+    it('handles declineDraw() by emitting draw-declined', () => {
+      core.declineDraw('black', 'advantage');
+
+      const declinedEvent = emittedEvents.find((e) => e.event === 'draw-declined');
+      expect(declinedEvent).toBeDefined();
+      expect(declinedEvent?.args[0]).toEqual({ byColor: 'black', reason: 'advantage' });
+    });
+  });
+
+  describe('Coach Mode (coachMode, coachUndo, coachProceed, lastSuggestedMove immunity)', () => {
+    it('intercepts a hanging piece move, pauses Stockfish, sets glyphs and emits coach-alert', () => {
+      core.updateStockfishConfig({
+        whiteMode: 'disabled',
+        blackMode: 'elo',
+        blackElo: 1350,
+        coachMode: true,
+      });
+
+      // 1. e4 e5 2. Qh5 Nc6 3. Qg6?? (hanging Queen on g6)
+      core.setPosition(
+        'r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3'
+      );
+      emittedEvents = [];
+
+      core.move('Qg6');
+
+      expect(core.getState().isCoachPaused).toBe(true);
+      expect(core.getGlyph('g6')).toBe('??');
+
+      const alertEvent = emittedEvents.find((e) => e.event === 'coach-alert');
+      expect(alertEvent).toBeDefined();
+      expect(alertEvent?.args[0]).toMatchObject({
+        ply: 1,
+        judgement: 'blunder',
+        glyph: '??',
+        reason: 'hanging_piece',
+        undefendedSquares: ['g6'],
+      });
+
+      // Undo via coachUndo()
+      const undone = core.coachUndo();
+      expect(undone).toBe(true);
+      expect(core.getState().isCoachPaused).toBe(false);
+      expect(core.getGlyph('g6')).toBeNull();
+      expect(core.getTurnColor()).toBe('white');
+    });
+
+    it('detects bad_trade when capturing a defended lesser piece with a higher value piece', () => {
+      core.updateStockfishConfig({
+        whiteMode: 'disabled',
+        blackMode: 'elo',
+        coachMode: true,
+      });
+
+      // White Queen on b5 captures defended Black Knight on c6
+      core.setPosition(
+        'r1bqkbnr/pppp1ppp/2n5/1Q2p3/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3'
+      );
+      emittedEvents = [];
+
+      core.move('Qxc6');
+
+      expect(core.getState().isCoachPaused).toBe(true);
+      const alertEvent = emittedEvents.find((e) => e.event === 'coach-alert');
+      expect(alertEvent).toBeDefined();
+      expect(alertEvent?.args[0]).toMatchObject({
+        reason: 'bad_trade',
+        glyph: '??',
+        undefendedSquares: ['c6'],
+      });
+
+      // Confirm via coachProceed()
+      core.coachProceed();
+      expect(core.getState().isCoachPaused).toBe(false);
+    });
+
+    it('grants immunity to Stockfish suggested move (lastSuggestedMove) and marks it with !', () => {
+      core.updateStockfishConfig({
+        whiteMode: 'disabled',
+        blackMode: 'elo',
+        coachMode: true,
+      });
+
+      core.setPosition(
+        'r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3'
+      );
+      core.lastSuggestedMove = 'h5g6';
+      emittedEvents = [];
+
+      core.move('Qg6');
+
+      expect(core.getState().isCoachPaused).toBe(false);
+      expect(core.getGlyph('g6')).toBe('!');
+      expect(emittedEvents.find((e) => e.event === 'coach-alert')).toBeUndefined();
+      expect(core.lastSuggestedMove).toBe('');
+    });
+
+    it('marks checkmate move with ! and never pauses coach', () => {
+      core.updateStockfishConfig({
+        whiteMode: 'disabled',
+        blackMode: 'elo',
+        coachMode: true,
+      });
+
+      core.setPosition(
+        'r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4'
+      );
+      emittedEvents = [];
+
+      core.move('Qxf7#');
+
+      expect(core.getIsCheckmate()).toBe(true);
+      expect(core.getState().isCoachPaused).toBe(false);
+      expect(core.getGlyph('f7')).toBe('!');
+      expect(emittedEvents.find((e) => e.event === 'coach-alert')).toBeUndefined();
+    });
+  });
 });

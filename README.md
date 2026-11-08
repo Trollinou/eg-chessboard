@@ -236,6 +236,10 @@ Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une
 | `onGameReviewProgress` | `@game-review-progress` | `(progress: { currentPly: number; totalPlies: number; percent: number }) => void` | Émis durant la revue de partie post-mortem. |
 | `onSquareClick` | `@square-click` | `(square: string) => void` | Émis lors du clic sur une case de l'échiquier. |
 | `onShapesChange` | `@shapes-change` | `(shapes: DrawShape[]) => void` | Émis lorsque l'utilisateur dessine ou efface des formes interactives au clic droit. |
+| `onResign` | `@resign` | `(detail: { color: 'white' \| 'black'; winner: 'white' \| 'black' }) => void` | Émis lorsqu'un joueur abandonne la partie via `resign()`. |
+| `onDrawOffer` | `@draw-offer` | `(fromColor: 'white' \| 'black') => void` | Émis lorsqu'une proposition de nulle est soumise en mode Humain vs Humain. |
+| `onDrawDeclined` | `@draw-declined` | `(detail: { byColor: 'white' \| 'black'; reason: 'too_early' \| 'advantage'; score?: number }) => void` | Émis lorsque l'adversaire (ou Stockfish) décline une offre de nulle. |
+| `onCoachAlert` | `@coach-alert` | `(detail: CoachAlertDetail) => void` | Émis en mode Coach (`stockfishConfig.coachMode: true`) lorsqu'une gaffe tactique (`hanging_piece`, `bad_trade`) est interceptée. |
 
 ---
 
@@ -351,6 +355,12 @@ Pour une documentation exhaustive (architecture, flux UCI, configuration, exempl
 | `reviewGame(options?)` | `options?: { depth?: number; onProgress?: (p: any) => void }` | Exécute une revue de partie post-mortem autonome (précision %, classification des coups). |
 | `getEngineStatus()` | `none` | Retourne le statut courant du moteur (`uninitialized`, `loading`, `ready`, `searching`, `stopping`, `error`). |
 | `getLastEvaluation()` | `none` | Retourne la dernière évaluation calculée (`StockfishEvaluation \| null`). |
+| `coachUndo()` | `none` | Annule le coup suite à une alerte du Coach, nettoie les glyphes, réinitialise `isCoachPaused` et réactive le tour du joueur. |
+| `coachProceed()` | `none` | Confirme le coup malgré l'alerte du Coach et déclenche immédiatement la réponse de Stockfish sans recréer le Worker. |
+| `resign(color?)` | `color?: 'white' \| 'black'` | Déclare l'abandon du joueur spécifié, met à jour le PGN (`1-0` / `0-1`) et émet `resign`. |
+| `offerDraw(color?)` | `color?: 'white' \| 'black'` | Propose la nulle (arbitrée automatiquement par Stockfish si actif, sinon émet `draw-offer`). |
+| `agreeDraw()` / `acceptDraw()` | `none` | Conclut la nulle par accord mutuel (`1/2-1/2`) et émet `draw`. |
+| `declineDraw(byColor?, reason?)` | `byColor?, reason?` | Décline une proposition de nulle et émet `draw-declined`. |
 
 ### 7. Nettoyage (Lifecycle) & Rendu Impératif
 
@@ -369,7 +379,9 @@ Ces fonctions d'aide sont directement exportées à la racine de la bibliothèqu
 | :--- | :--- | :--- | :--- |
 | `getFinalFenFromPgn(pgn, fallbackFen?)` | `pgn: string, fallbackFen?: string` | `string` | Déroule la variante principale d'une chaîne PGN via `chessops` et retourne la FEN finale calculée. Renvoie `fallbackFen` (position initiale par défaut) si le PGN est invalide ou vide. |
 | `validateFen(fen)` | `fen: string` | `{ valid: boolean; error?: string }` | Valide une chaîne FEN stricte via `chessops` (sécurise les entrées avant envoi à Stockfish 19). |
-| `computeEvalBarPercentage(turn, scoreType, scoreValue, wdl?)` | `turn: 'white' \| 'black', scoreType: 'cp' \| 'mate', scoreValue: number, wdl?: { win: number; draw: number; loss: number }` | `number` | Calcule le pourcentage (0 à 100) pour la barre d'évaluation visuelle (normalisation centipions ou WDL). |
+| `computeEvalBarPercentage(turn, scoreType, scoreValue, wdl?)` | `turn: 'white' \| 'black', scoreType: 'cp' \| 'mate', scoreValue: number, wdl?: [number, number, number]` | `number` | Calcule le pourcentage (0 à 100) pour la barre d'évaluation visuelle (normalisation centipions ou WDL). |
+| `getNodesForElo(elo)` | `elo: number` | `number` | Calcule une limite de recherche déterministe en nombre de nœuds selon le niveau ELO (`500 * 10^((elo - 800) / 500)`). |
+| `analyzeMoveTactics(posAfter, playerColor, move?)` | `posAfter: Chess, playerColor: Color, move?: Move` | `TacticalAnalysisResult` | Analyse tactique contextuelle d'un coup (pièces en prise légales, clouages, batteries rayons X, échanges et delta avant/après). |
 | `possibleMoves(game)` | `game: Chess` | `Map<Key, Key[]>` | Calcule la carte des coups légaux pour Chessground. |
 | `getThreats(moves)` | `moves: Move[]` | `Threat[]` | Génère la liste des attaques et menaces visuelles. |
 | `isPromotion(dest, piece)` | `dest: Key, piece: Piece` | `boolean` | Indique si le déplacement spécifié correspond à une promotion de pion. |

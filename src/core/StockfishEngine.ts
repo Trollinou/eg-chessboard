@@ -37,6 +37,7 @@ export class StockfishEngine {
   private pendingPosition: string | null = null;
   private initResolve: (() => void) | null = null;
   private initReject: ((err: Error) => void) | null = null;
+  private isLimitStrength = false;
 
   constructor(
     private workerUrl: string = '/stockfish.js',
@@ -142,9 +143,12 @@ export class StockfishEngine {
   }
 
   public setOption(name: string, value: string | number | boolean): void {
-    if (!this.worker) return;
     const safeName = this.sanitizeUci(name);
     const safeValue = this.sanitizeUci(value);
+    if (safeName.toLowerCase() === 'uci_limitstrength') {
+      this.isLimitStrength = safeValue.toLowerCase() === 'true';
+    }
+    if (!this.worker) return;
     this.worker.postMessage(`setoption name ${safeName} value ${safeValue}`);
   }
 
@@ -422,7 +426,13 @@ export class StockfishEngine {
     const isWhite = ctx.turn === 'white';
     const sign = isWhite ? 1 : -1;
     const whiteScoreValue = scoreValue * sign;
-    const winChancePercentage = computeEvalBarPercentage(ctx.turn, scoreType, scoreValue, wdl);
+    const effectiveWdl = this.isLimitStrength ? undefined : wdl;
+    const winChancePercentage = computeEvalBarPercentage(
+      ctx.turn,
+      scoreType,
+      scoreValue,
+      effectiveWdl
+    );
 
     const evaluation: StockfishEvaluation = {
       ply: ctx.ply,

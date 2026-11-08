@@ -258,5 +258,81 @@ describe('GameSession', () => {
       expect(whiteCastle.to).toBe('c1');
     });
   });
+
+  describe('Resignation & Mutual Draw', () => {
+    it('handles White resignation properly', () => {
+      session.executeMove({ from: 'e2', to: 'e4' });
+      const res = session.resign('white');
+
+      expect(res.success).toBe(true);
+      expect(res.color).toBe('white');
+      expect(res.winner).toBe('black');
+      expect(session.getIsGameOver()).toBe(true);
+      expect(session.getPgnInfo()['Result']).toBe('0-1');
+      expect(session.getTermination()).toEqual({
+        reason: 'resignation',
+        resignedColor: 'white',
+        winner: 'black',
+      });
+      expect(session.getGameOverReason('fr')).toBe('Abandon des Blancs. Les Noirs ont gagné.');
+      expect(session.getGameOverReason('en')).toBe('White resigned. Black won.');
+
+      // Moves are blocked after resignation
+      const moveRes = session.executeMove({ from: 'e7', to: 'e5' });
+      expect(moveRes.success).toBe(false);
+
+      // Cannot resign again
+      const secondResign = session.resign('black');
+      expect(secondResign.success).toBe(false);
+    });
+
+    it('handles Black resignation properly', () => {
+      session.executeMove({ from: 'e2', to: 'e4' });
+      const res = session.resign('black');
+
+      expect(res.success).toBe(true);
+      expect(res.color).toBe('black');
+      expect(res.winner).toBe('white');
+      expect(session.getIsGameOver()).toBe(true);
+      expect(session.getPgnInfo()['Result']).toBe('1-0');
+      expect(session.getGameOverReason('fr')).toBe('Abandon des Noirs. Les Blancs ont gagné.');
+      expect(session.getGameOverReason('en')).toBe('Black resigned. White won.');
+    });
+
+    it('handles mutual draw agreement properly', () => {
+      session.executeMove({ from: 'e2', to: 'e4' });
+      const res = session.agreeDraw();
+
+      expect(res.success).toBe(true);
+      expect(session.getIsDraw()).toBe(true);
+      expect(session.getIsGameOver()).toBe(true);
+      expect(session.getPgnInfo()['Result']).toBe('1/2-1/2');
+      expect(session.getTermination()).toEqual({
+        reason: 'mutual_agreement',
+        winner: null,
+      });
+      expect(session.getGameOverReason('fr')).toBe('Match nul par accord mutuel.');
+      expect(session.getGameOverReason('en')).toBe('Draw by mutual agreement.');
+
+      // Moves are blocked after draw agreement
+      const moveRes = session.executeMove({ from: 'e7', to: 'e5' });
+      expect(moveRes.success).toBe(false);
+
+      // Cannot agree draw again
+      const secondDraw = session.agreeDraw();
+      expect(secondDraw.success).toBe(false);
+    });
+
+    it('resets termination upon newGame', () => {
+      session.resign('white');
+      expect(session.getIsGameOver()).toBe(true);
+
+      session.newGame();
+      expect(session.getIsGameOver()).toBe(false);
+      expect(session.getTermination()).toBeNull();
+      const moveRes = session.executeMove({ from: 'e2', to: 'e4' });
+      expect(moveRes.success).toBe(true);
+    });
+  });
 });
 

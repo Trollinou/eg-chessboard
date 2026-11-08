@@ -20,6 +20,9 @@ export {
   type GameReviewReport,
   type MoveAnalysisReport,
   type MoveJudgement,
+  type CoachAlertReason,
+  type TacticalAnalysisResult,
+  type CoachAlertDetail,
 } from '../types';
 </script>
 
@@ -34,6 +37,7 @@ import type {
   BoardTheme,
   StockfishEvaluation,
   EngineStatus,
+  CoachAlertDetail,
 } from '../types';
 import {
   BoardCore,
@@ -87,6 +91,16 @@ const emit = defineEmits<{
   'game-review-progress': [percent: number];
   'square-click': [square: string];
   'shapes-change': [shapes: DrawShape[]];
+  resign: [detail: { color: 'white' | 'black'; winner: 'white' | 'black' }];
+  'draw-offer': [fromColor: 'white' | 'black'];
+  'draw-declined': [
+    detail: {
+      byColor: 'white' | 'black';
+      reason: 'too_early' | 'advantage';
+      score?: number;
+    },
+  ];
+  'coach-alert': [detail: CoachAlertDetail];
 }>();
 
 const boardElement = ref<HTMLElement | null>(null);
@@ -110,6 +124,8 @@ const state = reactive<BoardCoreState>({
   fen: '',
   isCheck: false,
   isGameOver: false,
+  termination: null,
+  isCoachPaused: false,
 });
 
 // Watch for option & appearance changes
@@ -204,6 +220,8 @@ onMounted(() => {
         state.fen = next.fen;
         state.isCheck = next.isCheck;
         state.isGameOver = next.isGameOver;
+        state.termination = next.termination;
+        state.isCoachPaused = next.isCoachPaused;
       }
     },
     (event, ...args) => {
@@ -235,6 +253,24 @@ onMounted(() => {
           return emit('square-click', args[0] as string);
         case 'shapes-change':
           return emit('shapes-change', args[0] as DrawShape[]);
+        case 'resign':
+          return emit(
+            'resign',
+            args[0] as { color: 'white' | 'black'; winner: 'white' | 'black' }
+          );
+        case 'draw-offer':
+          return emit('draw-offer', args[0] as 'white' | 'black');
+        case 'draw-declined':
+          return emit(
+            'draw-declined',
+            args[0] as {
+              byColor: 'white' | 'black';
+              reason: 'too_early' | 'advantage';
+              score?: number;
+            }
+          );
+        case 'coach-alert':
+          return emit('coach-alert', args[0] as CoachAlertDetail);
       }
     },
     {

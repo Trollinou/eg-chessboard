@@ -33,6 +33,10 @@ export interface StockfishConfig {
     depth?: number;
     nodes?: number;
   };
+  drawAcceptanceThresholdPawns?: number; // Défaut: 0.30 pion
+  minDrawMoves?: number; // Défaut: 20 coups (40 plies)
+  /** Active l'analyse pédagogique des coups humains, les glyphes automatiques et la suspension sur gaffe. */
+  coachMode?: boolean;
 }
 
 export class StockfishManager {
@@ -108,10 +112,16 @@ export class StockfishManager {
     return this.engine ? this.engine.getLastEvaluation() : null;
   }
 
-  public updateStockfishConfig(config: StockfishConfig, isFreeMode: boolean): void {
+  public updateStockfishConfig(
+    config: StockfishConfig,
+    isFreeMode: boolean,
+    skipTrigger = false
+  ): void {
     this.stockfishConfig = { ...this.stockfishConfig, ...config };
     this.initStockfish(isFreeMode);
-    this.triggerStockfish(isFreeMode);
+    if (!skipTrigger) {
+      this.triggerStockfish(isFreeMode);
+    }
   }
 
   public initStockfish(isFreeMode: boolean): void {
@@ -314,6 +324,63 @@ export class StockfishManager {
     if (!this.engine || !this.isLiveAnalysis) return;
     this.isLiveAnalysis = false;
     this.engine.stop();
+  }
+
+  public isStockfishActiveForColor(color: 'white' | 'black'): boolean {
+    const mode = color === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
+    return !!mode && mode !== 'disabled';
+  }
+
+  public async evaluateDrawOffer(
+    offeringColor: 'white' | 'black'
+  ): Promise<{
+    accepted: boolean;
+    reason: 'too_early' | 'advantage' | 'equal_or_worse';
+    score?: number;
+  }> {
+    const currentMoves = Math.floor(this.session.getCurrentPlyNumber() / 2);
+    const minMoves = this.stockfishConfig.minDrawMoves ?? 20;
+
+    if (currentMoves < minMoves) {
+      return {
+        accepted: false,
+        reason: 'too_early',
+      };
+    }
+
+    const opponentColor: 'white' | 'black' = offeringColor === 'white' ? 'black' : 'white';
+    let evaluation = this.getLastEvaluation();
+
+    if (!evaluation && this.engine && this.engine.getStatus() !== 'error') {
+      try {
+        const { baseCmd, moves } = this.getEnginePosition();
+        evaluation = await this.evaluatePosition(baseCmd, moves, 10);
+        this.restoreDefaultHandlers();
+      } catch {
+        // Fallback to null
+      }
+    }
+
+    let stockfishScorePawns = 0;
+    if (evaluation) {
+      if (evaluation.scoreType === 'mate') {
+        const mateForWhite = evaluation.whiteScoreValue > 0;
+        const mateForStockfish = opponentColor === 'white' ? mateForWhite : !mateForWhite;
+        stockfishScorePawns = mateForStockfish ? 999 : -999;
+      } else {
+        const whiteScorePawns = evaluation.whiteScoreValue / 100;
+        stockfishScorePawns = opponentColor === 'white' ? whiteScorePawns : -whiteScorePawns;
+      }
+    }
+
+    const threshold = this.stockfishConfig.drawAcceptanceThresholdPawns ?? 0.3;
+    const accepted = stockfishScorePawns <= threshold;
+
+    return {
+      accepted,
+      reason: accepted ? 'equal_or_worse' : 'advantage',
+      score: stockfishScorePawns,
+    };
   }
 
   private handleBestMove(bestMove: string): void {

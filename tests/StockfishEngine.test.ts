@@ -329,4 +329,28 @@ describe('StockfishEngine', () => {
     engine.search({ searchmoves: ['e2e4\nquit'] });
     expect(mockWorkerInstance?.messagesPosted).toContain('go movetime 1000 searchmoves e2e4 quit');
   });
+
+  it('uses centipawn sigmoid instead of WDL when UCI_LimitStrength is enabled', async () => {
+    let capturedEval: StockfishEvaluation | null = null;
+    const engine = new StockfishEngine('/stockfish.js', undefined, {
+      onEvaluation: (ev) => {
+        capturedEval = ev;
+      },
+    });
+
+    const initPromise = engine.init();
+    mockWorkerInstance?.simulateMessage('uciok');
+    mockWorkerInstance?.simulateMessage('readyok');
+    await initPromise;
+
+    engine.setOption('UCI_LimitStrength', 'true');
+    engine.setPosition('startpos');
+    // Skewed low-Elo WDL (e.g. 200 600 200 = 50%), whereas +300cp sigmoid is ~75.1%
+    mockWorkerInstance?.simulateMessage(
+      'info depth 10 multipv 1 score cp 300 wdl 200 600 200 pv e2e4'
+    );
+
+    expect(capturedEval).not.toBeNull();
+    expect(capturedEval!.winChancePercentage).toBeGreaterThan(70);
+  });
 });

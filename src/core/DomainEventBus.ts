@@ -59,6 +59,19 @@ export interface DomainEvents {
     to: string;
     promotedTo: string;
   };
+  'game-resigned': {
+    color: 'white' | 'black';
+    winner: 'white' | 'black';
+  };
+  'draw-agreed': Record<string, never>;
+  'draw-offered': {
+    fromColor: 'white' | 'black';
+  };
+  'draw-declined': {
+    byColor: 'white' | 'black';
+    reason: 'too_early' | 'advantage';
+    score?: number;
+  };
   'state-changed': void;
 }
 

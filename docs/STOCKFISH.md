@@ -41,6 +41,9 @@ export interface StockfishConfig {
     depth?: number; // Profondeur limite (plies)
     nodes?: number; // Nœuds max calculés
   };
+  drawAcceptanceThresholdPawns?: number; // Seuil d'acceptation de nulle en pions (défaut: 0.30)
+  minDrawMoves?: number; // Nombre minimum de coups complets avant d'accepter une nulle (défaut: 20)
+  coachMode?: boolean; // Active le Mode Coach Bienveillant (analyse tactique, glyphes et pause sur gaffe)
 }
 ```
 
@@ -57,6 +60,7 @@ export interface StockfishConfig {
 | `@engine-status`        | `onEngineStatus`       | `EngineStatus`        | Changement de statut du moteur : `'uninitialized' \| 'loading' \| 'ready' \| 'searching' \| 'stopping' \| 'error'`.                   |
 | `@stockfish-hint`       | `onStockfishHint`      | `string` (UCI)        | Émis lorsque le meilleur coup de conseil est calculé (ex: `"e2e4"`).                                                                  |
 | `@game-review-progress` | `onGameReviewProgress` | `number` (0 à 100)    | Pourcentage de progression lors d'une analyse complète de partie.                                                                     |
+| `@coach-alert`          | `onCoachAlert`         | `CoachAlertDetail`    | Émis en mode Coach (`coachMode: true`) lorsqu'une gaffe tactique (`hanging_piece`, `bad_trade`) est interceptée avant la réponse IA.  |
 
 ### Structure de l'évaluation (`StockfishEvaluation`)
 
@@ -147,7 +151,27 @@ console.log('Nombre de gaffes :', report.summary.white.blunder);
 - `'blunder'` : Gaffe décisive inversant le sort de la partie (`??`).
 - `'missed_win'` : Gain immédiat ou mat forcé non exploité.
 
-### D. Réinitialisation et mémoire (`newGame`)
+### D. Mode Coach Bienveillant (`coachMode`, `coachUndo`, `coachProceed`)
+
+Lorsque `stockfishConfig.coachMode` vaut `true`, chaque coup joué par un humain est analysé contextuellement via `analyzeMoveTactics` **avant** de déclencher la réponse de Stockfish :
+
+- **Immunité du coup suggéré (`lastSuggestedMove`)** : Si le joueur joue le coup recommandé par `requestHint()`, il reçoit d'office le glyphe `'!'` et n'est jamais interrompu.
+- **Analyse tactique légale & contextuelle** :
+  - Court-circuit immédiat sur fin de partie (`isCheckmate()` / `isEnd()`).
+  - Calcul des attaques adverses réellement légales via `pos.dests()` (ignore les pièces adverses clouées ou les captures illégales du Roi adverse sur case défendue).
+  - Support des batteries en rayons X (Tours doublées, Dame + Fou).
+  - Prise en compte de la valeur des pièces capturées (`move.captured`) : un échange égal ou gagnant (`Fxc6`, `Txd8`) n'est jamais signalé comme une pièce en prise, tandis qu'un échange perdant (`Dxc6` sur Cavalier défendu) déclenche une alerte `bad_trade`.
+- **Pause sans destruction du Worker** : En cas de gaffe détectée, `BoardCore` pose les glyphes `'undefended'` et `'??'`, passe `state.isCoachPaused` à `true`, émet `@coach-alert` (`onCoachAlert`) et suspend l'appel à `triggerStockfish()` en conservant le Web Worker Stockfish actif en mémoire :
+
+```typescript
+// Annuler le coup suite à l'alerte du Coach et redonner le trait au joueur :
+core.coachUndo();
+
+// Maintenir le coup malgré l'alerte et déclencher immédiatement la réponse de Stockfish :
+core.coachProceed();
+```
+
+### E. Réinitialisation et mémoire (`newGame`)
 
 ```typescript
 // Réinitialise la partie, l'arbre PGN et transmet 'ucinewgame' à Stockfish

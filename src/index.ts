@@ -25,6 +25,11 @@ export type {
   TacticalGlyph,
   AssessmentGlyph,
   BoardGlyph,
+  GameTermination,
+  GameTerminationReason,
+  CoachAlertReason,
+  TacticalAnalysisResult,
+  CoachAlertDetail,
 } from './types';
 export { AVAILABLE_PIECE_SETS, AVAILABLE_BOARD_THEMES } from './types';
 export {
@@ -33,9 +38,11 @@ export {
   shortToLongColor,
   getThreats,
   getFinalFenFromPgn,
+  getGameOverReason,
   normalizePgn,
   validateFen,
   computeEvalBarPercentage,
   getNodesForElo,
+  analyzeMoveTactics,
   type Threat,
 } from './BoardHelper';

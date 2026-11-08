@@ -4,7 +4,7 @@ import type { Config } from '@lichess-org/chessground/config';
 import type { Color, Key, MoveMetadata } from '@lichess-org/chessground/types';
 import type { DrawShape } from '@lichess-org/chessground/draw';
 
-import { getFinalFenFromPgn } from './BoardHelper';
+import { getFinalFenFromPgn, analyzeMoveTactics } from './BoardHelper';
 import type {
   Move,
   VariationInfo,
@@ -16,6 +16,9 @@ import type {
   EngineStatus,
   GameReviewReport,
   BoardGlyph,
+  GameTermination,
+  CoachAlertReason,
+  CoachAlertDetail,
 } from './types';
 
 import { DomainEventBus } from './core/DomainEventBus';
@@ -51,6 +54,8 @@ export interface BoardCoreState {
   fen?: string;
   isCheck?: boolean;
   isGameOver?: boolean;
+  termination?: GameTermination | null;
+  isCoachPaused?: boolean;
 }
 
 export type { StockfishConfig, StockfishMode } from './core/StockfishManager';
@@ -60,6 +65,9 @@ export type {
   GameReviewReport,
   MoveAnalysisReport,
   MoveJudgement,
+  CoachAlertReason,
+  TacticalAnalysisResult,
+  CoachAlertDetail,
 } from './types';
 
 export interface ChessDiagram {
@@ -78,6 +86,7 @@ export class BoardCore {
   private state: BoardCoreState;
   private onStateChange: () => void;
   private emitEvent: (event: string, ...args: unknown[]) => void;
+  private dismissedCoachPly: number | null = null;
 
   constructor(
     boardElement: HTMLElement,
@@ -175,6 +184,113 @@ export class BoardCore {
     }
   }
 
+  private normalizeCastlingUci(uci: string, san?: string): string {
+    const clean = uci.trim().toLowerCase();
+    if (clean === 'e1h1' || (san === 'O-O' && clean.startsWith('e1'))) return 'e1g1';
+    if (clean === 'e1a1' || (san === 'O-O-O' && clean.startsWith('e1'))) return 'e1c1';
+    if (clean === 'e8h8' || (san === 'O-O' && clean.startsWith('e8'))) return 'e8g8';
+    if (clean === 'e8a8' || (san === 'O-O-O' && clean.startsWith('e8'))) return 'e8c8';
+    return clean;
+  }
+
+  private isSuggestedMove(move: Move, suggestedUci: string): boolean {
+    if (!suggestedUci) return false;
+    const playedUci = `${move.from}${move.to}${move.promotion ? move.promotion.toLowerCase() : ''}`;
+    return (
+      this.normalizeCastlingUci(playedUci, move.san) ===
+      this.normalizeCastlingUci(suggestedUci)
+    );
+  }
+
+  private shouldInterceptWithCoach(data: {
+    move: Move;
+    turnColor: 'white' | 'black';
+    ply: number;
+    isCheck: boolean;
+    isGameOver: boolean;
+    isCheckmate: boolean;
+    isStalemate: boolean;
+    isDraw: boolean;
+  }): boolean {
+    const sfConfig = this.stockfishManager.getConfig();
+    if (!sfConfig.coachMode) {
+      return false;
+    }
+
+    const moveColor: Color = data.move.color === 'w' ? 'white' : 'black';
+    const modeForColor = moveColor === 'white' ? sfConfig.whiteMode : sfConfig.blackMode;
+    const isHumanMove =
+      !modeForColor || modeForColor === 'disabled' || modeForColor === 'hint';
+
+    if (!isHumanMove) {
+      this.stockfishManager.lastSuggestedMove = '';
+      return false;
+    }
+
+    const wasSuggestedMove = this.isSuggestedMove(
+      data.move,
+      this.stockfishManager.lastSuggestedMove
+    );
+    this.stockfishManager.lastSuggestedMove = '';
+
+    this.clearGlyphs();
+
+    if (data.isGameOver) {
+      this.setGlyph(data.move.to, '!');
+      if (this.state.isCoachPaused) {
+        this.state.isCoachPaused = false;
+        this.onStateChange();
+      }
+      return false;
+    }
+
+    const tactics = analyzeMoveTactics(this.session.pos, moveColor, data.move);
+    for (const sq of tactics.pinnedSquares) {
+      this.setGlyph(sq, 'pin');
+    }
+
+    if (wasSuggestedMove || this.dismissedCoachPly === data.ply) {
+      this.setGlyph(data.move.to, '!');
+      if (this.state.isCoachPaused) {
+        this.state.isCoachPaused = false;
+        this.onStateChange();
+      }
+      return false;
+    }
+
+    if (tactics.hasMajorThreat && tactics.undefendedSquares.length > 0) {
+      for (const sq of tactics.undefendedSquares) {
+        this.setGlyph(sq, 'undefended');
+      }
+      this.setGlyph(data.move.to, '??');
+      this.state.isCoachPaused = true;
+      this.onStateChange();
+
+      const isBadTrade =
+        !!data.move.captured &&
+        tactics.undefendedSquares.includes(data.move.to as Key);
+      const reason: CoachAlertReason = isBadTrade ? 'bad_trade' : 'hanging_piece';
+      const detail: CoachAlertDetail = {
+        ply: data.ply,
+        move: data.move,
+        judgement: 'blunder',
+        glyph: '??',
+        reason,
+        undefendedSquares: tactics.undefendedSquares,
+        pinnedSquares: tactics.pinnedSquares,
+      };
+      this.emitEvent('coach-alert', detail);
+      return true;
+    }
+
+    this.setGlyph(data.move.to, '!');
+    if (this.state.isCoachPaused) {
+      this.state.isCoachPaused = false;
+      this.onStateChange();
+    }
+    return false;
+  }
+
   private registerEventBusListeners(): void {
     this.eventBus.on('move-executed', (data) => {
       this.emitEvent('move', data.move);
@@ -188,6 +304,9 @@ export class BoardCore {
       }
       if (data.isDraw) {
         this.emitEvent('draw');
+      }
+      if (this.shouldInterceptWithCoach(data)) {
+        return;
       }
       this.stockfishManager.triggerStockfish(!!this.state.freeMode);
     });
@@ -222,6 +341,24 @@ export class BoardCore {
 
     this.eventBus.on('shapes-changed', (data) => {
       this.emitEvent('shapes-change', data.shapes);
+    });
+
+    this.eventBus.on('game-resigned', (data) => {
+      this.adapter.updateGameState();
+      this.emitEvent('resign', data);
+    });
+
+    this.eventBus.on('draw-agreed', () => {
+      this.adapter.updateGameState();
+      this.emitEvent('draw');
+    });
+
+    this.eventBus.on('draw-offered', (data) => {
+      this.emitEvent('draw-offer', data.fromColor);
+    });
+
+    this.eventBus.on('draw-declined', (data) => {
+      this.emitEvent('draw-declined', data);
     });
 
     this.eventBus.on('state-changed', () => {
@@ -371,6 +508,9 @@ export class BoardCore {
   }
 
   public undoLastMove(): void {
+    this.state.isCoachPaused = false;
+    this.dismissedCoachPly = null;
+    this.clearGlyphs();
     this.session.undoLastMove();
     if (!this.session.isViewingHistory()) {
       this.board.set({ fen: this.getFen() });
@@ -380,6 +520,42 @@ export class BoardCore {
         lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
       });
     }
+    this.onStateChange();
+    this.stockfishManager.triggerStockfish(!!this.state.freeMode);
+  }
+
+  /**
+   * Annule le dernier coup suite à une alerte du Coach, nettoie les glyphes
+   * et réactive le tour du joueur.
+   */
+  public coachUndo(): boolean {
+    this.state.isCoachPaused = false;
+    this.dismissedCoachPly = null;
+    this.clearGlyphs();
+    this.hideMoves();
+    this.stockfishManager.lastSuggestedMove = '';
+    const undone = this.session.undoLastMove();
+    if (undone && !this.session.isViewingHistory()) {
+      this.board.set({ fen: this.getFen() });
+      this.adapter.updateGameState({ updateFen: false });
+      const last = this.getLastMove();
+      this.board.set({
+        lastMove: last ? [last.from as Key, last.to as Key] : undefined,
+      });
+    }
+    this.onStateChange();
+    return undone;
+  }
+
+  /**
+   * Confirme le coup malgré l'alerte du Coach et déclenche immédiatement
+   * la réponse de Stockfish sans réinitialiser le Worker.
+   */
+  public coachProceed(): void {
+    if (!this.state.isCoachPaused) return;
+    this.dismissedCoachPly = this.getCurrentPlyNumber();
+    this.state.isCoachPaused = false;
+    this.onStateChange();
     this.stockfishManager.triggerStockfish(!!this.state.freeMode);
   }
 
@@ -457,6 +633,8 @@ export class BoardCore {
       fen: this.session.getFen(),
       isCheck: this.session.getIsCheck(),
       isGameOver: this.session.getIsGameOver(),
+      termination: this.session.getTermination(),
+      isCoachPaused: !!this.state.isCoachPaused,
     });
   }
 
@@ -549,6 +727,67 @@ export class BoardCore {
     return this.session.getInCheckColor();
   }
 
+  public getTermination(): GameTermination | null {
+    return this.session.getTermination();
+  }
+
+  public resign(color?: 'white' | 'black'): boolean {
+    const res = this.session.resign(color);
+    if (res.success) {
+      this.adapter.updateGameState();
+      return true;
+    }
+    return false;
+  }
+
+  public agreeDraw(): boolean {
+    const res = this.session.agreeDraw();
+    if (res.success) {
+      this.adapter.updateGameState();
+      return true;
+    }
+    return false;
+  }
+
+  public async offerDraw(
+    color?: 'white' | 'black'
+  ): Promise<{ accepted: boolean; reason?: string; score?: number }> {
+    const offeringColor: 'white' | 'black' =
+      color ?? (this.state.playerColor === 'black' ? 'black' : 'white');
+    const opponentColor: 'white' | 'black' = offeringColor === 'white' ? 'black' : 'white';
+
+    if (this.stockfishManager.isStockfishActiveForColor(opponentColor)) {
+      const result = await this.stockfishManager.evaluateDrawOffer(offeringColor);
+      if (result.accepted) {
+        this.agreeDraw();
+        return { accepted: true, reason: result.reason, score: result.score };
+      } else {
+        this.emitEvent('draw-declined', {
+          byColor: opponentColor,
+          reason: result.reason,
+          score: result.score,
+        });
+        return { accepted: false, reason: result.reason, score: result.score };
+      }
+    }
+
+    this.emitEvent('draw-offer', offeringColor);
+    return { accepted: false, reason: 'pending_opponent' };
+  }
+
+  public acceptDraw(): boolean {
+    return this.agreeDraw();
+  }
+
+  public declineDraw(
+    byColor?: 'white' | 'black',
+    reason: 'too_early' | 'advantage' = 'advantage'
+  ): void {
+    const decliningColor =
+      byColor ?? (this.state.playerColor === 'white' ? 'black' : 'white');
+    this.emitEvent('draw-declined', { byColor: decliningColor, reason });
+  }
+
   public getGameOverReason(lang: 'fr' | 'en' = 'fr'): string {
     return this.session.getGameOverReason(lang);
   }
@@ -569,11 +808,15 @@ export class BoardCore {
   }
 
   public setPosition(fenStr: string): void {
+    this.state.isCoachPaused = false;
+    this.dismissedCoachPly = null;
+    this.clearGlyphs();
     this.session.safeLoadFen(fenStr);
     if (this.board) {
       this.board.set({ selected: undefined });
     }
     this.adapter.updateGameState({ updateFen: true });
+    this.onStateChange();
     this.stockfishManager.initStockfish(!!this.state.freeMode);
     this.stockfishManager.triggerStockfish(!!this.state.freeMode);
   }
@@ -621,6 +864,9 @@ export class BoardCore {
   }
 
   public loadPgn(pgnStr: string): void {
+    this.state.isCoachPaused = false;
+    this.dismissedCoachPly = null;
+    this.clearGlyphs();
     this.session.loadPgn(pgnStr);
     if (!this.session.isViewingHistory()) {
       this.adapter.updateGameState({ updateFen: true });
@@ -629,6 +875,7 @@ export class BoardCore {
         this.board.set({ lastMove: [lastMove.from as Key, lastMove.to as Key] });
       }
     }
+    this.onStateChange();
     this.stockfishManager.initStockfish(!!this.state.freeMode);
     this.stockfishManager.triggerStockfish(!!this.state.freeMode);
   }
@@ -671,6 +918,10 @@ export class BoardCore {
   }
 
   public newGame(fen?: string): void {
+    this.state.isCoachPaused = false;
+    this.dismissedCoachPly = null;
+    this.clearGlyphs();
+    this.stockfishManager.lastSuggestedMove = '';
     this.session.newGame(fen);
     this.session.resetSoloHistory();
     this.board.set({
@@ -679,6 +930,7 @@ export class BoardCore {
       selected: undefined,
     });
     this.adapter.updateGameState({ updateFen: false });
+    this.onStateChange();
     this.stockfishManager.newGame();
     this.stockfishManager.initStockfish(!!this.state.freeMode);
     this.stockfishManager.triggerStockfish(!!this.state.freeMode);
@@ -725,7 +977,15 @@ export class BoardCore {
   }
 
   public updateStockfishConfig(config: StockfishConfig): void {
-    this.stockfishManager.updateStockfishConfig(config, !!this.state.freeMode);
+    if (config.coachMode === false && this.state.isCoachPaused) {
+      this.state.isCoachPaused = false;
+      this.onStateChange();
+    }
+    this.stockfishManager.updateStockfishConfig(
+      config,
+      !!this.state.freeMode,
+      !!this.state.isCoachPaused
+    );
   }
 
   public getEngineStatus(): EngineStatus {

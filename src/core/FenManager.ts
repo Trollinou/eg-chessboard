@@ -4,7 +4,7 @@ import type { Color as ChessopsColor, Role } from 'chessops/types';
 import type { Key, Color } from '@lichess-org/chessground/types';
 
 import * as BoardHelper from '../BoardHelper';
-import type { Move } from '../types';
+import type { Move, GameTermination } from '../types';
 import { roleToPieceSymbol, pieceSymbolToRole, FILES } from './pieceMapping';
 
 export class FenManager {
@@ -120,9 +120,10 @@ export class FenManager {
   public static getGameOverReason(
     pos: Chess,
     lang: 'fr' | 'en' = 'fr',
-    isThreefold: boolean = false
+    isThreefold: boolean = false,
+    termination?: GameTermination | null
   ): string {
-    return BoardHelper.getGameOverReason(pos, lang, isThreefold);
+    return BoardHelper.getGameOverReason(pos, lang, isThreefold, termination);
   }
 
   public static getSquareColor(square: Key | string): 'dark' | 'light' | null {

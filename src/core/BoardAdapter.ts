@@ -202,6 +202,9 @@ export class BoardAdapter {
   }
 
   public getDests(): Map<Key, Key[]> {
+    if (this.session.getTermination() !== null) {
+      return new Map();
+    }
     const customDests = this.getCustomDests?.() ?? null;
     if (customDests !== null) {
       return customDests;
@@ -235,7 +238,9 @@ export class BoardAdapter {
     const color = isFree ? 'both' : options.playerColor || currentTurn;
 
     let dests: Map<Key, Key[]> | undefined;
-    if (isFree) {
+    if (this.session.getTermination() !== null) {
+      dests = new Map();
+    } else if (isFree) {
       dests = FenManager.getPossibleMovesForBothColors(this.session.pos);
     } else if (options.soloMode) {
       dests = this.getDests();
@@ -475,6 +480,9 @@ export class BoardAdapter {
     move?: Move;
     colorBefore?: 'w' | 'b';
   }): void {
+    if (res.move && this.session.getFen() !== res.move.after) {
+      return;
+    }
     if (!res.wasViewingHistory) {
       if (res.move) {
         this.board.move(res.move.from as Key, res.move.to as Key);
