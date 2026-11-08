@@ -36,6 +36,8 @@ export interface StockfishConfig {
   hashSize?: number; // Taille de la mémoire de hachage en Mo (défaut: 16)
   showWdl?: boolean; // Activation des probabilités WDL (défaut: true)
   multiPv?: number; // Nombre de variantes principales calculées (défaut: 1)
+  hintMaxScoreDiffCp?: number; // Écart max en centipions avec le 1er coup pour retenir les coups secondaires (défaut: 50 en coachMode)
+  drawHintArrows?: boolean; // Délègue à eg-chessboard le tracé automatique des flèches de conseil en conservant les shapes existantes (défaut: false)
   searchLimit?: {
     movetime?: number; // Temps limite par coup (ms)
     depth?: number; // Profondeur limite (plies)
@@ -58,7 +60,7 @@ export interface StockfishConfig {
 | :---------------------- | :--------------------- | :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------ |
 | `@evaluation`           | `onEvaluation`         | `StockfishEvaluation` | Émis en continu pendant le calcul avec l'évaluation en centipions/mat, le WDL, le PV et le pourcentage d'avantage Blancs (0 à 100 %). |
 | `@engine-status`        | `onEngineStatus`       | `EngineStatus`        | Changement de statut du moteur : `'uninitialized' \| 'loading' \| 'ready' \| 'searching' \| 'stopping' \| 'error'`.                   |
-| `@stockfish-hint`       | `onStockfishHint`      | `string` (UCI)        | Émis lorsque le meilleur coup de conseil est calculé (ex: `"e2e4"`).                                                                  |
+| `@stockfish-hint`       | `onStockfishHint`      | `(bestMove: string, hints: StockfishHint[])` | Émis lorsque le ou les meilleurs coups de conseil sont calculés. |
 | `@game-review-progress` | `onGameReviewProgress` | `number` (0 à 100)    | Pourcentage de progression lors d'une analyse complète de partie.                                                                     |
 | `@coach-alert`          | `onCoachAlert`         | `CoachAlertDetail`    | Émis en mode Coach (`coachMode: true`) lorsqu'une gaffe tactique (`hanging_piece`, `bad_trade`) est interceptée avant la réponse IA.  |
 
@@ -90,17 +92,56 @@ export interface StockfishEvaluation {
 
 Accessibles via l'instance `core` reçue sur `@board-created` (Vue) ou `onBoardCreated` (React) :
 
-### A. Demande de conseil (`requestHint`)
+### A. Demande de conseil Multi-Coups (`requestHint`) et Délégation d'Affichage
 
-Calcule le meilleur coup pour le camp actif à **force maximale (3500+ ELO, `UCI_LimitStrength: false`)** pour garantir une aide pédagogique optimale :
+Calcule le ou les meilleurs coups pour le camp actif à **force maximale (3500+ ELO, `UCI_LimitStrength: false`)** et retourne une `Promise<StockfishHint[]>` (tout en émettant `@stockfish-hint` / `onStockfishHint(bestMove, hints)`).
 
+#### Structure d'une suggestion (`StockfishHint`)
 ```typescript
-// Par défaut : recherche pendant 1200 ms (go movetime 1200) à pleine puissance
-core.requestHint();
-
-// Avec options personnalisées (ex: 2 variantes principales, 1500 ms)
-core.requestHint({ multiPv: 2, movetime: 1500 });
+export interface StockfishHint {
+  uci: string;                  // Ex: "e2e4"
+  from: Key;                    // Ex: "e2"
+  to: Key;                      // Ex: "e4"
+  promotion?: string;           // Ex: "q"
+  san: string;                  // Ex: "e4"
+  rank: number;                 // 1 = meilleur coup, 2 = 2e choix, etc.
+  scoreType: 'cp' | 'mate';
+  scoreValue: number;           // Score vu du joueur au trait (en centipions ou coups avant mat)
+  whiteScoreValue: number;      // Score normalisé vue des Blancs
+  winChancePercentage: number;  // 0% à 100%
+  pv: string[];                 // Variante principale associée
+  brush: 'green' | 'blue' | 'yellow' | 'red'; // Couleur de flèche attribuée selon le rang
+}
 ```
+
+#### Filtrage intelligent par écart de score (`maxScoreDiffCp` / `hintMaxScoreDiffCp`)
+En début de partie, plusieurs coups se tiennent souvent en quelques centipions, tandis que dans une position tactique un seul coup peut être viable.
+- Vous pouvez fixer `maxScoreDiffCp` (en centipions) pour écarter automatiquement les variantes secondaires trop inférieures au meilleur coup.
+- En **Mode Coach (`coachMode: true`)**, un seuil de **`50` centipions** ($0.50$ pion) est appliqué par défaut (surchargeable via `hintMaxScoreDiffCp` ou `requestHint({ maxScoreDiffCp })`).
+
+#### 2 modes de gestion des flèches pour l'application consommatrice :
+
+1. **Déléguer le tracé des flèches à `eg-chessboard` (`drawArrows: true` ou `stockfishConfig.drawHintArrows: true`)** :
+   `eg-chessboard` trace automatiquement les flèches correspondant aux coups retenus (**1er = `'green'`**, **2e = `'blue'`**, **3e = `'yellow'`**, **4e+ = `'red'`**) **en conservant toutes les formes (`shapes`) et glyphes déjà présents sur l'échiquier** :
+   ```typescript
+   // Délégation ponctuelle lors de l'appel (conserve les cercles/flèches déjà sur le plateau) :
+   const hints = await core.requestHint({
+     multiPv: 3,
+     maxScoreDiffCp: 40,
+     drawArrows: true,
+   });
+
+   // Ou délégation globale via stockfishConfig :
+   // stockfishConfig = { workerUrl: '/stockfish.js', coachMode: true, multiPv: 3, drawHintArrows: true }
+   ```
+
+2. **Conserver la main dans l'application consommatrice (`drawArrows: false` par défaut)** :
+   Si `drawArrows` (et `drawHintArrows`) est omis ou vaut `false`, `eg-chessboard` ne modifie pas les formes du plateau et laisse l'application consommatrice décider de l'affichage via `@stockfish-hint` ou la promesse retournée :
+   ```typescript
+   const hints = await core.requestHint({ multiPv: 3, movetime: 1200 });
+   // Tracer plusieurs flèches manuellement en conservant les shapes existantes :
+   core.drawMoves(hints.map((h) => ({ from: h.from, to: h.to, brush: h.brush })), true);
+   ```
 
 > **Note de conception** : Le calcul de conseil est totalement découplé du bridage ELO de l'adversaire et fonctionne même si aucun bot n'est configuré (`whiteMode: 'disabled'`, `blackMode: 'disabled'`). Si le moteur n'est pas encore instancié, `requestHint()` l'initialise automatiquement à la volée.
 
@@ -155,7 +196,7 @@ console.log('Nombre de gaffes :', report.summary.white.blunder);
 
 Lorsque `stockfishConfig.coachMode` vaut `true`, chaque coup joué par un humain est analysé contextuellement via `analyzeMoveTactics` **avant** de déclencher la réponse de Stockfish :
 
-- **Immunité du coup suggéré (`lastSuggestedMove`)** : Si le joueur joue le coup recommandé par `requestHint()`, il reçoit d'office le glyphe `'!'` et n'est jamais interrompu.
+- **Immunité des coups suggérés (`lastSuggestedMoves` / `lastSuggestedMove`)** : Si le joueur joue l'un des coups recommandés par `requestHint()` (1er, 2e ou 3e choix retenu), il reçoit d'office le glyphe `'!'` et n'est jamais interrompu.
 - **Analyse tactique légale & contextuelle** :
   - Court-circuit immédiat sur fin de partie (`isCheckmate()` / `isEnd()`).
   - Calcul des attaques adverses réellement légales via `pos.dests()` (ignore les pièces adverses clouées ou les captures illégales du Roi adverse sur case défendue).
@@ -284,9 +325,12 @@ const onEvaluation = (ev: StockfishEvaluation) => {
   }
 };
 
-const onHint = (bestMove: string) => {
-  if (core && bestMove.length >= 4) {
-    core.drawMove(bestMove.slice(0, 2), bestMove.slice(2, 4), 'green');
+const onHint = (bestMove: string, hints: StockfishHint[]) => {
+  if (core && hints.length > 0) {
+    // Trace toutes les flèches de suggestion (green, blue, yellow) en conservant les shapes en place
+    core.drawMoves(hints.map((h) => ({ from: h.from, to: h.to, brush: h.brush })), true);
+  } else if (core && bestMove.length >= 4) {
+    core.drawMove(bestMove.slice(0, 2), bestMove.slice(2, 4), 'green', true);
   }
 };
 </script>

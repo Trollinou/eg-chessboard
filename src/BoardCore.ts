@@ -13,6 +13,8 @@ import type {
   PieceSet,
   BoardTheme,
   StockfishEvaluation,
+  StockfishHint,
+  HintRequestOptions,
   EngineStatus,
   GameReviewReport,
   BoardGlyph,
@@ -175,6 +177,14 @@ export class BoardCore {
     this.stockfishManager.lastSuggestedMove = move;
   }
 
+  public get lastSuggestedMoves(): string[] {
+    return this.stockfishManager.lastSuggestedMoves;
+  }
+
+  public set lastSuggestedMoves(moves: string[]) {
+    this.stockfishManager.lastSuggestedMoves = moves;
+  }
+
   private applyModeDefaults(): void {
     if (!this.state.mode) {
       this.state.mode = 'game';
@@ -223,15 +233,14 @@ export class BoardCore {
       !modeForColor || modeForColor === 'disabled' || modeForColor === 'hint';
 
     if (!isHumanMove) {
-      this.stockfishManager.lastSuggestedMove = '';
+      this.stockfishManager.lastSuggestedMoves = [];
       return false;
     }
 
-    const wasSuggestedMove = this.isSuggestedMove(
-      data.move,
-      this.stockfishManager.lastSuggestedMove
+    const wasSuggestedMove = this.stockfishManager.lastSuggestedMoves.some((suggestedUci) =>
+      this.isSuggestedMove(data.move, suggestedUci)
     );
-    this.stockfishManager.lastSuggestedMove = '';
+    this.stockfishManager.lastSuggestedMoves = [];
 
     this.clearGlyphs();
 
@@ -316,7 +325,13 @@ export class BoardCore {
     });
 
     this.eventBus.on('stockfish-hint', (data) => {
-      this.emitEvent('stockfish-hint', data.bestMove);
+      if (data.drawArrows && data.hints.length > 0) {
+        this.drawMoves(
+          data.hints.map((h) => ({ from: h.from, to: h.to, brush: h.brush })),
+          true
+        );
+      }
+      this.emitEvent('stockfish-hint', data.bestMove, data.hints);
     });
 
     this.eventBus.on('stockfish-eval', (data) => {
@@ -591,8 +606,25 @@ export class BoardCore {
     this.annotationService.applyBoardShapes([], !!this.state.preserveShapesOnPositionChange);
   }
 
-  public drawMove(from: Key | string, to: Key | string, brush: string): void {
-    this.annotationService.drawMove(from, to, brush, !!this.state.preserveShapesOnPositionChange);
+  public drawMove(from: Key | string, to: Key | string, brush: string, append = false): void {
+    this.annotationService.drawMove(
+      from,
+      to,
+      brush,
+      !!this.state.preserveShapesOnPositionChange,
+      append
+    );
+  }
+
+  public drawMoves(
+    moves: Array<{ from: Key | string; to: Key | string; brush?: string }>,
+    append = true
+  ): void {
+    this.annotationService.drawMoves(
+      moves,
+      !!this.state.preserveShapesOnPositionChange,
+      append
+    );
   }
 
   public drawCircle(square: Key | string, brush: string): void {
@@ -996,8 +1028,16 @@ export class BoardCore {
     return this.stockfishManager.getLastEvaluation();
   }
 
-  public requestHint(options?: { multiPv?: number; depth?: number; movetime?: number }): void {
-    this.stockfishManager.requestHint(options);
+  public getLastEvaluations(): StockfishEvaluation[] {
+    return this.stockfishManager.getLastEvaluations();
+  }
+
+  public getLastHints(): StockfishHint[] {
+    return this.stockfishManager.getLastHints();
+  }
+
+  public requestHint(options?: HintRequestOptions): Promise<StockfishHint[]> {
+    return this.stockfishManager.requestHint(options);
   }
 
   public startLiveAnalysis(): void {

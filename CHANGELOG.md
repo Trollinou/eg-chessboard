@@ -6,6 +6,17 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+### Ajouté & Amélioré
+
+- **Suggestions Multi-Coups (MultiPV), Filtrage par Écart de Score & Délégation des Flèches (`StockfishHint`, `requestHint`, `drawMoves`)** :
+  - Collecte complète des $N$ variantes (`multiPv`) dans `StockfishEngine` (`getLastEvaluations()`) tout en garantissant que `getLastEvaluation()` pointe toujours sur la variante principale (`multipvIndex === 1`).
+  - Enrichissement de `onStockfishHint` / `@stockfish-hint` qui transmet désormais `(bestMove: string, hints: StockfishHint[])` et retour d'une `Promise<StockfishHint[]>` par `core.requestHint(options)`.
+  - Attribution automatique d'une couleur de flèche (`brush`) selon le rang de chaque suggestion (`1 -> 'green'`, `2 -> 'blue'`, `3 -> 'yellow'`, `4+ -> 'red'`).
+  - Filtrage intelligent par écart de score (`maxScoreDiffCp` dans `requestHint` et `hintMaxScoreDiffCp` dans `StockfishConfig`), avec un seuil par défaut de **`50` centipions** en `coachMode: true` afin d'écarter les coups secondaires trop inférieurs au meilleur coup.
+  - Délégation optionnelle du tracé des flèches à `eg-chessboard` via `requestHint({ drawArrows: true })` ou `stockfishConfig.drawHintArrows: true` (défaut `false` pour laisser la main à l'application consommatrice), en **conservant toutes les formes (`shapes`) et glyphes déjà présents sur l'échiquier**.
+  - Ajout de `core.drawMoves(moves, append = true)` et du paramètre `append = false` sur `core.drawMove(from, to, brush, append)` pour tracer plusieurs flèches sans écraser les formes existantes.
+  - Immunité étendue en Mode Coach via `core.lastSuggestedMoves: string[]` : jouer n'importe lequel des coups suggérés accorde l'immunité Coach et le glyphe `'!'`.
+
 ## [1.8.2] - 2026-11-08
 
 ### Corrigé & Amélioré

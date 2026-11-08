@@ -439,5 +439,66 @@ describe('StockfishManager', () => {
       expect(result.score).toBe(1.5);
     });
   });
+
+  describe('MultiPV Hints & Score Diff Filtering', () => {
+    it('returns multiple hints with colors (green, blue, yellow) and populates lastSuggestedMoves', async () => {
+      const manager = new StockfishManager(eventBus, session, {
+        workerUrl: '/stockfish.js',
+      });
+
+      const hintEvents: Array<{ bestMove: string; hints: unknown[] }> = [];
+      eventBus.on('stockfish-hint', (data) => {
+        hintEvents.push(data);
+      });
+
+      const hintPromise = manager.requestHint({ multiPv: 3, movetime: 800 });
+
+      await vi.waitFor(() => {
+        expect(mockWorkerInstance?.messagesPosted).toContain('setoption name MultiPV value 3');
+      });
+
+      mockWorkerInstance?.simulateMessage('info depth 12 multipv 1 score cp 32 pv e2e4 e7e5');
+      mockWorkerInstance?.simulateMessage('info depth 12 multipv 2 score cp 25 pv d2d4 d7d5');
+      mockWorkerInstance?.simulateMessage('info depth 12 multipv 3 score cp 18 pv g1f3 g8f6');
+      mockWorkerInstance?.simulateMessage('bestmove e2e4');
+
+      const hints = await hintPromise;
+      expect(hints.length).toBe(3);
+      expect(hints.map((h) => ({ uci: h.uci, san: h.san, rank: h.rank, brush: h.brush }))).toEqual([
+        { uci: 'e2e4', san: 'e4', rank: 1, brush: 'green' },
+        { uci: 'd2d4', san: 'd4', rank: 2, brush: 'blue' },
+        { uci: 'g1f3', san: 'Nf3', rank: 3, brush: 'yellow' },
+      ]);
+      expect(manager.lastSuggestedMove).toBe('e2e4');
+      expect(manager.lastSuggestedMoves).toEqual(['e2e4', 'd2d4', 'g1f3']);
+      expect(hintEvents.length).toBe(1);
+      expect(hintEvents[0].bestMove).toBe('e2e4');
+      expect(hintEvents[0].hints.length).toBe(3);
+    });
+
+    it('filters out inferior secondary moves automatically in coachMode (default 50 cp threshold)', async () => {
+      const manager = new StockfishManager(eventBus, session, {
+        workerUrl: '/stockfish.js',
+        coachMode: true,
+        multiPv: 3,
+      });
+
+      const hintPromise = manager.requestHint({ movetime: 800 });
+
+      await vi.waitFor(() => {
+        expect(mockWorkerInstance?.messagesPosted).toContain('setoption name MultiPV value 3');
+      });
+
+      // Move 1: +35 cp, Move 2: +15 cp (diff 20 <= 50 -> kept), Move 3: -250 cp (diff 285 > 50 -> filtered out)
+      mockWorkerInstance?.simulateMessage('info depth 12 multipv 1 score cp 35 pv e2e4');
+      mockWorkerInstance?.simulateMessage('info depth 12 multipv 2 score cp 15 pv d2d4');
+      mockWorkerInstance?.simulateMessage('info depth 12 multipv 3 score cp -250 pv f2f4');
+      mockWorkerInstance?.simulateMessage('bestmove e2e4');
+
+      const hints = await hintPromise;
+      expect(hints.map((h) => h.uci)).toEqual(['e2e4', 'd2d4']);
+      expect(manager.lastSuggestedMoves).toEqual(['e2e4', 'd2d4']);
+    });
+  });
 });
 

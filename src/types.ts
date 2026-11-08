@@ -104,7 +104,7 @@ export interface BoardEvents {
   onStalemate?: () => void;
   onDraw?: () => void;
   onPromotion?: (detail: PromotionDetail) => void;
-  onStockfishHint?: (bestMove: string) => void;
+  onStockfishHint?: (bestMove: string, hints: StockfishHint[]) => void;
   onEvaluation?: (evaluation: StockfishEvaluation) => void;
   onEngineStatus?: (status: EngineStatus) => void;
   onGameReviewProgress?: (percent: number) => void;
@@ -139,6 +139,31 @@ export interface StockfishEvaluation {
   nodes?: number;
   nps?: number;
   time?: number;
+}
+
+export type HintBrush = 'green' | 'blue' | 'yellow' | 'red';
+
+export interface StockfishHint {
+  uci: string;
+  from: Key;
+  to: Key;
+  promotion?: string;
+  san: string;
+  rank: number;
+  scoreType: 'cp' | 'mate';
+  scoreValue: number;
+  whiteScoreValue: number;
+  winChancePercentage: number;
+  pv: string[];
+  brush: HintBrush;
+}
+
+export interface HintRequestOptions {
+  multiPv?: number;
+  depth?: number;
+  movetime?: number;
+  maxScoreDiffCp?: number;
+  drawArrows?: boolean;
 }
 
 export type TacticalGlyph = 'pin' | 'undefended' | 'checkable' | 'trapped';

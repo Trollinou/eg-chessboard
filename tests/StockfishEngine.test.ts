@@ -353,4 +353,31 @@ describe('StockfishEngine', () => {
     expect(capturedEval).not.toBeNull();
     expect(capturedEval!.winChancePercentage).toBeGreaterThan(70);
   });
+
+  it('collects MultiPV evaluations and keeps getLastEvaluation on multipv 1', async () => {
+    let bestMoveEvals: StockfishEvaluation[] = [];
+    const engine = new StockfishEngine('/stockfish.js', undefined, {
+      onBestMove: (_move, _ponder, evals) => {
+        bestMoveEvals = evals || [];
+      },
+    });
+
+    const initPromise = engine.init();
+    mockWorkerInstance?.simulateMessage('uciok');
+    mockWorkerInstance?.simulateMessage('readyok');
+    await initPromise;
+
+    engine.setPosition('startpos');
+    engine.search({ depth: 10 });
+
+    mockWorkerInstance?.simulateMessage('info depth 10 multipv 1 score cp 35 pv e2e4 e7e5');
+    mockWorkerInstance?.simulateMessage('info depth 10 multipv 2 score cp 28 pv d2d4 d7d5');
+    mockWorkerInstance?.simulateMessage('info depth 10 multipv 3 score cp 20 pv g1f3 g8f6');
+    mockWorkerInstance?.simulateMessage('bestmove e2e4 ponder e7e5');
+
+    expect(engine.getLastEvaluation()?.multipvIndex).toBe(1);
+    expect(engine.getLastEvaluation()?.bestMove).toBe('e2e4');
+    expect(engine.getLastEvaluations().map((e) => e.bestMove)).toEqual(['e2e4', 'd2d4', 'g1f3']);
+    expect(bestMoveEvals.length).toBe(3);
+  });
 });

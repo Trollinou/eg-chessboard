@@ -16,6 +16,9 @@ export {
   type BoardEvents,
   type PromotionDetail,
   type StockfishEvaluation,
+  type StockfishHint,
+  type HintBrush,
+  type HintRequestOptions,
   type EngineStatus,
   type GameReviewReport,
   type MoveAnalysisReport,
@@ -36,6 +39,7 @@ import type {
   PieceSet,
   BoardTheme,
   StockfishEvaluation,
+  StockfishHint,
   EngineStatus,
   CoachAlertDetail,
 } from '../types';
@@ -85,7 +89,7 @@ const emit = defineEmits<{
   stalemate: [];
   draw: [];
   promotion: [detail: { from: string; to: string; promotedTo: string }];
-  'stockfish-hint': [bestMove: string];
+  'stockfish-hint': [bestMove: string, hints: StockfishHint[]];
   evaluation: [evaluation: StockfishEvaluation];
   'engine-status': [status: EngineStatus];
   'game-review-progress': [percent: number];
@@ -242,7 +246,7 @@ onMounted(() => {
         case 'promotion':
           return emit('promotion', args[0] as { from: string; to: string; promotedTo: string });
         case 'stockfish-hint':
-          return emit('stockfish-hint', args[0] as string);
+          return emit('stockfish-hint', args[0] as string, (args[1] as StockfishHint[]) || []);
         case 'evaluation':
           return emit('evaluation', args[0] as StockfishEvaluation);
         case 'engine-status':

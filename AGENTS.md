@@ -74,7 +74,7 @@ Les types `Key`, `DrawShape` ainsi que `Move`, `VariationInfo` et `PgnTreeNode` 
 | **Refus de Nulle**    | Event | `onDrawDeclined`  | `draw-declined`       | Transmet `{ byColor: 'white' \| 'black', reason: 'too_early' \| 'advantage', score?: number }`.                                                                                                                                           |
 | **Alerte Coach**      | Event | `onCoachAlert`    | `coach-alert`         | Transmet un POJO `CoachAlertDetail` (`ply`, `move`, `judgement`, `glyph`, `reason`, `undefendedSquares`, `pinnedSquares`) lors d'une gaffe interceptée en mode Coach (`stockfishConfig.coachMode: true`).                                 |
 | **Promotion requis**  | Event | `onPromotion`     | `promotion`           | Transmet un POJO avec les détails requis pour la promotion.                                                                                                                                                                                |
-| **Indication IA**     | Event | `onStockfishHint` | `stockfish-hint`      | Transmet le meilleur coup calculé (`string`).                                                                                                                                                                                              |
+| **Indication IA**     | Event | `onStockfishHint` | `stockfish-hint`      | Transmet le meilleur coup calculé (`string`) et la liste des suggestions MultiPV (`StockfishHint[]`).                                                                                                                                      |
 | **Clic sur case**     | Event | `onSquareClick`   | `square-click`        | Transmet la case cliquée en paramètre (`string`).                                                                                                                                                                                          |
 
 ---
@@ -199,7 +199,8 @@ Pour interroger l'état interne de l'échiquier et gérer le nettoyage de maniè
 - `core.getOrientation(): 'white' | 'black'` : Retourne l'orientation actuelle du plateau de jeu.
 - `core.getPlacementFen(): string` : Retourne la FEN de placement actuelle des pièces (sans les autres métadonnées de FEN) extraite directement de Chessground (utile en mode libre ou pour les FENs en cours d'édition).
 - `core.getCurrentComment(): string` : Retourne le commentaire textuel du coup courant.
-- `core.lastSuggestedMove: string` : Getter/setter stockant le dernier coup suggéré (*hint*) par Stockfish en notation UCI (ex: `"e2e4"`).
+- `core.lastSuggestedMove: string` : Getter/setter stockant le meilleur coup suggéré (*hint*) par Stockfish en notation UCI (ex: `"e2e4"`).
+- `core.lastSuggestedMoves: string[]` : Getter/setter stockant l'ensemble des coups suggérés en MultiPV bénéficiant de l'immunité Coach.
 - `core.getHistoryViewerState(): Readonly<HistoryViewerState>` : Retourne l'état de visualisation de l'historique.
 - `core.isViewingHistory(): boolean` : Indique si la vue navigue actuellement dans l'historique.
 - `core.getInCheckColor(): 'white' | 'black' | null` : Retourne la couleur du joueur en échec (ou `null`).

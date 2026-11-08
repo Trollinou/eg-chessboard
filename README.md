@@ -142,8 +142,8 @@ function handleMove(move: Move) {
   console.log('Coup joué :', move.san);
 }
 
-function handleStockfishHint(bestMove: string) {
-  console.log('Suggestion Stockfish :', bestMove);
+function handleStockfishHint(bestMove: string, hints: StockfishHint[]) {
+  console.log('Meilleur coup :', bestMove, 'Toutes les suggestions :', hints);
 }
 </script>
 
@@ -188,7 +188,7 @@ export const MyChessComponent: React.FC = () => {
         stockfishConfig={stockfishConfig}
         onBoardCreated={handleBoardCreated}
         onMove={(move: Move) => console.log('Coup joué :', move.san)}
-        onStockfishHint={(bestMove) => console.log('Suggestion :', bestMove)}
+        onStockfishHint={(bestMove, hints) => console.log('Suggestions :', bestMove, hints)}
       />
     </div>
   );
@@ -230,7 +230,7 @@ Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une
 | `onStalemate` | `@stalemate` | `() => void` | Émis en cas de pat (stalemate). |
 | `onDraw` | `@draw` | `() => void` | Émis en cas de partie nulle (nulle acceptée, matériel insuffisant, répétition, 50 coups). |
 | `onPromotion` | `@promotion` | `(detail: { from: string, to: string, promotedTo: string }) => void` | Émis lorsqu'une promotion de pion est effectuée. |
-| `onStockfishHint`| `@stockfish-hint` | `(bestMove: string) => void` | Émis lorsque le moteur Stockfish retourne une suggestion de coup (mode `hint`). |
+| `onStockfishHint`| `@stockfish-hint` | `(bestMove: string, hints: StockfishHint[]) => void` | Émis lorsque Stockfish retourne une ou plusieurs suggestions de coups (mode `hint` ou `requestHint`). |
 | `onEvaluation` | `@evaluation` | `(eval: StockfishEvaluation) => void` | Émis en temps réel lors des calculs d'évaluation (score cp/mat, WDL, profondeur, pv). |
 | `onEngineStatus` | `@engine-status` | `(status: EngineStatus) => void` | Émis lors des transitions d'état du moteur (`uninitialized`, `loading`, `ready`, `searching`, `stopping`, `error`). |
 | `onGameReviewProgress` | `@game-review-progress` | `(progress: { currentPly: number; totalPlies: number; percent: number }) => void` | Émis durant la revue de partie post-mortem. |
@@ -266,7 +266,8 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `getIsInsufficientMaterial()`| `boolean` | Indique si le matériel est insuffisant pour mater. |
 | `getGameOverReason(lang?)` | `string` | Retourne la raison formatée de fin de partie en français ou anglais (*ex: "Échec et mat ! Les Blancs ont gagné."*). |
 | `getCurrentComment()` | `string` | Commentaire textuel PGN du demi-coup actuellement visualisé. |
-| `lastSuggestedMove` | `string` | Getter/setter du dernier coup suggéré (*hint*) par Stockfish en notation UCI (ex: `"e2e4"`). |
+| `lastSuggestedMove` | `string` | Getter/setter du meilleur coup suggéré (*hint*) par Stockfish en notation UCI (ex: `"e2e4"`). |
+| `lastSuggestedMoves` | `string[]` | Getter/setter de la liste complète des coups suggérés (MultiPV) bénéficiant de l'immunité en Mode Coach. |
 | `getHistoryViewerState()`| `Readonly<HistoryViewerState>` | État de la navigation dans l'historique PGN. |
 | `isViewingHistory()` | `boolean` | Indique si l'utilisateur consulte un coup antérieur dans l'historique. |
 | `isReadOnly()` | `boolean` | Indique si le mode lecture seule est actuellement actif. |
@@ -325,7 +326,8 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 
 | Méthode | Arguments | Description |
 | :--- | :--- | :--- |
-| `drawMove(from, to, brush)`| `from: string, to: string, brush: string` | Dessine une flèche (couleurs: `'green'`, `'red'`, `'blue'`, `'yellow'`). |
+| `drawMove(from, to, brush, append?)`| `from: string, to: string, brush: string, append?: boolean` | Dessine une flèche (`'green'`, `'blue'`, `'yellow'`, `'red'`). Si `append: true`, conserve les formes déjà en place. |
+| `drawMoves(moves, append?)`| `moves: Array<{ from, to, brush? }>, append?: boolean` | Dessine plusieurs flèches simultanément en conservant les formes existantes (`append: true` par défaut). |
 | `drawCircle(square, brush)`| `square: string, brush: string` | Dessine un cercle sur une case. |
 | `setShapes(shapes)` | `shapes: DrawShape[] \| unknown[]` | Définit la liste complète des formes dessinées. |
 | `getShapes()` | `none` | Récupère les formes actuellement tracées sur le plateau. |
@@ -351,7 +353,9 @@ Pour une documentation exhaustive (architecture, flux UCI, configuration, exempl
 | :--- | :--- | :--- |
 | `startLiveAnalysis(options?)` | `options?: { depth?: number; multiPv?: number }` | Démarre l'évaluation continue en arrière-plan avec émission d'événements `@evaluation`. |
 | `stopLiveAnalysis()` | `none` | Arrête l'analyse en direct. |
-| `requestHint(options?)` | `options?: { depth?: number; multiPv?: number; drawArrows?: boolean }` | Calcule le ou les meilleurs coups (MultiPV) et affiche optionnellement les flèches d'indication. |
+| `requestHint(options?)` | `options?: { depth?: number; movetime?: number; multiPv?: number; maxScoreDiffCp?: number; drawArrows?: boolean }` | Calcule les meilleurs coups (`Promise<StockfishHint[]>`) et trace optionnellement les flèches (`green`, `blue`, `yellow`, `red`) en préservant les formes existantes si `drawArrows: true`. |
+| `getLastHints()` | `none` | Retourne la dernière liste de suggestions calculées (`StockfishHint[]`). |
+| `getLastEvaluations()` | `none` | Retourne l'ensemble des variantes MultiPV de la dernière recherche (`StockfishEvaluation[]`). |
 | `reviewGame(options?)` | `options?: { depth?: number; onProgress?: (p: any) => void }` | Exécute une revue de partie post-mortem autonome (précision %, classification des coups). |
 | `getEngineStatus()` | `none` | Retourne le statut courant du moteur (`uninitialized`, `loading`, `ready`, `searching`, `stopping`, `error`). |
 | `getLastEvaluation()` | `none` | Retourne la dernière évaluation calculée (`StockfishEvaluation \| null`). |

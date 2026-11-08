@@ -12,7 +12,7 @@ export interface SearchOptions {
 export interface EngineHandlers {
   onStatusChange?: (status: EngineStatus) => void;
   onEvaluation?: (evaluation: StockfishEvaluation) => void;
-  onBestMove?: (bestMove: string, ponder?: string) => void;
+  onBestMove?: (bestMove: string, ponder?: string, evaluations?: StockfishEvaluation[]) => void;
   onError?: (error: string) => void;
 }
 
@@ -32,6 +32,7 @@ export class StockfishEngine {
   };
   private activeContext: SearchContext | null = null;
   private lastEvaluation: StockfishEvaluation | null = null;
+  private currentPvEvaluations = new Map<number, StockfishEvaluation>();
   private watchdogTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingSearch: (() => void) | null = null;
   private pendingPosition: string | null = null;
@@ -82,6 +83,12 @@ export class StockfishEngine {
 
   public getLastEvaluation(): StockfishEvaluation | null {
     return this.lastEvaluation ? { ...this.lastEvaluation } : null;
+  }
+
+  public getLastEvaluations(): StockfishEvaluation[] {
+    return Array.from(this.currentPvEvaluations.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([, ev]) => ({ ...ev, pv: [...ev.pv] }));
   }
 
   public setHandlers(handlers: EngineHandlers): void {
@@ -228,6 +235,7 @@ export class StockfishEngine {
     }
 
     this.activeContext = { ...this.stagedContext };
+    this.currentPvEvaluations.clear();
 
     let cmd = 'go';
     if (options.infinite) {
@@ -367,7 +375,7 @@ export class StockfishEngine {
       this.pendingSearch = null;
 
       if (bestMove) {
-        this.handlers.onBestMove?.(bestMove, ponder);
+        this.handlers.onBestMove?.(bestMove, ponder, this.getLastEvaluations());
       }
       if (next) {
         next();
@@ -452,7 +460,10 @@ export class StockfishEngine {
       time,
     };
 
-    this.lastEvaluation = evaluation;
+    this.currentPvEvaluations.set(multipvIndex, evaluation);
+    if (multipvIndex === 1 || !this.lastEvaluation) {
+      this.lastEvaluation = evaluation;
+    }
     this.handlers.onEvaluation?.(evaluation);
   }
 

@@ -9,6 +9,9 @@ import {
   type BoardEvents,
   type PromotionDetail,
   type StockfishEvaluation,
+  type StockfishHint,
+  type HintBrush,
+  type HintRequestOptions,
   type EngineStatus,
   type GameReviewReport,
   type MoveAnalysisReport,
@@ -39,6 +42,9 @@ export {
   type BoardEvents,
   type PromotionDetail,
   type StockfishEvaluation,
+  type StockfishHint,
+  type HintBrush,
+  type HintRequestOptions,
   type EngineStatus,
   type GameReviewReport,
   type MoveAnalysisReport,
@@ -243,7 +249,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
           case 'promotion':
             return cb.onPromotion?.(args[0] as { from: string; to: string; promotedTo: string });
           case 'stockfish-hint':
-            return cb.onStockfishHint?.(args[0] as string);
+            return cb.onStockfishHint?.(args[0] as string, (args[1] as StockfishHint[]) || []);
           case 'evaluation':
             return cb.onEvaluation?.(args[0] as StockfishEvaluation);
           case 'engine-status':

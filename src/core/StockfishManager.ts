@@ -1,6 +1,7 @@
 import { Chess, parseUci } from 'chessops';
 import { makeFen, parseFen } from 'chessops/fen';
 import { makeSan } from 'chessops/san';
+import type { Key } from '@lichess-org/chessground/types';
 import { getNodesForElo } from '../BoardHelper';
 import { DomainEventBus } from './DomainEventBus';
 import { GameSession } from './GameSession';
@@ -8,6 +9,9 @@ import { StockfishEngine } from './StockfishEngine';
 import type {
   Move,
   StockfishEvaluation,
+  StockfishHint,
+  HintBrush,
+  HintRequestOptions,
   EngineStatus,
   GameReviewReport,
   MoveAnalysisReport,
@@ -28,6 +32,10 @@ export interface StockfishConfig {
   hashSize?: number;
   showWdl?: boolean;
   multiPv?: number;
+  /** Écart maximal en centipions avec le meilleur coup pour retenir les coups secondaires (MultiPV). Défaut: 50 en coachMode. */
+  hintMaxScoreDiffCp?: number;
+  /** Trace automatiquement les flèches de suggestion sur l'échiquier en conservant les formes existantes. Défaut: false. */
+  drawHintArrows?: boolean;
   searchLimit?: {
     movetime?: number;
     depth?: number;
@@ -42,11 +50,30 @@ export interface StockfishConfig {
 export class StockfishManager {
   private engine: StockfishEngine | null = null;
   private stockfishConfig: StockfishConfig = {};
-  public lastSuggestedMove = '';
+  private _lastSuggestedMoves: string[] = [];
+  private lastHints: StockfishHint[] = [];
   private isReviewRunning = false;
   private isLiveAnalysis = false;
   private isHintRequested = false;
+  private pendingHintOptions: HintRequestOptions | null = null;
+  private pendingHintResolvers: Array<(hints: StockfishHint[]) => void> = [];
   private reviewAbortController: AbortController | null = null;
+
+  public get lastSuggestedMove(): string {
+    return this._lastSuggestedMoves[0] ?? '';
+  }
+
+  public set lastSuggestedMove(move: string) {
+    this._lastSuggestedMoves = move ? [move] : [];
+  }
+
+  public get lastSuggestedMoves(): string[] {
+    return [...this._lastSuggestedMoves];
+  }
+
+  public set lastSuggestedMoves(moves: string[]) {
+    this._lastSuggestedMoves = moves.filter(Boolean);
+  }
 
   constructor(
     private eventBus: DomainEventBus,
@@ -85,6 +112,10 @@ export class StockfishManager {
 
   public newGame(): void {
     this.isHintRequested = false;
+    this.pendingHintOptions = null;
+    this.resolvePendingHints([]);
+    this._lastSuggestedMoves = [];
+    this.lastHints = [];
     if (!this.engine || this.engine.getStatus() === 'error') {
       this.initStockfish(false);
       return;
@@ -110,6 +141,14 @@ export class StockfishManager {
 
   public getLastEvaluation(): StockfishEvaluation | null {
     return this.engine ? this.engine.getLastEvaluation() : null;
+  }
+
+  public getLastEvaluations(): StockfishEvaluation[] {
+    return this.engine ? this.engine.getLastEvaluations() : [];
+  }
+
+  public getLastHints(): StockfishHint[] {
+    return this.lastHints.map((h) => ({ ...h, pv: [...h.pv] }));
   }
 
   public updateStockfishConfig(
@@ -158,8 +197,8 @@ export class StockfishManager {
         onEvaluation: (evaluation) => {
           this.eventBus.emit('stockfish-eval', { evaluation });
         },
-        onBestMove: (bestMove) => {
-          this.handleBestMove(bestMove);
+        onBestMove: (bestMove, _ponder, evaluations) => {
+          this.handleBestMove(bestMove, evaluations);
         },
         onError: (error) => {
           this.eventBus.emit('stockfish-error', { error });
@@ -276,31 +315,39 @@ export class StockfishManager {
     }
   }
 
-  public requestHint(options: { multiPv?: number; depth?: number; movetime?: number } = {}): void {
-    if (this.isReviewRunning) return;
+  public requestHint(options: HintRequestOptions = {}): Promise<StockfishHint[]> {
+    if (this.isReviewRunning) return Promise.resolve([]);
     this.isHintRequested = true;
+    this.pendingHintOptions = options;
 
     if (!this.engine || this.engine.getStatus() === 'error') {
       this.initStockfish(false);
     }
     if (!this.engine) {
       this.isHintRequested = false;
-      return;
+      this.pendingHintOptions = null;
+      return Promise.resolve([]);
     }
 
     const { baseCmd, moves, currentFen, isGameOver } = this.getEnginePosition();
     if (isGameOver) {
       this.isHintRequested = false;
-      return;
+      this.pendingHintOptions = null;
+      return Promise.resolve([]);
     }
 
+    const multiPv = Math.max(1, options.multiPv ?? this.stockfishConfig.multiPv ?? 1);
     this.engine.setOption('UCI_LimitStrength', 'false');
-    this.engine.setOption('MultiPV', options.multiPv || 1);
+    this.engine.setOption('MultiPV', multiPv);
 
     this.engine.setPosition(baseCmd, moves, currentFen);
     this.engine.search({
       movetime: options.depth ? undefined : options.movetime || 1200,
       depth: options.depth,
+    });
+
+    return new Promise<StockfishHint[]>((resolve) => {
+      this.pendingHintResolvers.push(resolve);
     });
   }
 
@@ -383,18 +430,134 @@ export class StockfishManager {
     };
   }
 
-  private handleBestMove(bestMove: string): void {
-    if (!bestMove || bestMove === '(none)') return;
-    this.lastSuggestedMove = bestMove;
+  private resolvePendingHints(hints: StockfishHint[]): void {
+    if (this.pendingHintResolvers.length === 0) return;
+    const resolvers = [...this.pendingHintResolvers];
+    this.pendingHintResolvers = [];
+    for (const resolve of resolvers) {
+      resolve(hints);
+    }
+  }
+
+  private getHintBrush(rank: number): HintBrush {
+    if (rank === 1) return 'green';
+    if (rank === 2) return 'blue';
+    if (rank === 3) return 'yellow';
+    return 'red';
+  }
+
+  private buildHints(
+    bestMove: string,
+    evaluations: StockfishEvaluation[],
+    maxScoreDiffCp?: number
+  ): StockfishHint[] {
+    const currentFen = this.session.getFen();
+    const validEvals: StockfishEvaluation[] = [];
+    const seenMoves = new Set<string>();
+
+    for (const ev of evaluations) {
+      const moveUci = ev.bestMove || ev.pv[0];
+      if (!moveUci || moveUci === '(none)' || seenMoves.has(moveUci)) continue;
+      seenMoves.add(moveUci);
+      validEvals.push({ ...ev, bestMove: moveUci });
+    }
+
+    if (validEvals.length === 0) {
+      const from = bestMove.substring(0, 2) as Key;
+      const to = bestMove.substring(2, 4) as Key;
+      const promotion = bestMove.length > 4 ? bestMove.substring(4, 5) : undefined;
+      return [
+        {
+          uci: bestMove,
+          from,
+          to,
+          promotion,
+          san: this.uciToSan(currentFen, bestMove),
+          rank: 1,
+          scoreType: 'cp',
+          scoreValue: 0,
+          whiteScoreValue: 0,
+          winChancePercentage: 50,
+          pv: [bestMove],
+          brush: 'green',
+        },
+      ];
+    }
+
+    const topEval = validEvals[0];
+    const filteredEvals = validEvals.filter((ev, idx) => {
+      if (idx === 0) return true;
+      if (maxScoreDiffCp === undefined || !Number.isFinite(maxScoreDiffCp)) return true;
+
+      if (topEval.scoreType === 'mate' && topEval.scoreValue > 0) {
+        return ev.scoreType === 'mate' && ev.scoreValue > 0;
+      }
+      if (ev.scoreType === 'mate' && ev.scoreValue < 0) {
+        return topEval.scoreType === 'mate' && topEval.scoreValue < 0;
+      }
+      if (topEval.scoreType === 'cp' && ev.scoreType === 'cp') {
+        const diffCp = topEval.scoreValue - ev.scoreValue;
+        return diffCp <= maxScoreDiffCp;
+      }
+      return false;
+    });
+
+    return filteredEvals.map((ev, idx) => {
+      const uci = ev.bestMove!;
+      const rank = idx + 1;
+      const from = uci.substring(0, 2) as Key;
+      const to = uci.substring(2, 4) as Key;
+      const promotion = uci.length > 4 ? uci.substring(4, 5) : undefined;
+      return {
+        uci,
+        from,
+        to,
+        promotion,
+        san: this.uciToSan(ev.fen || currentFen, uci),
+        rank,
+        scoreType: ev.scoreType,
+        scoreValue: ev.scoreValue,
+        whiteScoreValue: ev.whiteScoreValue,
+        winChancePercentage: ev.winChancePercentage,
+        pv: [...ev.pv],
+        brush: this.getHintBrush(rank),
+      };
+    });
+  }
+
+  private handleBestMove(bestMove: string, evaluations?: StockfishEvaluation[]): void {
+    if (!bestMove || bestMove === '(none)') {
+      this.resolvePendingHints([]);
+      return;
+    }
     const turn = this.session.getTurnColor();
     const mode = turn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
 
     const wasHintRequested = this.isHintRequested;
+    const hintOpts = this.pendingHintOptions;
     this.isHintRequested = false;
+    this.pendingHintOptions = null;
 
     if (wasHintRequested || mode === 'hint') {
-      this.eventBus.emit('stockfish-hint', { bestMove });
+      const maxScoreDiffCp =
+        hintOpts?.maxScoreDiffCp ??
+        this.stockfishConfig.hintMaxScoreDiffCp ??
+        (this.stockfishConfig.coachMode ? 50 : undefined);
+      const drawArrows =
+        hintOpts?.drawArrows ?? this.stockfishConfig.drawHintArrows ?? false;
+
+      const evals = evaluations && evaluations.length > 0 ? evaluations : this.getLastEvaluations();
+      const hints = this.buildHints(bestMove, evals, maxScoreDiffCp);
+      this.lastHints = hints;
+      this._lastSuggestedMoves = hints.map((h) => h.uci);
+      if (this._lastSuggestedMoves.length === 0) {
+        this._lastSuggestedMoves = [bestMove];
+      }
+
+      this.eventBus.emit('stockfish-hint', { bestMove, hints, drawArrows });
+      this.resolvePendingHints(hints);
     } else if ((mode === 'bot' || mode === 'elo') && this.onPlayEngineMove) {
+      this._lastSuggestedMoves = [bestMove];
       const from = bestMove.substring(0, 2);
       const to = bestMove.substring(2, 4);
       const promotion = bestMove.length > 4 ? bestMove.substring(4, 5) : undefined;
@@ -595,8 +758,8 @@ export class StockfishManager {
       onEvaluation: (evaluation) => {
         this.eventBus.emit('stockfish-eval', { evaluation });
       },
-      onBestMove: (bestMove) => {
-        this.handleBestMove(bestMove);
+      onBestMove: (bestMove, _ponder, evaluations) => {
+        this.handleBestMove(bestMove, evaluations);
       },
       onError: (error) => {
         this.eventBus.emit('stockfish-error', { error });

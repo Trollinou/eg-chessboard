@@ -314,5 +314,72 @@ describe('BoardCore (Façade & Lifecycle)', () => {
       expect(core.getGlyph('f7')).toBe('!');
       expect(emittedEvents.find((e) => e.event === 'coach-alert')).toBeUndefined();
     });
+
+    it('grants immunity in coachMode when playing the 2nd or 3rd move from lastSuggestedMoves', () => {
+      core.updateStockfishConfig({
+        whiteMode: 'disabled',
+        blackMode: 'elo',
+        coachMode: true,
+      });
+
+      core.setPosition(
+        'r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3'
+      );
+      core.lastSuggestedMoves = ['f1c4', 'h5g6', 'd2d3'];
+      emittedEvents = [];
+
+      // Play the 2nd suggested move (h5g6)
+      core.move('Qg6');
+
+      expect(core.getState().isCoachPaused).toBe(false);
+      expect(core.getGlyph('g6')).toBe('!');
+      expect(emittedEvents.find((e) => e.event === 'coach-alert')).toBeUndefined();
+      expect(core.lastSuggestedMoves).toEqual([]);
+    });
+
+    it('draws multi-color arrows while preserving existing shapes when drawArrows is true, and leaves shapes untouched when false', () => {
+      // Place an existing circle on d5
+      core.drawCircle('d5', 'red');
+      expect(core.getShapes()).toEqual([{ orig: 'd5', brush: 'red' }]);
+
+      // Emit stockfish-hint with drawArrows: false -> consuming app keeps control, only d5 circle remains
+      (core as unknown as { eventBus: { emit: (ev: string, data: unknown) => void } }).eventBus.emit(
+        'stockfish-hint',
+        {
+          bestMove: 'e2e4',
+          drawArrows: false,
+          hints: [
+            { uci: 'e2e4', from: 'e2', to: 'e4', san: 'e4', rank: 1, brush: 'green', scoreType: 'cp', scoreValue: 30, whiteScoreValue: 30, winChancePercentage: 53, pv: ['e2e4'] },
+            { uci: 'd2d4', from: 'd2', to: 'd4', san: 'd4', rank: 2, brush: 'blue', scoreType: 'cp', scoreValue: 25, whiteScoreValue: 25, winChancePercentage: 52, pv: ['d2d4'] },
+          ],
+        }
+      );
+
+      expect(core.getShapes()).toEqual([{ orig: 'd5', brush: 'red' }]);
+      const hintEv = emittedEvents.find((e) => e.event === 'stockfish-hint');
+      expect(hintEv?.args[0]).toBe('e2e4');
+      expect((hintEv?.args[1] as unknown[]).length).toBe(2);
+
+      // Emit stockfish-hint with drawArrows: true -> draws green, blue, yellow arrows AND preserves d5 circle
+      (core as unknown as { eventBus: { emit: (ev: string, data: unknown) => void } }).eventBus.emit(
+        'stockfish-hint',
+        {
+          bestMove: 'e2e4',
+          drawArrows: true,
+          hints: [
+            { uci: 'e2e4', from: 'e2', to: 'e4', san: 'e4', rank: 1, brush: 'green', scoreType: 'cp', scoreValue: 30, whiteScoreValue: 30, winChancePercentage: 53, pv: ['e2e4'] },
+            { uci: 'd2d4', from: 'd2', to: 'd4', san: 'd4', rank: 2, brush: 'blue', scoreType: 'cp', scoreValue: 25, whiteScoreValue: 25, winChancePercentage: 52, pv: ['d2d4'] },
+            { uci: 'g1f3', from: 'g1', to: 'f3', san: 'Nf3', rank: 3, brush: 'yellow', scoreType: 'cp', scoreValue: 20, whiteScoreValue: 20, winChancePercentage: 51, pv: ['g1f3'] },
+          ],
+        }
+      );
+
+      expect(core.getShapes()).toEqual([
+        { orig: 'd5', brush: 'red' },
+        { orig: 'e2', dest: 'e4', brush: 'green' },
+        { orig: 'd2', dest: 'd4', brush: 'blue' },
+        { orig: 'g1', dest: 'f3', brush: 'yellow' },
+      ]);
+    });
   });
 });

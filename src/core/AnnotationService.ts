@@ -301,9 +301,39 @@ export class AnnotationService {
     from: Key | string,
     to: Key | string,
     brush: string,
-    preserveShapes: boolean
+    preserveShapes: boolean,
+    append = false
   ): void {
-    this.applyBoardShapes([{ orig: from as Key, dest: to as Key, brush }], preserveShapes);
+    const newShape: DrawShape = { orig: from as Key, dest: to as Key, brush };
+    if (!append) {
+      this.applyBoardShapes([newShape], preserveShapes);
+      return;
+    }
+    const currentShapes = this.getShapes(preserveShapes).filter(
+      (s) => !(s.orig === newShape.orig && s.dest === newShape.dest)
+    );
+    this.applyBoardShapes([...currentShapes, newShape], preserveShapes);
+  }
+
+  public drawMoves(
+    moves: Array<{ from: Key | string; to: Key | string; brush?: string }>,
+    preserveShapes: boolean,
+    append = true
+  ): void {
+    const newShapes: DrawShape[] = moves.map((m) => ({
+      orig: m.from as Key,
+      dest: m.to as Key,
+      brush: m.brush || 'green',
+    }));
+    if (!append) {
+      this.applyBoardShapes(newShapes, preserveShapes);
+      return;
+    }
+    const newKeys = new Set(newShapes.map((s) => `${s.orig}-${s.dest}`));
+    const currentShapes = this.getShapes(preserveShapes).filter(
+      (s) => !(s.orig && s.dest && newKeys.has(`${s.orig}-${s.dest}`))
+    );
+    this.applyBoardShapes([...currentShapes, ...newShapes], preserveShapes);
   }
 
   public drawCircle(square: Key | string, brush: string, preserveShapes: boolean): void {
