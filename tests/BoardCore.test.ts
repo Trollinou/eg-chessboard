@@ -381,5 +381,45 @@ describe('BoardCore (Façade & Lifecycle)', () => {
         { orig: 'g1', dest: 'f3', brush: 'yellow' },
       ]);
     });
+
+    it('keeps programmatic hint arrows visible when clicking/deselecting a piece, while erasing right-click user arrows, and clears hint arrows once a move is played', () => {
+      core.drawMoves([
+        { from: 'e2', to: 'e4', brush: 'green' },
+        { from: 'd2', to: 'd4', brush: 'blue' },
+      ]);
+      expect(core.getShapes()).toEqual([
+        { orig: 'e2', dest: 'e4', brush: 'green' },
+        { orig: 'd2', dest: 'd4', brush: 'blue' },
+      ]);
+
+      // Simulate user right-clicking to draw a temporary red arrow a2->a4
+      const onChange = core.board.state.drawable.onChange;
+      const withRightClickShape = [
+        ...core.board.state.drawable.shapes,
+        { orig: 'a2', dest: 'a4', brush: 'red' },
+      ];
+      core.board.state.drawable.shapes = withRightClickShape;
+      onChange?.(withRightClickShape);
+
+      expect(core.getShapes()).toEqual([
+        { orig: 'e2', dest: 'e4', brush: 'green' },
+        { orig: 'd2', dest: 'd4', brush: 'blue' },
+        { orig: 'a2', dest: 'a4', brush: 'red' },
+      ]);
+
+      // Simulate user left-clicking a piece (Chessground drawClear empties drawable.shapes and calls onChange([]))
+      core.board.state.drawable.shapes = [];
+      onChange?.([]);
+
+      // Right-click arrow is erased, but programmatic hint arrows remain visible!
+      expect(core.getShapes()).toEqual([
+        { orig: 'e2', dest: 'e4', brush: 'green' },
+        { orig: 'd2', dest: 'd4', brush: 'blue' },
+      ]);
+
+      // Now actually play a move -> hint arrows are cleared automatically
+      core.move('e4');
+      expect(core.getShapes()).toEqual([]);
+    });
   });
 });

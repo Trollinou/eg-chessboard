@@ -17,6 +17,7 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
   - Filtrage intelligent par écart de score (`maxScoreDiffCp` dans `requestHint` et `hintMaxScoreDiffCp` dans `StockfishConfig`), avec un seuil par défaut de **`50` centipions** en `coachMode: true` afin d'écarter les coups secondaires trop inférieurs au meilleur coup.
   - Délégation optionnelle du tracé des flèches à `eg-chessboard` via `requestHint({ drawArrows: true })` ou `stockfishConfig.drawHintArrows: true` (défaut `false` pour laisser la main à l'application consommatrice), en **conservant toutes les formes (`shapes`) et glyphes déjà présents sur l'échiquier**.
   - Ajout de `core.drawMoves(moves, append = true)` et du paramètre `append = false` sur `core.drawMove(from, to, brush, append)` pour tracer plusieurs flèches sans écraser les formes existantes.
+  - Préservation automatique des flèches d'aide et formes programmatiques (`currentProgrammaticShapes`) lors de la sélection/désélection d'une pièce ou du clic sur une case vide (seules les flèches temporaires dessinées au clic droit par le joueur s'effacent au clic sur une pièce, tandis que les flèches d'aide restent affichées jusqu'à ce qu'un coup soit réellement joué ou que `hideMoves()` soit appelé).
   - Immunité étendue en Mode Coach via `core.lastSuggestedMoves: string[]` : jouer n'importe lequel des coups suggérés accorde l'immunité Coach et le glyphe `'!'`.
 
 ## [1.8.2] - 2026-11-08

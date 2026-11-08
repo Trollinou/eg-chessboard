@@ -29,6 +29,7 @@ export function judgementToGlyph(judgement: MoveJudgement): BoardGlyph {
 
 export class AnnotationService {
   private currentPreservedShapes: DrawShape[] = [];
+  private currentProgrammaticShapes: DrawShape[] = [];
   private currentGlyphs = new Map<Key, BoardGlyph>();
   private currentComment = '';
   private isDrawingUpdate = false;
@@ -84,7 +85,9 @@ export class AnnotationService {
   }
 
   public setPreservedShapes(shapes: DrawShape[]): void {
-    this.currentPreservedShapes = shapes.filter((s) => !s.customSvg);
+    const clean = shapes.filter((s) => !s.customSvg);
+    this.currentPreservedShapes = clean;
+    this.currentProgrammaticShapes = [...clean];
   }
 
   public getGlyphSvg(glyph: BoardGlyph): string | null {
@@ -143,16 +146,11 @@ export class AnnotationService {
   public syncBoardShapes(): void {
     if (!this.board) return;
     this.isProgrammaticShapeUpdate = true;
-    const allShapes = [...this.currentPreservedShapes, ...this.buildGlyphShapes()];
-    this.board.setShapes(allShapes);
-    if (typeof requestAnimationFrame !== 'undefined') {
-      requestAnimationFrame(() => {
-        this.isProgrammaticShapeUpdate = false;
-      });
-    } else {
-      setTimeout(() => {
-        this.isProgrammaticShapeUpdate = false;
-      }, 0);
+    try {
+      const allShapes = [...this.currentPreservedShapes, ...this.buildGlyphShapes()];
+      this.board.setShapes(allShapes);
+    } finally {
+      this.isProgrammaticShapeUpdate = false;
     }
   }
 
@@ -177,27 +175,24 @@ export class AnnotationService {
     const isPreserve =
       preserveShapesOnPositionChange ??
       (!!this.getOptions?.().preserveShapesOnPositionChange || currentMode === 'editor');
-    this.currentPreservedShapes = shapes.filter((s) => !s.customSvg);
+    const cleanShapes = shapes.filter((s) => !s.customSvg);
+    this.currentProgrammaticShapes = [...cleanShapes];
+    this.currentPreservedShapes = [...cleanShapes];
     this.isProgrammaticShapeUpdate = true;
-    if (this.board) {
-      const allShapes = [...this.currentPreservedShapes, ...this.buildGlyphShapes()];
-      this.board.setShapes(allShapes);
-      const isGameMode = currentMode === 'game';
-      this.board.set({
-        drawable: {
-          eraseOnMovablePieceClick: currentMode === 'study' ? false : !isPreserve,
-          defaultSnapToValidMove: isGameMode,
-        },
-      });
-    }
-    if (typeof requestAnimationFrame !== 'undefined') {
-      requestAnimationFrame(() => {
-        this.isProgrammaticShapeUpdate = false;
-      });
-    } else {
-      setTimeout(() => {
-        this.isProgrammaticShapeUpdate = false;
-      }, 0);
+    try {
+      if (this.board) {
+        const allShapes = [...this.currentPreservedShapes, ...this.buildGlyphShapes()];
+        this.board.setShapes(allShapes);
+        const isGameMode = currentMode === 'game';
+        this.board.set({
+          drawable: {
+            eraseOnMovablePieceClick: currentMode === 'study' ? false : !isPreserve,
+            defaultSnapToValidMove: isGameMode,
+          },
+        });
+      }
+    } finally {
+      this.isProgrammaticShapeUpdate = false;
     }
   }
 
@@ -221,12 +216,41 @@ export class AnnotationService {
           this.applyBoardShapes(this.getPreservedShapes(), true, mode);
         }
       } else {
-        this.setPreservedShapes(userShapes);
+        if (userShapes.length === 0) {
+          this.currentPreservedShapes = [...this.currentProgrammaticShapes];
+          if (
+            this.board &&
+            (this.currentProgrammaticShapes.length > 0 || this.currentGlyphs.size > 0)
+          ) {
+            this.syncBoardShapes();
+          }
+        } else {
+          const mergedShapes = [...this.currentProgrammaticShapes];
+          for (const s of userShapes) {
+            const exists = mergedShapes.some(
+              (p) => p.orig === s.orig && p.dest === s.dest && p.brush === s.brush
+            );
+            if (!exists) {
+              mergedShapes.push(s);
+            }
+          }
+          this.currentPreservedShapes = mergedShapes;
+          if (this.board && this.currentGlyphs.size > 0) {
+            this.syncBoardShapes();
+          }
+        }
       }
 
       if (mode === 'study' && !readOnly) {
         const ply = this.session.getCurrentViewingPly();
-        this.setCommentAtPly(ply, this.currentComment, userShapes, false, mode, shouldPreserve);
+        this.setCommentAtPly(
+          ply,
+          this.currentComment,
+          this.currentPreservedShapes,
+          false,
+          mode,
+          shouldPreserve
+        );
       }
 
       this.eventBus.emit('shapes-changed', { shapes: this.getPreservedShapes() });
