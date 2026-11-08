@@ -6,6 +6,8 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-11-08
+
 ### Ajouté & Amélioré
 
 - **Suggestions Multi-Coups (MultiPV), Filtrage par Écart de Score & Délégation des Flèches (`StockfishHint`, `requestHint`, `drawMoves`)** :
@@ -22,7 +24,7 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 ### Corrigé & Amélioré
 
 - **Promotion automatique en ligne principale après `undoLastMove()` / `coachUndo()` (`GameSession`)** :
-  - Lorsqu'un coup est annulé via `undoLastMove()` ou `coachUndo()`, le coup rejoué ensuite est automatiquement promu en **ligne principale** (*mainline*, `children[0]`) de l'arbre PGN, tandis que le coup annulé est conservé en **sous-variante** entre parenthèses (ex: `2. Nf3 ( 2. Qh5 ) 2... Nc6`).
+  - Lorsqu'un coup est annulé via `undoLastMove()` ou `coachUndo()`, le coup rejoué ensuite est automatiquement promu en **ligne principale** (_mainline_, `children[0]`) de l'arbre PGN, tandis que le coup annulé est conservé en **sous-variante** entre parenthèses (ex: `2. Nf3 ( 2. Qh5 ) 2... Nc6`).
   - Corrige le problème où la ligne principale du PGN exporté via `getPgn()` s'arrêtait au premier coup annulé et reléguait tout le reste de la partie dans une sous-variante.
 
 ## [1.8.1] - 2026-11-08
