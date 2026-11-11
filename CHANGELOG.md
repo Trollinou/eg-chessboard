@@ -6,6 +6,16 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.8.4] - 2026-11-11
+
+### Corrigé & Amélioré
+
+- **Surbrillance du Dernier Coup (`lastMove`) & Robustesse d'Animation Moteur** :
+  - Ajout de la prop de premier niveau `highlightLastMove?: boolean` (valeur par défaut : `true`) dans les composants Vue 3 (`TheChessboard.vue`) et React (`Chessboard.tsx`), synchronisée dynamiquement avec Chessground.
+  - Sécurisation de `BoardAdapter.buildConfig()` avec des valeurs par défaut fiables pour `highlight` (`lastMove: true`, `check: true`) empêchant l'écrasement silencieux lors de configurations partielles transmises par les wrappers hôtes.
+  - Optimisation de `syncAfterMove()` : détection des coups déjà exécutés sur l'échiquier (`isAlreadyPlayed`) afin d'éviter l'invocation redondante de `board.move()` lors des interactions utilisateur.
+  - Élimination du double cycle d'animation / re-render synchrone lors des coups programmatiques et moteurs (Stockfish) : `board.move()` pilote la translation fluide sans annulation prématurée par un second appel `anim()` concurrent sur FEN identique, garantissant l'intégrité de la classe `.last-move`.
+
 ## [1.8.3] - 2026-11-08
 
 ### Ajouté & Amélioré

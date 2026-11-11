@@ -182,6 +182,11 @@ export class BoardAdapter {
       orientation: 'white',
       turnColor: this.session.getTurnColor(),
       ...userConfig,
+      highlight: {
+        lastMove: userConfig.highlight?.lastMove ?? true,
+        check: userConfig.highlight?.check ?? true,
+        ...userConfig.highlight,
+      },
       premovable: {
         enabled: false,
         ...userConfig.premovable,
@@ -480,14 +485,28 @@ export class BoardAdapter {
     move?: Move;
     colorBefore?: 'w' | 'b';
   }): void {
+    if (!this.board) return;
     if (res.move && this.session.getFen() !== res.move.after) {
       return;
     }
     if (!res.wasViewingHistory) {
-      if (res.move) {
+      const isAlreadyPlayed = res.move
+        ? !this.board.state.pieces.has(res.move.from as Key)
+        : false;
+
+      if (res.move && !isAlreadyPlayed) {
         this.board.move(res.move.from as Key, res.move.to as Key);
       }
-      this.updateGameState({ updateFen: true, animate: true });
+
+      const currentBoardPlacement = this.board.getFen();
+      const sessionPlacement = this.session.getFen().split(' ')[0];
+      const needsFenUpdate =
+        !res.move || !!res.move.promotion || currentBoardPlacement !== sessionPlacement;
+
+      this.updateGameState({
+        updateFen: needsFenUpdate,
+        animate: !isAlreadyPlayed && !needsFenUpdate,
+      });
     } else {
       this.board.set({ fen: '' });
       this.board.set({ fen: this.session.getFen() });

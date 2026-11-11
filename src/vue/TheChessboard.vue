@@ -65,6 +65,7 @@ const props = withDefaults(
     boardTheme?: BoardTheme;
     stockfishConfig?: StockfishConfig;
     diagram?: ChessDiagram;
+    highlightLastMove?: boolean;
   }>(),
   {
     boardConfig: () => ({}),
@@ -77,6 +78,7 @@ const props = withDefaults(
     pieceSet: 'cburnett',
     boardTheme: 'brown',
     stockfishConfig: () => ({}),
+    highlightLastMove: true,
   }
 );
 
@@ -160,11 +162,16 @@ watch(
 
 // Watch for configuration changes
 watch(
-  () => props.boardConfig,
-  (newConfig) => {
+  () => [props.boardConfig, props.highlightLastMove] as const,
+  ([newConfig, newHighlightLastMove]) => {
     if (newConfig && core.value) {
       core.value.setConfig({
         ...newConfig,
+        highlight: {
+          lastMove: newConfig.highlight?.lastMove ?? newHighlightLastMove,
+          check: newConfig.highlight?.check ?? true,
+          ...newConfig.highlight,
+        },
         movable: {
           ...newConfig.movable,
           color: props.playerColor || newConfig.movable?.color,
@@ -279,6 +286,11 @@ onMounted(() => {
     },
     {
       ...props.boardConfig,
+      highlight: {
+        lastMove: props.boardConfig.highlight?.lastMove ?? props.highlightLastMove,
+        check: props.boardConfig.highlight?.check ?? true,
+        ...props.boardConfig.highlight,
+      },
       movable: {
         ...props.boardConfig.movable,
         color: props.playerColor || props.boardConfig.movable?.color,

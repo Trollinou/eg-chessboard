@@ -213,6 +213,7 @@ Les composants `<TheChessboard>` (Vue 3) et `<Chessboard>` (React) partagent une
 | `preserveShapesOnPositionChange` | `boolean` | `false` | Conserve les formes/flèches dessinées lors de la pose ou suppression de pièces (implicite si `mode='editor'`). |
 | `pieceSet` | `PieceSet` | `'cburnett'` | Style graphique du jeu de pièces (`'cburnett'`, `'maestro'`, `'merida'`, `'alpha'`, `'cardinal'`, `'dubrovny'`, `'fantasy'`, `'firi'`, `'tatiana'`, `'staunty'`). |
 | `boardTheme` | `BoardTheme` | `'brown'` | Thème d'arrière-plan de l'échiquier et contraste des coordonnées (`'brown'`, `'blue'`, `'green'`, `'ic'`, `'grey'`, `'purple'`, `'wood'`, `'wood3'`, `'maple'`). |
+| `highlightLastMove` | `boolean` | `true` | Active ou désactive la surbrillance de la case de départ et d'arrivée du dernier coup joué (`.last-move`). |
 | `stockfishConfig`| `StockfishConfig` | `{}` | Configuration du moteur de jeu et d'analyse Stockfish. |
 | `diagram` | `ChessDiagram` | `undefined` | Position FEN et annotations graphiques (flèches/cercles) d'initialisation. |
 

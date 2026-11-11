@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BoardCore, type BoardCoreState } from '../src/BoardCore';
 
 describe('BoardCore (Façade & Lifecycle)', () => {
@@ -420,6 +420,47 @@ describe('BoardCore (Façade & Lifecycle)', () => {
       // Now actually play a move -> hint arrows are cleared automatically
       core.move('e4');
       expect(core.getShapes()).toEqual([]);
+    });
+  });
+
+  describe('Highlight & Move Synchronization', () => {
+    it('defaults highlight.lastMove and highlight.check to true in buildConfig', () => {
+      const config = (core as unknown as { adapter: { buildConfig: (c: Record<string, unknown>) => { highlight?: { lastMove?: boolean; check?: boolean } } } }).adapter.buildConfig({});
+      expect(config.highlight?.lastMove).toBe(true);
+      expect(config.highlight?.check).toBe(true);
+    });
+
+    it('preserves partial highlight configuration overrides in buildConfig', () => {
+      const config = (core as unknown as { adapter: { buildConfig: (c: Record<string, unknown>) => { highlight?: { lastMove?: boolean; check?: boolean } } } }).adapter.buildConfig({
+        highlight: { lastMove: false },
+      });
+      expect(config.highlight?.lastMove).toBe(false);
+      expect(config.highlight?.check).toBe(true);
+    });
+
+    it('sets lastMove on the board state when programmatic move is executed', () => {
+      core.move({ from: 'e2', to: 'e4' });
+      expect(core.getBoard().state.lastMove).toEqual(['e2', 'e4']);
+    });
+
+    it('avoids redundant board.move call in syncAfterMove when piece is already moved', () => {
+      const board = core.getBoard();
+      const moveSpy = vi.spyOn(board, 'move');
+
+      // Simulate piece already moved by user drag on board
+      board.state.pieces.delete('e2');
+      board.state.pieces.set('e4', { role: 'pawn', color: 'white' });
+
+      // Execute move in game session (as changeTurn does)
+      const res = (core as unknown as { session: { executeMove: (m: { from: string; to: string }) => Record<string, unknown> } }).session.executeMove({
+        from: 'e2',
+        to: 'e4',
+      });
+
+      (core as unknown as { adapter: { syncAfterMove: (res: Record<string, unknown>) => void } }).adapter.syncAfterMove(res);
+
+      expect(moveSpy).not.toHaveBeenCalled();
+      expect(board.state.lastMove).toEqual(['e2', 'e4']);
     });
   });
 });

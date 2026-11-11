@@ -70,6 +70,7 @@ export interface ChessboardProps extends BoardEvents {
   boardTheme?: BoardTheme;
   stockfishConfig?: StockfishConfig;
   diagram?: ChessDiagram;
+  highlightLastMove?: boolean;
 }
 
 const DEFAULT_BOARD_CONFIG: Config = {};
@@ -88,6 +89,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   boardTheme = 'brown',
   stockfishConfig = DEFAULT_STOCKFISH_CONFIG,
   diagram,
+  highlightLastMove = true,
   onBoardCreated,
   onMove,
   onTurnChange,
@@ -278,6 +280,11 @@ export const Chessboard: React.FC<ChessboardProps> = ({
       },
       {
         ...boardConfig,
+        highlight: {
+          lastMove: boardConfig.highlight?.lastMove ?? highlightLastMove,
+          check: boardConfig.highlight?.check ?? true,
+          ...boardConfig.highlight,
+        },
         movable: {
           ...boardConfig.movable,
           color: playerColor || boardConfig.movable?.color,
@@ -301,13 +308,18 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     if (coreRef.current && boardConfig) {
       coreRef.current.setConfig({
         ...boardConfig,
+        highlight: {
+          lastMove: boardConfig.highlight?.lastMove ?? highlightLastMove,
+          check: boardConfig.highlight?.check ?? true,
+          ...boardConfig.highlight,
+        },
         movable: {
           ...boardConfig.movable,
           color: playerColor || boardConfig.movable?.color,
         },
       });
     }
-  }, [boardConfig, playerColor]);
+  }, [boardConfig, playerColor, highlightLastMove]);
 
   useEffect(() => {
     if (coreRef.current && stockfishConfig) {
