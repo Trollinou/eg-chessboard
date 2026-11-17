@@ -691,11 +691,11 @@ const formatMove = (move: string, index: number) => {
               <span class="config-label">Mode de limitation :</span>
               <div style="display: flex; gap: 12px; margin-top: 4px;">
                 <label style="cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 0.85rem;">
-                  <input type="radio" value="time" v-model="searchLimitType" :disabled="isStockfishDisabled" />
+                  <input v-model="searchLimitType" type="radio" value="time" :disabled="isStockfishDisabled" />
                   ⏱️ Temps (ms)
                 </label>
                 <label style="cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 0.85rem;">
-                  <input type="radio" value="nodes" v-model="searchLimitType" :disabled="isStockfishDisabled" />
+                  <input v-model="searchLimitType" type="radio" value="nodes" :disabled="isStockfishDisabled" />
                   🔢 Nœuds (Formule Elo)
                 </label>
               </div>
