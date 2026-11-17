@@ -111,6 +111,10 @@ export const Chessboard: React.FC<ChessboardProps> = ({
 }) => {
   const boardRef = useRef<HTMLDivElement>(null);
   const coreRef = useRef<BoardCore | null>(null);
+  const isPropsMountedRef = useRef(false);
+  const isConfigMountedRef = useRef(false);
+  const isStockfishMountedRef = useRef(false);
+  const isDiagramMountedRef = useRef(false);
 
   const callbacksRef = useRef<BoardEvents>({
     onBoardCreated,
@@ -179,6 +183,10 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   });
 
   useEffect(() => {
+    if (!isPropsMountedRef.current) {
+      isPropsMountedRef.current = true;
+      return;
+    }
     const core = coreRef.current;
     if (!core) return;
     if (pieceSet) core.setPieceSet(pieceSet);
@@ -300,11 +308,19 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     return () => {
       core.destroy();
       coreRef.current = null;
+      isPropsMountedRef.current = false;
+      isConfigMountedRef.current = false;
+      isStockfishMountedRef.current = false;
+      isDiagramMountedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    if (!isConfigMountedRef.current) {
+      isConfigMountedRef.current = true;
+      return;
+    }
     if (coreRef.current && boardConfig) {
       coreRef.current.setConfig({
         ...boardConfig,
@@ -322,12 +338,20 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   }, [boardConfig, playerColor, highlightLastMove]);
 
   useEffect(() => {
+    if (!isStockfishMountedRef.current) {
+      isStockfishMountedRef.current = true;
+      return;
+    }
     if (coreRef.current && stockfishConfig) {
       coreRef.current.updateStockfishConfig(stockfishConfig);
     }
   }, [stockfishConfig]);
 
   useEffect(() => {
+    if (!isDiagramMountedRef.current) {
+      isDiagramMountedRef.current = true;
+      return;
+    }
     if (coreRef.current && diagram) {
       coreRef.current.setDiagram(diagram);
     }

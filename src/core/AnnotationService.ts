@@ -9,6 +9,9 @@ import * as BoardHelper from '../BoardHelper';
 import { DomainEventBus } from './DomainEventBus';
 import { GameSession } from './GameSession';
 
+const ANALYSIS_GLYPHS_MAP = analysisGlyphs(1);
+const GENERAL_GLYPHS_MAP = glyphToSvg(1);
+
 export function judgementToGlyph(judgement: MoveJudgement): BoardGlyph {
   switch (judgement) {
     case 'brilliant':
@@ -91,13 +94,11 @@ export class AnnotationService {
   }
 
   public getGlyphSvg(glyph: BoardGlyph): string | null {
-    const analysis = analysisGlyphs(1);
-    if (analysis[glyph]) {
-      return analysis[glyph](0);
+    if (ANALYSIS_GLYPHS_MAP[glyph]) {
+      return ANALYSIS_GLYPHS_MAP[glyph](0);
     }
-    const general = glyphToSvg(1);
-    if (general[glyph]) {
-      return general[glyph](0);
+    if (GENERAL_GLYPHS_MAP[glyph]) {
+      return GENERAL_GLYPHS_MAP[glyph](0);
     }
     return null;
   }
@@ -361,7 +362,7 @@ export class AnnotationService {
   }
 
   public drawCircle(square: Key | string, brush: string, preserveShapes: boolean): void {
-    const currentShapes = this.board?.state?.drawable?.shapes || [];
+    const currentShapes = this.getShapes(preserveShapes);
     this.applyBoardShapes([...currentShapes, { orig: square as Key, brush }], preserveShapes);
   }
 

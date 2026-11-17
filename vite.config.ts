@@ -79,6 +79,7 @@ export default defineConfig(({ command }) => {
     },
     build: {
       target: 'es2021',
+      emptyOutDir: true,
       sourcemap: process.env.SOURCE_MAP === 'true',
       cssCodeSplit: true,
       minify: true,

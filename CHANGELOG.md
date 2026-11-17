@@ -6,6 +6,24 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+## [1.8.5] - 2026-11-17
+
+### Optimisé & Factorisé
+
+- **Performance & Cache du Moteur de Session (`GameSession`, `BoardCore`)** :
+  - Ajout d'un cache interne (`activePathCache`) dans `GameSession.getActivePath()` et passage d'une construction en $O(N^2)$ (`unshift`) à $O(N)$ (`push` + `reverse`), invalidé uniquement lors des mutations du nœud courant ou de l'arbre PGN.
+  - Court-circuit de `GameSession.isThreefoldRepetition()` sous 4 demi-coups (`limit < 4`) et extraction de la FEN racine hors de la boucle d'itération.
+  - Unification de l'initialisation Stockfish dans le constructeur de `BoardCore` : suppression du double appel `initStockfish()` lorsqu'un `diagram` est fourni et déclenchement automatique de `triggerStockfish()` au montage sans `diagram`.
+- **Annotations & Factorisation UCI (`AnnotationService`, `BoardHelper`, `StockfishManager`)** :
+  - Mise en cache au niveau module des générateurs SVG de glyphes (`analysisGlyphs(1)`, `glyphToSvg(1)`) dans `AnnotationService`.
+  - Filtrage des `customSvg` dans `AnnotationService.drawCircle()` via `this.getShapes(preserveShapes)`.
+  - Extraction et export racine de `normalizeCastlingUci(uci, san?, color?)` dans `BoardHelper` / `src/index.ts`, supprimant la duplication entre `BoardCore` et `StockfishManager`.
+- **Cycle de Vie React 18 (`Chessboard.tsx`)** :
+  - Suppression des appels redondants au montage initial dans les `useEffect` de synchronisation des props (`boardConfig`, `stockfishConfig`, `diagram`, options), avec réinitialisation des gardes au démontage pour compatibilité `StrictMode`.
+- **Build & Nettoyage (`vite.config.ts`)** :
+  - Activation de `emptyOutDir: true` dans `vite.config.ts` pour purger les sourcemaps résiduelles de `dist/` tout en conservant `@lichess-org/chessground` et `chessops` bundlés.
+  - Suppression du fichier racine redondant `src/style.scss` (mise à jour de `sandbox/main.ts` vers `src/styles/style.scss`).
+
 ## [1.8.4] - 2026-11-11
 
 ### Corrigé & Amélioré

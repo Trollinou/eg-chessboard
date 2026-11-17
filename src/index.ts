@@ -43,6 +43,7 @@ export {
   getFinalFenFromPgn,
   getGameOverReason,
   normalizePgn,
+  normalizeCastlingUci,
   validateFen,
   computeEvalBarPercentage,
   getNodesForElo,

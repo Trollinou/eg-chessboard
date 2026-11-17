@@ -201,6 +201,36 @@ export function normalizePgn(pgn: string): string {
     .replace(/[♙♟]/g, '');
 }
 
+/**
+ * Normalise un coup UCI de roque vers la notation UCI standard (e1g1, e1c1, e8g8, e8c8).
+ */
+export function normalizeCastlingUci(
+  uci: string,
+  san?: string,
+  color?: 'w' | 'b' | 'white' | 'black'
+): string {
+  const clean = uci.trim().toLowerCase();
+  const cleanSan = san ? san.trim() : '';
+  const isWhite = color ? color === 'w' || color === 'white' : clean.startsWith('e1');
+  if (
+    cleanSan.startsWith('O-O-O') ||
+    cleanSan.startsWith('0-0-0') ||
+    clean === 'e1a1' ||
+    clean === 'e8a8'
+  ) {
+    return isWhite ? 'e1c1' : 'e8c8';
+  }
+  if (
+    cleanSan.startsWith('O-O') ||
+    cleanSan.startsWith('0-0') ||
+    clean === 'e1h1' ||
+    clean === 'e8h8'
+  ) {
+    return isWhite ? 'e1g1' : 'e8g8';
+  }
+  return clean;
+}
+
 export function getFinalFenFromPgn(
   pgnStr: string,
   fallbackFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'

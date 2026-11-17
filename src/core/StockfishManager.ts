@@ -2,7 +2,7 @@ import { Chess, parseUci } from 'chessops';
 import { makeFen, parseFen } from 'chessops/fen';
 import { makeSan } from 'chessops/san';
 import type { Key } from '@lichess-org/chessground/types';
-import { getNodesForElo } from '../BoardHelper';
+import { getNodesForElo, normalizeCastlingUci } from '../BoardHelper';
 import { DomainEventBus } from './DomainEventBus';
 import { GameSession } from './GameSession';
 import { StockfishEngine } from './StockfishEngine';
@@ -633,14 +633,9 @@ export class StockfishManager {
         const evalBefore = currentEval;
 
         // 2. Play the move and evaluate position after move
-        let moveUci = move.from + move.to;
-        const san = move.san ? move.san.trim() : '';
-        if (san.startsWith('O-O-O') || san.startsWith('0-0-0') || moveUci === 'e1a1' || moveUci === 'e8a8') {
-          moveUci = moveColor === 'white' ? 'e1c1' : 'e8c8';
-        } else if (san.startsWith('O-O') || san.startsWith('0-0') || moveUci === 'e1h1' || moveUci === 'e8h8') {
-          moveUci = moveColor === 'white' ? 'e1g1' : 'e8g8';
-        }
-        moveUci += move.promotion ? move.promotion.toLowerCase() : '';
+        const moveUci =
+          normalizeCastlingUci(move.from + move.to, move.san, moveColor) +
+          (move.promotion ? move.promotion.toLowerCase() : '');
         playedMovesUci.push(moveUci);
 
         let evalAfter: StockfishEvaluation;
@@ -925,13 +920,7 @@ export class StockfishManager {
     }
 
     const moves = history.map((m) => {
-      let uci = m.from + m.to;
-      const san = m.san ? m.san.trim() : '';
-      if (san.startsWith('O-O-O') || san.startsWith('0-0-0') || uci === 'e1a1' || uci === 'e8a8') {
-        uci = m.color === 'w' ? 'e1c1' : 'e8c8';
-      } else if (san.startsWith('O-O') || san.startsWith('0-0') || uci === 'e1h1' || uci === 'e8h8') {
-        uci = m.color === 'w' ? 'e1g1' : 'e8g8';
-      }
+      const uci = normalizeCastlingUci(m.from + m.to, m.san, m.color);
       return uci + (m.promotion ? m.promotion.toLowerCase() : '');
     });
 
