@@ -4,7 +4,7 @@ import type { Config } from '@lichess-org/chessground/config';
 import type { Color, Key, MoveMetadata } from '@lichess-org/chessground/types';
 import type { DrawShape } from '@lichess-org/chessground/draw';
 
-import { getFinalFenFromPgn, analyzeMoveTactics } from './BoardHelper';
+import { getFinalFenFromPgn, analyzeMoveTactics, normalizeCastlingUci } from './BoardHelper';
 import type {
   Move,
   VariationInfo,
@@ -153,10 +153,11 @@ export class BoardCore {
     this.registerEventBusListeners();
 
     // 4. Initial setup
-    this.stockfishManager.initStockfish(!!this.state.freeMode);
-
     if (diagram) {
       this.setDiagram(diagram);
+    } else {
+      this.stockfishManager.initStockfish(!!this.state.freeMode);
+      this.stockfishManager.triggerStockfish(!!this.state.freeMode);
     }
   }
 
@@ -194,21 +195,12 @@ export class BoardCore {
     }
   }
 
-  private normalizeCastlingUci(uci: string, san?: string): string {
-    const clean = uci.trim().toLowerCase();
-    if (clean === 'e1h1' || (san === 'O-O' && clean.startsWith('e1'))) return 'e1g1';
-    if (clean === 'e1a1' || (san === 'O-O-O' && clean.startsWith('e1'))) return 'e1c1';
-    if (clean === 'e8h8' || (san === 'O-O' && clean.startsWith('e8'))) return 'e8g8';
-    if (clean === 'e8a8' || (san === 'O-O-O' && clean.startsWith('e8'))) return 'e8c8';
-    return clean;
-  }
-
   private isSuggestedMove(move: Move, suggestedUci: string): boolean {
     if (!suggestedUci) return false;
     const playedUci = `${move.from}${move.to}${move.promotion ? move.promotion.toLowerCase() : ''}`;
     return (
-      this.normalizeCastlingUci(playedUci, move.san) ===
-      this.normalizeCastlingUci(suggestedUci)
+      normalizeCastlingUci(playedUci, move.san, move.color) ===
+      normalizeCastlingUci(suggestedUci)
     );
   }
 

@@ -6,6 +6,7 @@ import {
   shortToLongColor,
   getThreats,
   getFinalFenFromPgn,
+  normalizeCastlingUci,
   validateFen,
   computeEvalBarPercentage,
   getNodesForElo,
@@ -270,6 +271,18 @@ describe('BoardHelper', () => {
       expect(getGameOverReason(pos, 'fr')).toBe('');
       expect(getGameOverReason(pos, 'fr', true)).toBe('Match nul par triple répétition.');
       expect(getGameOverReason(pos, 'en', true)).toBe('Draw by threefold repetition.');
+    });
+  });
+
+  describe('normalizeCastlingUci', () => {
+    it('normalizes white and black castling UCI moves', () => {
+      expect(normalizeCastlingUci('e1h1')).toBe('e1g1');
+      expect(normalizeCastlingUci('e1a1')).toBe('e1c1');
+      expect(normalizeCastlingUci('e8h8')).toBe('e8g8');
+      expect(normalizeCastlingUci('e8a8')).toBe('e8c8');
+      expect(normalizeCastlingUci('e1h1', 'O-O', 'w')).toBe('e1g1');
+      expect(normalizeCastlingUci('e8a8', '0-0-0', 'black')).toBe('e8c8');
+      expect(normalizeCastlingUci('e2e4')).toBe('e2e4');
     });
   });
 });

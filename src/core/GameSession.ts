@@ -56,6 +56,7 @@ export class GameSession {
   private soloHistory: Move[] = [];
   private parentMap = new WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>();
   private undoneNodes = new WeakSet<Node<PgnNodeMeta>>();
+  private activePathCache: ChildNode<PgnNodeMeta>[] | null = null;
   private termination: GameTermination | null = null;
 
   constructor(private eventBus: DomainEventBus) {
@@ -89,6 +90,7 @@ export class GameSession {
 
   public setCurrentNode(node: Node<PgnNodeMeta>): void {
     this.currentNode = node;
+    this.activePathCache = null;
   }
 
   public getRootPos(): Chess {
@@ -104,6 +106,7 @@ export class GameSession {
     this.soloHistory = [];
     this.parentMap = new WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>();
     this.undoneNodes = new WeakSet<Node<PgnNodeMeta>>();
+    this.activePathCache = null;
     this.rootPos = startPos ? startPos.clone() : Chess.default();
     const fen = makeFen(this.rootPos.toSetup());
     if (fen !== 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1') {
@@ -131,15 +134,19 @@ export class GameSession {
   }
 
   public getActivePath(): ChildNode<PgnNodeMeta>[] {
+    if (this.activePathCache !== null) {
+      return this.activePathCache;
+    }
     const path: ChildNode<PgnNodeMeta>[] = [];
     let node: Node<PgnNodeMeta> = this.currentNode;
     while (isChildNode(node)) {
-      path.unshift(node);
+      path.push(node);
       const parent = this.parentMap.get(node) ?? this.findParentNode(this.rootNode, node);
       if (!parent) break;
       node = parent;
     }
-    return path;
+    this.activePathCache = path.reverse();
+    return this.activePathCache;
   }
 
   public syncGamePosToCurrentNode(): Chess {
@@ -548,7 +555,7 @@ export class GameSession {
       endNode = endNode.children[0];
     }
 
-    this.currentNode = endNode;
+    this.setCurrentNode(endNode);
     this.pos = this.syncGamePosToCurrentNode();
 
     const activePath = this.getActivePath();
@@ -577,7 +584,9 @@ export class GameSession {
       this.findParentNode(this.rootNode, this.currentNode) === null &&
       this.currentNode !== this.rootNode
     ) {
-      this.currentNode = parentNode;
+      this.setCurrentNode(parentNode);
+    } else {
+      this.activePathCache = null;
     }
 
     this.pos = this.syncGamePosToCurrentNode();
@@ -606,6 +615,7 @@ export class GameSession {
 
     const [promoted] = parentNode.children.splice(variationIndex, 1);
     parentNode.children.unshift(promoted);
+    this.activePathCache = null;
 
     this.pos = this.syncGamePosToCurrentNode();
     const activePath = this.getActivePath();
@@ -691,10 +701,10 @@ export class GameSession {
     this.parentMap = new WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>();
     this.indexParents(this.rootNode);
 
-    this.currentNode = this.rootNode;
+    this.setCurrentNode(this.rootNode);
     const mainline = Array.from(this.rootNode.mainlineNodes());
     if (mainline.length > 0) {
-      this.currentNode = mainline[mainline.length - 1];
+      this.setCurrentNode(mainline[mainline.length - 1]);
     }
     this.pos = this.syncGamePosToCurrentNode();
 
@@ -889,11 +899,10 @@ export class GameSession {
   public isThreefoldRepetition(targetPly?: number): boolean {
     const path = this.getActivePath();
     const limit = targetPly !== undefined ? Math.min(targetPly, path.length) : path.length;
+    if (limit < 4) return false;
 
-    const targetFen =
-      limit === 0
-        ? makeFen(this.rootPos.toSetup())
-        : path[limit - 1]?.data.fen || this.getFen();
+    const rootFen = makeFen(this.rootPos.toSetup());
+    const targetFen = limit === 0 ? rootFen : path[limit - 1]?.data.fen || this.getFen();
     const targetKey = GameSession.extractRepetitionKey(targetFen);
 
     const halfmoves =
@@ -905,8 +914,7 @@ export class GameSession {
     let count = 0;
 
     for (let ply = limit; ply >= startPly; ply -= 2) {
-      const fenAtPly =
-        ply === 0 ? makeFen(this.rootPos.toSetup()) : path[ply - 1]?.data.fen;
+      const fenAtPly = ply === 0 ? rootFen : path[ply - 1]?.data.fen;
       if (fenAtPly && GameSession.extractRepetitionKey(fenAtPly) === targetKey) {
         count++;
         if (count >= 3) {

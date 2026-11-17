@@ -391,6 +391,8 @@ Ces fonctions d'aide sont directement exportées à la racine de la bibliothèqu
 | `getThreats(moves)` | `moves: Move[]` | `Threat[]` | Génère la liste des attaques et menaces visuelles. |
 | `isPromotion(dest, piece)` | `dest: Key, piece: Piece` | `boolean` | Indique si le déplacement spécifié correspond à une promotion de pion. |
 | `shortToLongColor(color)` | `color: 'w' \| 'b'` | `'white' \| 'black'` | Convertit la notation courte de couleur vers la notation longue. |
+| `normalizeCastlingUci(uci, san?, color?)` | `uci: string, san?: string, color?: 'w' \| 'b' \| 'white' \| 'black'` | `string` | Normalise un coup de roque (`e1h1`, `e1a1`, `O-O`, `O-O-O`) vers la notation UCI standard (`e1g1`, `e1c1`, `e8g8`, `e8c8`). |
+| `normalizePgn(pgn)` | `pgn: string` | `string` | Normalise une chaîne PGN (remplace les roques `0-0`/`0-0-0` par `O-O`/`O-O-O` et les figurines Unicode par les lettres SAN standard). |
 
 ---
 
