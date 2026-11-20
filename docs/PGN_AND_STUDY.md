@@ -77,6 +77,9 @@ core.viewHistory(plyNumber);
 // Vérifier si l'utilisateur navigue dans le passé
 const isViewingHistory: boolean = core.isViewingHistory();
 const historyState = core.getHistoryViewerState(); // { isEnabled, currentPly, maxPly }
+
+// Récupérer la FEN complète de la position réellement affichée à l'écran
+const displayedFen: string = core.getViewingFen();
 ```
 
 Lors de la navigation, `eg-chessboard` émet l'événement `turn-change` (`onTurnChange` en React) avec la couleur au trait et le numéro de ply correspondant.
@@ -111,6 +114,22 @@ core.deleteVariation(variationIndex);
 
 // Obtenir l'arbre complet sous forme d'objet JSON exploitable
 const tree: PgnTreeNode = core.getPgnTree();
+```
+
+### 4.3 Découpe (*Pruning*) de l'arbre PGN
+Pour isoler un extrait de partie ou préparer un exercice à partir d'une position donnée sans perdre les annotations (`[%cal]`, `[%csl]`, commentaires) ni les sous-variantes utiles :
+
+```typescript
+// 1. Couper tout ce qui précède le demi-coup affiché (ou un targetPly donné) :
+//    - Met à jour les en-têtes [SetUp "1"] et [FEN "..."] avec la FEN de la position.
+//    - Transfère les commentaires et formes de cette position au ply 0 (startingComments / rootComments).
+//    - Conserve toutes les sous-variantes et annotations des coups suivants.
+core.pruneBeforeCurrentPly();
+
+// 2. Couper tout ce qui suit le demi-coup affiché (ou un targetPly donné) :
+//    - Supprime tous les coups et variantes postérieurs.
+//    - Conserve le coup courant, ses commentaires et ses formes.
+core.pruneAfterCurrentPly();
 ```
 
 ---

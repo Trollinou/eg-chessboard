@@ -711,6 +711,11 @@ export class BoardCore {
     return this.session.getFen();
   }
 
+  /** Returns the full FEN of the currently displayed position (respecting history navigation). */
+  public getViewingFen(): string {
+    return this.session.getViewingFen();
+  }
+
   public getPlacementFen(): string {
     return this.session.getPlacementFen(this.board?.state?.pieces);
   }
@@ -994,6 +999,39 @@ export class BoardCore {
 
   public promoteVariation(variationIndex?: number): boolean {
     return this.session.promoteVariation(variationIndex);
+  }
+
+  /**
+   * Prunes all moves before the displayed position (or `targetPly`), updating `[SetUp]`/`[FEN]`
+   * headers and preserving comments, shapes, and subsequent variations.
+   */
+  public pruneBeforeCurrentPly(targetPly?: number): boolean {
+    const result = this.session.pruneBeforeCurrentPly(targetPly);
+    if (result) {
+      if (!this.session.isViewingHistory()) {
+        this.adapter.updateGameState({ updateFen: true });
+        this.board.set({ lastMove: undefined });
+      }
+      this.onStateChange();
+    }
+    return result;
+  }
+
+  /**
+   * Prunes all moves and variations after the displayed position (or `targetPly`),
+   * keeping the target node, its comments, and its shapes intact.
+   */
+  public pruneAfterCurrentPly(targetPly?: number): boolean {
+    const result = this.session.pruneAfterCurrentPly(targetPly);
+    if (result) {
+      this.adapter.updateGameState({ updateFen: true });
+      const lastMove = this.getLastMove();
+      this.board.set({
+        lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
+      });
+      this.onStateChange();
+    }
+    return result;
   }
 
   public getPgnTree(): PgnTreeNode {
