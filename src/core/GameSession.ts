@@ -630,6 +630,99 @@ export class GameSession {
     return true;
   }
 
+  public pruneBeforeCurrentPly(targetPly: number = this.getCurrentViewingPly()): boolean {
+    const path = this.getActivePath();
+    if (targetPly <= 0 || targetPly > path.length) return false;
+
+    const targetNode = path[targetPly - 1];
+    const targetFen = targetNode.data.fen;
+    const setup = parseFen(targetFen);
+    if (setup.isErr) return false;
+
+    const posResult = Chess.fromSetup(setup.value);
+    if (posResult.isErr) return false;
+
+    this.rootPos = posResult.value.clone();
+    if (targetFen === 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1') {
+      this.headers.delete('SetUp');
+      this.headers.delete('FEN');
+    } else {
+      this.headers.set('SetUp', '1');
+      this.headers.set('FEN', targetFen);
+    }
+
+    const preservedComments = targetNode.data.comments ? [...targetNode.data.comments] : [];
+    const nextRoot = new Node<PgnNodeMeta>();
+    nextRoot.children = targetNode.children;
+    this.rootNode = nextRoot;
+    this.rootComments = [];
+
+    if (preservedComments.length > 0) {
+      if (this.rootNode.children.length > 0) {
+        const firstChild = this.rootNode.children[0];
+        firstChild.data.startingComments = [
+          ...preservedComments,
+          ...(firstChild.data.startingComments || []),
+        ];
+      } else {
+        this.rootComments = preservedComments;
+      }
+    }
+
+    this.parentMap = new WeakMap<Node<PgnNodeMeta>, Node<PgnNodeMeta>>();
+    this.indexParents(this.rootNode);
+    this.undoneNodes = new WeakSet<Node<PgnNodeMeta>>();
+    this.soloHistory = [];
+
+    this.setCurrentNode(this.rootNode);
+    const mainline = Array.from(this.rootNode.mainlineNodes());
+    if (mainline.length > 0) {
+      this.setCurrentNode(mainline[mainline.length - 1]);
+    }
+    this.pos = this.syncGamePosToCurrentNode();
+
+    if (mainline.length > 0) {
+      this.viewStart();
+    } else {
+      this.resetHistoryState();
+      this.eventBus.emit('turn-changed', {
+        turnColor: this.getTurnColor(),
+        ply: this.getCurrentPlyNumber(),
+      });
+      this.eventBus.emit('position-changed', {
+        fen: this.getFen(),
+        posUpdated: true,
+      });
+      this.eventBus.emit('state-changed');
+    }
+
+    return true;
+  }
+
+  public pruneAfterCurrentPly(targetPly: number = this.getCurrentViewingPly()): boolean {
+    const path = this.getActivePath();
+    if (targetPly < 0 || targetPly > path.length) return false;
+
+    const targetNode = targetPly === 0 ? this.rootNode : path[targetPly - 1];
+    if (targetNode.children.length === 0) return false;
+
+    targetNode.children = [];
+    this.setCurrentNode(targetNode);
+    this.pos = this.syncGamePosToCurrentNode();
+    this.resetHistoryState();
+
+    this.eventBus.emit('turn-changed', {
+      turnColor: this.getTurnColor(),
+      ply: this.getCurrentPlyNumber(),
+    });
+    this.eventBus.emit('position-changed', {
+      fen: this.getFen(),
+      posUpdated: true,
+    });
+    this.eventBus.emit('state-changed');
+    return true;
+  }
+
   public getPgnTree(): PgnTreeNode {
     const buildTreeNode = (node: Node<PgnNodeMeta>): PgnTreeNode => {
       const isChild = isChildNode(node);
@@ -824,6 +917,20 @@ export class GameSession {
 
   public getFen(): string {
     return makeFen(this.pos.toSetup());
+  }
+
+  public getViewingFen(): string {
+    if (this.historyState.isEnabled && this.historyState.plyViewing !== undefined) {
+      const ply = this.historyState.plyViewing;
+      if (ply === 0) {
+        return makeFen(this.rootPos.toSetup());
+      }
+      const path = this.getActivePath();
+      if (ply > 0 && ply <= path.length) {
+        return path[ply - 1].data.fen;
+      }
+    }
+    return this.getFen();
   }
 
   public getPlacementFen(boardPieces?: Map<Key, { role: Role; color: Color }>): string {

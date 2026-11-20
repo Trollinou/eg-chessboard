@@ -6,6 +6,13 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## [Unreleased]
 
+### Ajouté
+
+- **Introspection FEN & Découpe PGN (`GameSession`, `BoardCore`)** :
+  - `getViewingFen()` : retourne la FEN complète de la position actuellement affichée sur l'échiquier, en tenant compte de la navigation dans l'historique (`plyViewing`).
+  - `pruneBeforeCurrentPly(targetPly?)` : tronque les coups antérieurs à la position affichée (ou `targetPly`), met à jour les en-têtes `[SetUp "1"]` / `[FEN "..."]`, transfère les commentaires et shapes (`[%cal]`, `[%csl]`) au ply `0`, et préserve l'ensemble des variantes suivantes.
+  - `pruneAfterCurrentPly(targetPly?)` : supprime tous les coups et variantes postérieurs à la position affichée (ou `targetPly`) tout en conservant le nœud courant et ses annotations.
+
 ## [1.8.5] - 2026-11-17
 
 ### Optimisé & Factorisé

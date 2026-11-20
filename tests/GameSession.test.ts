@@ -356,5 +356,62 @@ describe('GameSession', () => {
       expect(moveRes.success).toBe(true);
     });
   });
+
+  describe('Viewing FEN & PGN Pruning', () => {
+    it('returns the viewed FEN during history navigation via getViewingFen()', () => {
+      session.loadPgn('1. e4 e5 2. Nf3 Nc6');
+      expect(session.getCurrentViewingPly()).toBe(0);
+      expect(session.getViewingFen()).toBe(
+        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+      );
+
+      session.viewNext();
+      expect(session.getCurrentViewingPly()).toBe(1);
+      expect(session.getViewingFen()).toContain('4P3');
+
+      session.viewNext();
+      expect(session.getCurrentViewingPly()).toBe(2);
+      expect(session.getViewingFen()).toContain('4p3');
+
+      session.stopViewingHistory();
+      expect(session.getViewingFen()).toBe(session.getFen());
+    });
+
+    it('prunes moves before current ply while preserving FEN header, comments, shapes, and variations', () => {
+      session.loadPgn(
+        '1. e4 e5 { [%cal Gg1f3] Position clé } 2. Nf3 (2. Bc4 Bc5) 2... Nc6 { Fin }'
+      );
+      session.viewHistory(2); // After 1... e5
+
+      const ok = session.pruneBeforeCurrentPly();
+      expect(ok).toBe(true);
+      expect(session.getCurrentViewingPly()).toBe(0);
+
+      const pgn = session.getPgn();
+      expect(pgn).toContain('[SetUp "1"]');
+      expect(pgn).toContain('[FEN "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"]');
+      expect(pgn).toContain('[%cal Gg1f3]');
+      expect(pgn).toContain('Position clé');
+      expect(pgn).toContain('2. Nf3');
+      expect(pgn).toContain('( 2. Bc4 Bc5 )');
+      expect(pgn).not.toContain('1. e4');
+    });
+
+    it('prunes moves after current ply while keeping current position, comments, and shapes', () => {
+      session.loadPgn('1. e4 e5 { [%csl Re5] Bon coup } 2. Nf3 Nc6 3. Bb5');
+      session.viewHistory(2); // After 1... e5
+
+      const ok = session.pruneAfterCurrentPly();
+      expect(ok).toBe(true);
+      expect(session.getActivePath().length).toBe(2);
+      expect(session.getRawCommentAtPly(2)).toContain('[%csl Re5] Bon coup');
+
+      const pgn = session.getPgn();
+      expect(pgn).toContain('1. e4 e5');
+      expect(pgn).toContain('[%csl Re5]');
+      expect(pgn).not.toContain('Nf3');
+      expect(pgn).not.toContain('Bb5');
+    });
+  });
 });
 

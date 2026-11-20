@@ -252,7 +252,8 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 
 | Méthode | Type de Retour | Description |
 | :--- | :--- | :--- |
-| `getFen()` | `string` | FEN complète validée de la position courante. |
+| `getFen()` | `string` | FEN complète validée de la position courante (fin de la ligne active). |
+| `getViewingFen()` | `string` | FEN complète de la position actuellement affichée (respecte le demi-coup consulté lors de la navigation dans l'historique). |
 | `getPlacementFen()` | `string` | FEN de placement uniquement (sans trait ni roque), extraite directement de Chessground (utile pour le mode libre ou FENs en cours d'édition). |
 | `getPgn()` | `string` | Chaîne PGN complète de la partie avec entêtes, annotations et toutes les sous-variantes entre parenthèses `(...)`. |
 | `getTurnColor()` | `'white' \| 'black'` | Couleur du joueur dont c'est le tour. |
@@ -321,6 +322,8 @@ L'instance `BoardCore` (`boardApi`) est transmise via l'événement `board-creat
 | `selectVariation(index)`| `variationIndex: number` | Bascule le plateau et la ligne active vers la sous-variante indiquée par son index. |
 | `promoteVariation(index?)`| `variationIndex?: number` | Promeut la sous-variante indiquée au rang de ligne principale (*mainline*). |
 | `deleteVariation(index?)` | `variationIndex?: number` | Supprime la sous-variante indiquée de l'arbre PGN. |
+| `pruneBeforeCurrentPly(ply?)` | `targetPly?: number` | Définit la position affichée (ou `targetPly`) comme nouveau départ PGN (`[SetUp "1"]` / `[FEN "..."]`), conserve ses commentaires/formes au ply 0 et toutes les variantes suivantes. |
+| `pruneAfterCurrentPly(ply?)` | `targetPly?: number` | Supprime tous les coups et variantes suivant la position affichée (ou `targetPly`), tout en conservant le coup courant, ses commentaires et ses formes. |
 | `getPgnTree()` | `none` | Retourne l'arborescence PGN complète sous forme d'un arbre `PgnTreeNode`. |
 
 ### 4. Annotations Graphiques & Commentaires PGN
