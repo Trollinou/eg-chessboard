@@ -462,5 +462,62 @@ describe('BoardCore (Façade & Lifecycle)', () => {
       expect(moveSpy).not.toHaveBeenCalled();
       expect(board.state.lastMove).toEqual(['e2', 'e4']);
     });
+
+    it('preserves explicit initialConfig.lastMove when mounting with a diagram without lastMove', () => {
+      const fenAfterE4 = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1';
+      const customCore = new BoardCore(
+        container,
+        { ...state },
+        () => {},
+        () => {},
+        { highlight: { lastMove: true }, lastMove: ['e2', 'e4'] },
+        {},
+        { fen: fenAfterE4, shapes: [] }
+      );
+
+      expect(customCore.getBoard().state.lastMove).toEqual(['e2', 'e4']);
+
+      // Subsequent config/playerColor updates on static position must not wipe static lastMove
+      customCore.setPlayerColor('black');
+      customCore.setConfig({ viewOnly: true });
+      expect(customCore.getBoard().state.lastMove).toEqual(['e2', 'e4']);
+
+      customCore.destroy();
+    });
+
+    it('preserves diagram.lastMove and supports setPosition with optional lastMove', () => {
+      const fenAfterE4 = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1';
+      const fenAfterC5 = 'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2';
+
+      core.setDiagram({ fen: fenAfterE4, shapes: [], lastMove: ['e2', 'e4'] });
+      expect(core.getBoard().state.lastMove).toEqual(['e2', 'e4']);
+
+      core.setPosition(fenAfterC5, ['c7', 'c5']);
+      expect(core.getBoard().state.lastMove).toEqual(['c7', 'c5']);
+
+      // Calling setPosition without lastMove clears previous static lastMove
+      core.setPosition(fenAfterE4);
+      expect(core.getBoard().state.lastMove).toBeUndefined();
+    });
+
+    it('preserves lastMove in setConfig when fen also changes, and clears static lastMove on move or newGame', () => {
+      const fenAfterE4 = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1';
+
+      core.setConfig({ fen: fenAfterE4, lastMove: ['e2', 'e4'] });
+      expect(core.getBoard().state.lastMove).toEqual(['e2', 'e4']);
+
+      // Playing a move replaces static lastMove and undoing back to ply 0 does not resurrect it
+      expect(core.move('e5')).toBe(true);
+      expect(core.getBoard().state.lastMove).toEqual(['e7', 'e5']);
+
+      core.undoLastMove();
+      expect(core.getBoard().state.lastMove).toBeUndefined();
+
+      // Setting a static lastMove then calling newGame clears it
+      core.setPosition(fenAfterE4, ['e2', 'e4']);
+      expect(core.getBoard().state.lastMove).toEqual(['e2', 'e4']);
+      core.newGame();
+      expect(core.getBoard().state.lastMove).toBeUndefined();
+    });
   });
 });

@@ -4,6 +4,16 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [1.8.7] - 2026-11-22
+
+### Corrigé
+
+- **Préservation de `lastMove` sur les positions statiques (`BoardCore`, `BoardAdapter`)** :
+  - Ajout d'un état `staticLastMove` dans `BoardAdapter` (initialisé depuis `initialConfig.lastMove` et préservé lors des appels à `updateGameState()` tant qu'aucun coup réel n'est joué).
+  - Propagation de `lastMove` lors du montage avec `diagram` + `boardConfig.lastMove`, lors de `setConfig()` avec changement de `fen`, ainsi qu'après des mises à jour de configuration (`setPlayerColor`, `setConfig` partiel).
+  - Ajout du champ optionnel `lastMove?: [Key, Key]` sur `ChessDiagram` et du paramètre optionnel `lastMove?: Key[]` sur `BoardCore.setPosition(fenStr, lastMove?)`.
+  - Réinitialisation automatique de `staticLastMove` lors d'un coup joué (`syncAfterMove`), de `newGame()`, de `loadPgn()` ou d'un `setPosition()` sans `lastMove`.
+
 ## [1.8.6] - 2026-11-20
 
 ### Ajouté
