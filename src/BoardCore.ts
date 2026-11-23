@@ -75,6 +75,7 @@ export type {
 export interface ChessDiagram {
   fen: string;
   shapes?: DrawShape[];
+  lastMove?: [Key, Key];
 }
 
 export class BoardCore {
@@ -154,7 +155,10 @@ export class BoardCore {
 
     // 4. Initial setup
     if (diagram) {
-      this.setDiagram(diagram);
+      this.setDiagram({
+        ...diagram,
+        lastMove: diagram.lastMove ?? (initialConfig.lastMove as [Key, Key] | undefined),
+      });
     } else {
       this.stockfishManager.initStockfish(!!this.state.freeMode);
       this.stockfishManager.triggerStockfish(!!this.state.freeMode);
@@ -485,6 +489,9 @@ export class BoardCore {
             this.adapter.changeTurn(orig, dest, metadata);
     }
     const { fen: configFen, ...other } = finalConfig;
+    if ('lastMove' in other) {
+      this.adapter.setStaticLastMove(other.lastMove);
+    }
     if (other.movable?.color !== undefined) {
       this.state.playerColor = other.movable.color as 'white' | 'black' | 'both';
       this.onStateChange();
@@ -494,7 +501,7 @@ export class BoardCore {
     );
     this.board.set(other);
     if (configFen && !this.isSameFen(configFen)) {
-      this.setPosition(configFen);
+      this.setPosition(configFen, 'lastMove' in other ? other.lastMove : undefined);
     }
     if (other.drawable?.shapes) {
       this.annotationService.applyBoardShapes(
@@ -836,11 +843,12 @@ export class BoardCore {
     return this.session.getSquare(square);
   }
 
-  public setPosition(fenStr: string): void {
+  public setPosition(fenStr: string, lastMove?: Key[]): void {
     this.state.isCoachPaused = false;
     this.dismissedCoachPly = null;
     this.clearGlyphs();
     this.session.safeLoadFen(fenStr);
+    this.adapter.setStaticLastMove(lastMove);
     if (this.board) {
       this.board.set({ selected: undefined });
     }
@@ -851,7 +859,7 @@ export class BoardCore {
   }
 
   public setDiagram(diagram: ChessDiagram): void {
-    this.setPosition(diagram.fen);
+    this.setPosition(diagram.fen, diagram.lastMove);
     this.annotationService.applyBoardShapes(
       diagram.shapes || [],
       !!this.state.preserveShapesOnPositionChange
@@ -897,6 +905,7 @@ export class BoardCore {
     this.dismissedCoachPly = null;
     this.clearGlyphs();
     this.session.loadPgn(pgnStr);
+    this.adapter.setStaticLastMove(undefined);
     if (!this.session.isViewingHistory()) {
       this.adapter.updateGameState({ updateFen: true });
       const lastMove = this.getLastMove();
@@ -953,6 +962,7 @@ export class BoardCore {
     this.stockfishManager.lastSuggestedMove = '';
     this.session.newGame(fen);
     this.session.resetSoloHistory();
+    this.adapter.setStaticLastMove(undefined);
     this.board.set({
       fen: this.getFen(),
       lastMove: undefined,

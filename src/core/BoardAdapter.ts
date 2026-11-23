@@ -28,6 +28,7 @@ export class BoardAdapter {
   private element: HTMLElement;
   private isSyncing = false;
   private isCheckingPromotion = false;
+  private staticLastMove?: Key[];
 
   private pointerDownState: { x: number; y: number; square: Key } | null = null;
   private domListeners: Array<{
@@ -108,7 +109,12 @@ export class BoardAdapter {
     return this.element;
   }
 
+  public setStaticLastMove(lastMove?: Key[]): void {
+    this.staticLastMove = lastMove && lastMove.length > 0 ? [...lastMove] : undefined;
+  }
+
   private initBoard(initialConfig: Config): void {
+    this.setStaticLastMove(initialConfig.lastMove);
     const config = this.buildConfig(initialConfig);
     this.board = Chessground(this.element, config);
     this.annotationService.setBoard(this.board);
@@ -277,7 +283,11 @@ export class BoardAdapter {
     }
 
     const lastMove = this.session.getLastMove();
-    updateObj.lastMove = lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined;
+    updateObj.lastMove = lastMove
+      ? [lastMove.from as Key, lastMove.to as Key]
+      : this.staticLastMove
+        ? [...this.staticLastMove]
+        : undefined;
 
     if (opts?.animate === false) {
       updateObj.animation = { enabled: false };
@@ -493,6 +503,7 @@ export class BoardAdapter {
     colorBefore?: 'w' | 'b';
   }): void {
     if (!this.board) return;
+    this.staticLastMove = undefined;
     if (res.move && this.session.getFen() !== res.move.after) {
       return;
     }
