@@ -302,3 +302,11 @@ export const GutenbergChessBlock: React.FC<GutenbergChessBlockProps> = ({
   );
 };
 ```
+
+### 6.1 Compatibilité WordPress Gutenberg `apiVersion: 3` (Iframe Editor Canvas)
+
+Lorsque `apiVersion: 3` est activé dans le `block.json` d'un bloc Gutenberg, WordPress monte le rendu du bloc dans une `<iframe>` isolée (`iframe[name="editor-canvas"]`) tandis que le code JavaScript React et `eg-chessboard` s'exécutent dans la fenêtre parente.
+
+`eg-chessboard` détecte et gère **nativement** cette architecture sans aucune configuration supplémentaire côté bloc :
+- **Détection automatique (`ownerDocument !== document`)** : `BoardAdapter` instancie le `ResizeObserver` dans le contexte de l'iframe, invalide automatiquement le cache géométrique lors du `scroll` ou du `resize` responsive de Gutenberg, et relaie uniquement les événements de l'instance activement manipulée vers Chessground (garantissant l'isolation complète même avec plusieurs blocs d'échiquier sur la même page).
+- **Feuilles de styles dans l'iframe** : Pensez à déclarer vos CSS (`eg-chessboard/base.css` et `eg-chessboard/pieces/<set>.css`, ou `eg-chessboard/style.css`) via les champs `style` / `editorStyle` de `block.json` (ou un fichier CSS importé dans le bundle de style du bloc) afin que WordPress les injecte automatiquement dans le `<head>` de l'iframe `editor-canvas`.

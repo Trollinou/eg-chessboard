@@ -207,32 +207,36 @@ watch(
 onMounted(() => {
   if (!boardElement.value) return;
 
+  const syncFromCore = (c: BoardCore) => {
+    const next = c.getState();
+    state.showThreats = next.showThreats;
+    state.mode = next.mode;
+    state.playerColor = next.playerColor;
+    state.freeMode = next.freeMode;
+    state.soloMode = next.soloMode;
+    state.readOnly = next.readOnly;
+    state.preserveShapesOnPositionChange = next.preserveShapesOnPositionChange;
+    state.pieceSet = next.pieceSet;
+    state.boardTheme = next.boardTheme;
+    state.promotionDialogState = { ...next.promotionDialogState };
+    state.historyViewerState = { ...next.historyViewerState };
+    state.currentComment = next.currentComment;
+    state.turnColor = next.turnColor;
+    state.ply = next.ply;
+    state.fen = next.fen;
+    state.isCheck = next.isCheck;
+    state.isGameOver = next.isGameOver;
+    state.termination = next.termination;
+    state.isCoachPaused = next.isCoachPaused;
+  };
+
   core.value = new BoardCore(
     boardElement.value,
     state,
     () => {
       // Triggered when reactive states change inside Core
       if (core.value) {
-        const next = core.value.getState();
-        state.showThreats = next.showThreats;
-        state.mode = next.mode;
-        state.playerColor = next.playerColor;
-        state.freeMode = next.freeMode;
-        state.soloMode = next.soloMode;
-        state.readOnly = next.readOnly;
-        state.preserveShapesOnPositionChange = next.preserveShapesOnPositionChange;
-        state.pieceSet = next.pieceSet;
-        state.boardTheme = next.boardTheme;
-        state.promotionDialogState = { ...next.promotionDialogState };
-        state.historyViewerState = { ...next.historyViewerState };
-        state.currentComment = next.currentComment;
-        state.turnColor = next.turnColor;
-        state.ply = next.ply;
-        state.fen = next.fen;
-        state.isCheck = next.isCheck;
-        state.isGameOver = next.isGameOver;
-        state.termination = next.termination;
-        state.isCoachPaused = next.isCoachPaused;
+        syncFromCore(core.value);
       }
     },
     (event, ...args) => {
@@ -265,10 +269,7 @@ onMounted(() => {
         case 'shapes-change':
           return emit('shapes-change', args[0] as DrawShape[]);
         case 'resign':
-          return emit(
-            'resign',
-            args[0] as { color: 'white' | 'black'; winner: 'white' | 'black' }
-          );
+          return emit('resign', args[0] as { color: 'white' | 'black'; winner: 'white' | 'black' });
         case 'draw-offer':
           return emit('draw-offer', args[0] as 'white' | 'black');
         case 'draw-declined':
@@ -300,6 +301,7 @@ onMounted(() => {
     props.diagram
   );
 
+  syncFromCore(core.value);
   emit('board-created', core.value!);
 });
 
