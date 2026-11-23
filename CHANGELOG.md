@@ -4,6 +4,57 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) et ce projet respecte le [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+<<<<<<< HEAD
+
+## [Unreleased]
+
+### Ajouté & Amélioré
+
+- **Support transparent des environnements Iframe / Multi-Documents (WordPress Gutenberg `apiVersion: 3`) (`BoardAdapter`)** :
+  - Détection automatique de `element.ownerDocument !== document` à l'initialisation de `BoardAdapter`.
+  - Pont d'événements inter-document (`mousemove`, `mouseup`, `touchmove`, `touchend`) entre `ownerDocument` (iframe) et le `document` parent, avec **filtrage strict par instance active** (`draggable.current` ou `drawable.current`) garantissant qu'en présence de plusieurs échiquiers sur la même page ou dans la même iframe, seule l'instance en cours d'interaction relaie ses événements.
+  - Résolution du contexte fenêtre propriétaire (`ownerDocument.defaultView`) pour l'instanciation de `ResizeObserver`, la détection de `PointerEvent`, et l'invalidation automatique du cache géométrique (`clearDomBounds()`) lors du `scroll` dans l'iframe ou du `resize` du canevas responsive Gutenberg.
+  - Activation par défaut de `trustAllEvents: true` lorsque l'échiquier est monté dans un `ownerDocument` distinct (sauf surcharge explicite dans `boardConfig.trustAllEvents`).
+- **Sandbox React Multi-Échiquiers & Simulation Iframe Gutenberg v3 (`sandbox/`)** :
+  - Ajout de l'onglet `⚛️ React & Iframe (WP v3)` (`ReactMultiBoardApp.tsx`, `ReactSandboxWrapper.vue`) permettant de tester plusieurs composants React `<Chessboard />` simultanés montés dans le `contentDocument` d'une `<iframe name="editor-canvas">` via `createPortal` ainsi qu'hors iframe, avec journal d'événements en temps réel.
+
+### Corrigé
+
+- **Initialisation synchrone avec la prop `diagram` en React & Vue 3 (`Chessboard.tsx`, `TheChessboard.vue`)** :
+  - Correction d'une `ReferenceError: Cannot access 'core' before initialization` (Temporal Dead Zone) dans `Chessboard.tsx` lorsque `diagram` est fourni au montage initial (le constructeur de `BoardCore` appelant `this.setDiagram(diagram)` et déclenchant `onStateChange` de manière synchrone avant le retour de `new BoardCore(...)`).
+  - Synchronisation immédiate de l'état initial (`syncFromCore`) juste après l'instanciation de `BoardCore` dans `Chessboard.tsx` et `TheChessboard.vue`.
+    \=======
+
+## [1.8.7] - 2026-11-22
+
+### Corrigé
+
+- **Préservation de `lastMove` sur les positions statiques (`BoardCore`, `BoardAdapter`)** :
+  - Ajout d'un état `staticLastMove` dans `BoardAdapter` (initialisé depuis `initialConfig.lastMove` et préservé lors des appels à `updateGameState()` tant qu'aucun coup réel n'est joué).
+  - Propagation de `lastMove` lors du montage avec `diagram` + `boardConfig.lastMove`, lors de `setConfig()` avec changement de `fen`, ainsi qu'après des mises à jour de configuration (`setPlayerColor`, `setConfig` partiel).
+  - Ajout du champ optionnel `lastMove?: [Key, Key]` sur `ChessDiagram` et du paramètre optionnel `lastMove?: Key[]` sur `BoardCore.setPosition(fenStr, lastMove?)`.
+  - Réinitialisation automatique de `staticLastMove` lors d'un coup joué (`syncAfterMove`), de `newGame()`, de `loadPgn()` ou d'un `setPosition()` sans `lastMove`.
+
+> > > > > > > origin/main
+
+## [Unreleased]
+
+### Ajouté & Amélioré
+
+- **Support transparent des environnements Iframe / Multi-Documents (WordPress Gutenberg `apiVersion: 3`) (`BoardAdapter`)** :
+  - Détection automatique de `element.ownerDocument !== document` à l'initialisation de `BoardAdapter`.
+  - Pont d'événements inter-document (`mousemove`, `mouseup`, `touchmove`, `touchend`) entre `ownerDocument` (iframe) et le `document` parent, avec **filtrage strict par instance active** (`draggable.current` ou `drawable.current`) garantissant qu'en présence de plusieurs échiquiers sur la même page ou dans la même iframe, seule l'instance en cours d'interaction relaie ses événements.
+  - Résolution du contexte fenêtre propriétaire (`ownerDocument.defaultView`) pour l'instanciation de `ResizeObserver`, la détection de `PointerEvent`, et l'invalidation automatique du cache géométrique (`clearDomBounds()`) lors du `scroll` dans l'iframe ou du `resize` du canevas responsive Gutenberg.
+  - Activation par défaut de `trustAllEvents: true` lorsque l'échiquier est monté dans un `ownerDocument` distinct (sauf surcharge explicite dans `boardConfig.trustAllEvents`).
+- **Sandbox React Multi-Échiquiers & Simulation Iframe Gutenberg v3 (`sandbox/`)** :
+  - Ajout de l'onglet `⚛️ React & Iframe (WP v3)` (`ReactMultiBoardApp.tsx`, `ReactSandboxWrapper.vue`) permettant de tester plusieurs composants React `<Chessboard />` simultanés montés dans le `contentDocument` d'une `<iframe name="editor-canvas">` via `createPortal` ainsi qu'hors iframe, avec journal d'événements en temps réel.
+
+### Corrigé
+
+- **Initialisation synchrone avec la prop `diagram` en React & Vue 3 (`Chessboard.tsx`, `TheChessboard.vue`)** :
+  - Correction d'une `ReferenceError: Cannot access 'core' before initialization` (Temporal Dead Zone) dans `Chessboard.tsx` lorsque `diagram` est fourni au montage initial (le constructeur de `BoardCore` appelant `this.setDiagram(diagram)` et déclenchant `onStateChange` de manière synchrone avant le retour de `new BoardCore(...)`).
+  - Synchronisation immédiate de l'état initial (`syncFromCore`) juste après l'instanciation de `BoardCore` dans `Chessboard.tsx` et `TheChessboard.vue`.
+
 ## [1.8.7] - 2026-11-22
 
 ### Corrigé

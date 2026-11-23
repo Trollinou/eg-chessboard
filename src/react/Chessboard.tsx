@@ -213,33 +213,39 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   useEffect(() => {
     if (!boardRef.current) return;
 
+    const syncFromCore = (instance: BoardCore) => {
+      // Sync React component state with BoardCore state via public getter
+      const coreState = instance.getState();
+      setState({
+        showThreats: coreState.showThreats,
+        mode: coreState.mode,
+        playerColor: coreState.playerColor,
+        freeMode: coreState.freeMode,
+        soloMode: coreState.soloMode,
+        readOnly: coreState.readOnly,
+        preserveShapesOnPositionChange: coreState.preserveShapesOnPositionChange,
+        pieceSet: coreState.pieceSet,
+        boardTheme: coreState.boardTheme,
+        promotionDialogState: { ...coreState.promotionDialogState },
+        historyViewerState: { ...coreState.historyViewerState },
+        currentComment: coreState.currentComment,
+        turnColor: coreState.turnColor,
+        ply: coreState.ply,
+        fen: coreState.fen,
+        isCheck: coreState.isCheck,
+        isGameOver: coreState.isGameOver,
+        termination: coreState.termination,
+        isCoachPaused: coreState.isCoachPaused,
+      });
+    };
+
     const core = new BoardCore(
       boardRef.current,
       state,
       () => {
-        // Sync React component state with BoardCore state via public getter
-        const coreState = core.getState();
-        setState({
-          showThreats: coreState.showThreats,
-          mode: coreState.mode,
-          playerColor: coreState.playerColor,
-          freeMode: coreState.freeMode,
-          soloMode: coreState.soloMode,
-          readOnly: coreState.readOnly,
-          preserveShapesOnPositionChange: coreState.preserveShapesOnPositionChange,
-          pieceSet: coreState.pieceSet,
-          boardTheme: coreState.boardTheme,
-          promotionDialogState: { ...coreState.promotionDialogState },
-          historyViewerState: { ...coreState.historyViewerState },
-          currentComment: coreState.currentComment,
-          turnColor: coreState.turnColor,
-          ply: coreState.ply,
-          fen: coreState.fen,
-          isCheck: coreState.isCheck,
-          isGameOver: coreState.isGameOver,
-          termination: coreState.termination,
-          isCoachPaused: coreState.isCoachPaused,
-        });
+        if (coreRef.current) {
+          syncFromCore(coreRef.current);
+        }
       },
       (event, ...args) => {
         const cb = callbacksRef.current;
@@ -271,7 +277,9 @@ export const Chessboard: React.FC<ChessboardProps> = ({
           case 'shapes-change':
             return cb.onShapesChange?.(args[0] as DrawShape[]);
           case 'resign':
-            return cb.onResign?.(args[0] as { color: 'white' | 'black'; winner: 'white' | 'black' });
+            return cb.onResign?.(
+              args[0] as { color: 'white' | 'black'; winner: 'white' | 'black' }
+            );
           case 'draw-offer':
             return cb.onDrawOffer?.(args[0] as 'white' | 'black');
           case 'draw-declined':
@@ -303,6 +311,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
     );
 
     coreRef.current = core;
+    syncFromCore(core);
     callbacksRef.current.onBoardCreated?.(core);
 
     return () => {

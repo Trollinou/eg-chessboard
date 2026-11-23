@@ -217,9 +217,7 @@ describe('BoardCore (Façade & Lifecycle)', () => {
       });
 
       // 1. e4 e5 2. Qh5 Nc6 3. Qg6?? (hanging Queen on g6)
-      core.setPosition(
-        'r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3'
-      );
+      core.setPosition('r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3');
       emittedEvents = [];
 
       core.move('Qg6');
@@ -253,9 +251,7 @@ describe('BoardCore (Façade & Lifecycle)', () => {
       });
 
       // White Queen on b5 captures defended Black Knight on c6
-      core.setPosition(
-        'r1bqkbnr/pppp1ppp/2n5/1Q2p3/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3'
-      );
+      core.setPosition('r1bqkbnr/pppp1ppp/2n5/1Q2p3/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3');
       emittedEvents = [];
 
       core.move('Qxc6');
@@ -281,9 +277,7 @@ describe('BoardCore (Façade & Lifecycle)', () => {
         coachMode: true,
       });
 
-      core.setPosition(
-        'r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3'
-      );
+      core.setPosition('r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3');
       core.lastSuggestedMove = 'h5g6';
       emittedEvents = [];
 
@@ -302,9 +296,7 @@ describe('BoardCore (Façade & Lifecycle)', () => {
         coachMode: true,
       });
 
-      core.setPosition(
-        'r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4'
-      );
+      core.setPosition('r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4');
       emittedEvents = [];
 
       core.move('Qxf7#');
@@ -322,9 +314,7 @@ describe('BoardCore (Façade & Lifecycle)', () => {
         coachMode: true,
       });
 
-      core.setPosition(
-        'r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3'
-      );
+      core.setPosition('r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3');
       core.lastSuggestedMoves = ['f1c4', 'h5g6', 'd2d3'];
       emittedEvents = [];
 
@@ -343,17 +333,40 @@ describe('BoardCore (Façade & Lifecycle)', () => {
       expect(core.getShapes()).toEqual([{ orig: 'd5', brush: 'red' }]);
 
       // Emit stockfish-hint with drawArrows: false -> consuming app keeps control, only d5 circle remains
-      (core as unknown as { eventBus: { emit: (ev: string, data: unknown) => void } }).eventBus.emit(
-        'stockfish-hint',
-        {
-          bestMove: 'e2e4',
-          drawArrows: false,
-          hints: [
-            { uci: 'e2e4', from: 'e2', to: 'e4', san: 'e4', rank: 1, brush: 'green', scoreType: 'cp', scoreValue: 30, whiteScoreValue: 30, winChancePercentage: 53, pv: ['e2e4'] },
-            { uci: 'd2d4', from: 'd2', to: 'd4', san: 'd4', rank: 2, brush: 'blue', scoreType: 'cp', scoreValue: 25, whiteScoreValue: 25, winChancePercentage: 52, pv: ['d2d4'] },
-          ],
-        }
-      );
+      (
+        core as unknown as { eventBus: { emit: (ev: string, data: unknown) => void } }
+      ).eventBus.emit('stockfish-hint', {
+        bestMove: 'e2e4',
+        drawArrows: false,
+        hints: [
+          {
+            uci: 'e2e4',
+            from: 'e2',
+            to: 'e4',
+            san: 'e4',
+            rank: 1,
+            brush: 'green',
+            scoreType: 'cp',
+            scoreValue: 30,
+            whiteScoreValue: 30,
+            winChancePercentage: 53,
+            pv: ['e2e4'],
+          },
+          {
+            uci: 'd2d4',
+            from: 'd2',
+            to: 'd4',
+            san: 'd4',
+            rank: 2,
+            brush: 'blue',
+            scoreType: 'cp',
+            scoreValue: 25,
+            whiteScoreValue: 25,
+            winChancePercentage: 52,
+            pv: ['d2d4'],
+          },
+        ],
+      });
 
       expect(core.getShapes()).toEqual([{ orig: 'd5', brush: 'red' }]);
       const hintEv = emittedEvents.find((e) => e.event === 'stockfish-hint');
@@ -361,18 +374,53 @@ describe('BoardCore (Façade & Lifecycle)', () => {
       expect((hintEv?.args[1] as unknown[]).length).toBe(2);
 
       // Emit stockfish-hint with drawArrows: true -> draws green, blue, yellow arrows AND preserves d5 circle
-      (core as unknown as { eventBus: { emit: (ev: string, data: unknown) => void } }).eventBus.emit(
-        'stockfish-hint',
-        {
-          bestMove: 'e2e4',
-          drawArrows: true,
-          hints: [
-            { uci: 'e2e4', from: 'e2', to: 'e4', san: 'e4', rank: 1, brush: 'green', scoreType: 'cp', scoreValue: 30, whiteScoreValue: 30, winChancePercentage: 53, pv: ['e2e4'] },
-            { uci: 'd2d4', from: 'd2', to: 'd4', san: 'd4', rank: 2, brush: 'blue', scoreType: 'cp', scoreValue: 25, whiteScoreValue: 25, winChancePercentage: 52, pv: ['d2d4'] },
-            { uci: 'g1f3', from: 'g1', to: 'f3', san: 'Nf3', rank: 3, brush: 'yellow', scoreType: 'cp', scoreValue: 20, whiteScoreValue: 20, winChancePercentage: 51, pv: ['g1f3'] },
-          ],
-        }
-      );
+      (
+        core as unknown as { eventBus: { emit: (ev: string, data: unknown) => void } }
+      ).eventBus.emit('stockfish-hint', {
+        bestMove: 'e2e4',
+        drawArrows: true,
+        hints: [
+          {
+            uci: 'e2e4',
+            from: 'e2',
+            to: 'e4',
+            san: 'e4',
+            rank: 1,
+            brush: 'green',
+            scoreType: 'cp',
+            scoreValue: 30,
+            whiteScoreValue: 30,
+            winChancePercentage: 53,
+            pv: ['e2e4'],
+          },
+          {
+            uci: 'd2d4',
+            from: 'd2',
+            to: 'd4',
+            san: 'd4',
+            rank: 2,
+            brush: 'blue',
+            scoreType: 'cp',
+            scoreValue: 25,
+            whiteScoreValue: 25,
+            winChancePercentage: 52,
+            pv: ['d2d4'],
+          },
+          {
+            uci: 'g1f3',
+            from: 'g1',
+            to: 'f3',
+            san: 'Nf3',
+            rank: 3,
+            brush: 'yellow',
+            scoreType: 'cp',
+            scoreValue: 20,
+            whiteScoreValue: 20,
+            winChancePercentage: 51,
+            pv: ['g1f3'],
+          },
+        ],
+      });
 
       expect(core.getShapes()).toEqual([
         { orig: 'd5', brush: 'red' },
@@ -425,13 +473,29 @@ describe('BoardCore (Façade & Lifecycle)', () => {
 
   describe('Highlight & Move Synchronization', () => {
     it('defaults highlight.lastMove and highlight.check to true in buildConfig', () => {
-      const config = (core as unknown as { adapter: { buildConfig: (c: Record<string, unknown>) => { highlight?: { lastMove?: boolean; check?: boolean } } } }).adapter.buildConfig({});
+      const config = (
+        core as unknown as {
+          adapter: {
+            buildConfig: (c: Record<string, unknown>) => {
+              highlight?: { lastMove?: boolean; check?: boolean };
+            };
+          };
+        }
+      ).adapter.buildConfig({});
       expect(config.highlight?.lastMove).toBe(true);
       expect(config.highlight?.check).toBe(true);
     });
 
     it('preserves partial highlight configuration overrides in buildConfig', () => {
-      const config = (core as unknown as { adapter: { buildConfig: (c: Record<string, unknown>) => { highlight?: { lastMove?: boolean; check?: boolean } } } }).adapter.buildConfig({
+      const config = (
+        core as unknown as {
+          adapter: {
+            buildConfig: (c: Record<string, unknown>) => {
+              highlight?: { lastMove?: boolean; check?: boolean };
+            };
+          };
+        }
+      ).adapter.buildConfig({
         highlight: { lastMove: false },
       });
       expect(config.highlight?.lastMove).toBe(false);
@@ -452,12 +516,18 @@ describe('BoardCore (Façade & Lifecycle)', () => {
       board.state.pieces.set('e4', { role: 'pawn', color: 'white' });
 
       // Execute move in game session (as changeTurn does)
-      const res = (core as unknown as { session: { executeMove: (m: { from: string; to: string }) => Record<string, unknown> } }).session.executeMove({
+      const res = (
+        core as unknown as {
+          session: { executeMove: (m: { from: string; to: string }) => Record<string, unknown> };
+        }
+      ).session.executeMove({
         from: 'e2',
         to: 'e4',
       });
 
-      (core as unknown as { adapter: { syncAfterMove: (res: Record<string, unknown>) => void } }).adapter.syncAfterMove(res);
+      (
+        core as unknown as { adapter: { syncAfterMove: (res: Record<string, unknown>) => void } }
+      ).adapter.syncAfterMove(res);
 
       expect(moveSpy).not.toHaveBeenCalled();
       expect(board.state.lastMove).toEqual(['e2', 'e4']);
@@ -518,6 +588,48 @@ describe('BoardCore (Façade & Lifecycle)', () => {
       expect(core.getBoard().state.lastMove).toEqual(['e2', 'e4']);
       core.newGame();
       expect(core.getBoard().state.lastMove).toBeUndefined();
+    });
+  });
+
+  describe('Initial Diagram Construction Safety (No TDZ)', () => {
+    it('safely handles synchronous onStateChange during constructor when diagram is provided', () => {
+      const diagContainer = document.createElement('div');
+      document.body.appendChild(diagContainer);
+      let refCore: BoardCore | null = null;
+      const syncedStates: BoardCoreState[] = [];
+
+      const initialDiagram = {
+        fen: 'r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4',
+        shapes: [{ orig: 'h5' as const, dest: 'f7' as const, brush: 'green' }],
+      };
+
+      try {
+        const instance = new BoardCore(
+          diagContainer,
+          {
+            ...state,
+            mode: 'study',
+          },
+          () => {
+            if (refCore) {
+              syncedStates.push(refCore.getState());
+            }
+          },
+          () => {},
+          {},
+          {},
+          initialDiagram
+        );
+        refCore = instance;
+
+        const finalState = instance.getState();
+        expect(finalState.fen).toBe(initialDiagram.fen);
+        expect(instance.getShapes()).toHaveLength(1);
+        expect(instance.getShapes()[0]).toMatchObject({ orig: 'h5', dest: 'f7', brush: 'green' });
+      } finally {
+        refCore?.destroy();
+        diagContainer.remove();
+      }
     });
   });
 });

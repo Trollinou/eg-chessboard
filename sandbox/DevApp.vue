@@ -18,10 +18,11 @@ import {
   type BoardTheme,
 } from '../src';
 import PgnApp from './PgnApp.vue';
+import ReactSandboxWrapper from './ReactSandboxWrapper.vue';
 
 const selectedPieceSet = ref<PieceSet>('cburnett');
 const selectedBoardTheme = ref<BoardTheme>('brown');
-const activeTab = ref<'stockfish' | 'pgn' | 'solo' | 'editor'>('stockfish');
+const activeTab = ref<'stockfish' | 'pgn' | 'solo' | 'editor' | 'react'>('stockfish');
 
 // Editor / Diagram Test Mode State
 const editorBoardCore = ref<BoardCore | null>(null);
@@ -237,7 +238,7 @@ const baseStockfishConfig = reactive<StockfishConfig>({
   workerUrl: '/stockfish.js',
   whiteMode: 'disabled', // Human plays White without auto-spoilers
   whiteElo: 1500,
-  blackMode: 'elo',      // Stockfish plays Black with Elo limit
+  blackMode: 'elo', // Stockfish plays Black with Elo limit
   blackElo: 1400,
   stockfishMoveTime: 1500,
 });
@@ -475,7 +476,9 @@ const formatMove = (move: string, index: number) => {
               ? 'Stockfish Sandbox'
               : activeTab === 'solo'
                 ? 'Solo Sandbox'
-                : 'Lecteur & Éditeur PGN'
+                : activeTab === 'react'
+                  ? 'React & WP v3 Iframe'
+                  : 'Lecteur & Éditeur PGN'
           }}</span>
         </h1>
       </div>
@@ -503,6 +506,13 @@ const formatMove = (move: string, index: number) => {
         </button>
         <button :class="{ active: activeTab === 'pgn' }" class="tab-btn" @click="activeTab = 'pgn'">
           📖 Lecteur & Éditeur PGN
+        </button>
+        <button
+          :class="{ active: activeTab === 'react' }"
+          class="tab-btn"
+          @click="activeTab = 'react'"
+        >
+          ⚛️ React &amp; Iframe (WP v3)
         </button>
       </div>
       <div
@@ -590,7 +600,7 @@ const formatMove = (move: string, index: number) => {
       <section class="controls-column">
         <!-- Live status card -->
         <div class="glass-card status-card" :class="{ 'warning-border': boardCore?.getIsCheck() }">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; justify-content: space-between; align-items: center">
             <h2>Statut de la partie</h2>
             <span class="engine-badge" :class="engineStatus">
               ⚙️ {{ engineStatus.toUpperCase() }}
@@ -601,28 +611,46 @@ const formatMove = (move: string, index: number) => {
             <span class="status-text">{{ gameStatus }}</span>
           </div>
           <div v-if="currentEvaluation" class="eval-metrics">
-            <span>Prof: <strong>{{ currentEvaluation.depth }}</strong></span>
-            <span v-if="currentEvaluation.nps">NPS: <strong>{{ (currentEvaluation.nps / 1000).toFixed(0) }}k</strong></span>
+            <span
+              >Prof: <strong>{{ currentEvaluation.depth }}</strong></span
+            >
+            <span v-if="currentEvaluation.nps"
+              >NPS: <strong>{{ (currentEvaluation.nps / 1000).toFixed(0) }}k</strong></span
+            >
             <span v-if="currentEvaluation.wdl">
-              WDL: <strong>{{ (currentEvaluation.wdl[0] / 10).toFixed(0) }}% / {{ (currentEvaluation.wdl[1] / 10).toFixed(0) }}% / {{ (currentEvaluation.wdl[2] / 10).toFixed(0) }}%</strong>
+              WDL:
+              <strong
+                >{{ (currentEvaluation.wdl[0] / 10).toFixed(0) }}% /
+                {{ (currentEvaluation.wdl[1] / 10).toFixed(0) }}% /
+                {{ (currentEvaluation.wdl[2] / 10).toFixed(0) }}%</strong
+              >
             </span>
           </div>
         </div>
 
         <!-- Live Analysis Card -->
         <div v-if="isLiveAnalysisActive" class="glass-card analysis-card">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; justify-content: space-between; align-items: center">
             <h2>⚡ Analyse en direct</h2>
-            <span class="badge" style="background: rgba(76, 175, 80, 0.2); color: #4caf50;">Actif</span>
+            <span class="badge" style="background: rgba(76, 175, 80, 0.2); color: #4caf50"
+              >Actif</span
+            >
           </div>
           <p class="description">
-            Stockfish 19 calcule en profondeur infinie sur la position courante et s'adapte à chaque coup.
+            Stockfish 19 calcule en profondeur infinie sur la position courante et s'adapte à chaque
+            coup.
           </p>
           <div v-if="currentEvaluation" class="analysis-details">
             <div class="analysis-row">
-              <span>Éval : <strong>{{ evalScoreLabel }}</strong></span>
-              <span>Prof : <strong>{{ currentEvaluation.depth }}</strong></span>
-              <span v-if="currentEvaluation.nps">NPS : <strong>{{ (currentEvaluation.nps / 1000).toFixed(0) }}k</strong></span>
+              <span
+                >Éval : <strong>{{ evalScoreLabel }}</strong></span
+              >
+              <span
+                >Prof : <strong>{{ currentEvaluation.depth }}</strong></span
+              >
+              <span v-if="currentEvaluation.nps"
+                >NPS : <strong>{{ (currentEvaluation.nps / 1000).toFixed(0) }}k</strong></span
+              >
             </div>
             <div v-if="currentEvaluation.pv && currentEvaluation.pv.length" class="analysis-pv">
               <span class="pv-label">Meilleure suite (PV) :</span>
@@ -633,7 +661,7 @@ const formatMove = (move: string, index: number) => {
 
         <!-- Hint Card -->
         <div v-if="!isStockfishDisabled" class="glass-card hint-card">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; justify-content: space-between; align-items: center">
             <h2>💡 Conseils (Mode continu)</h2>
             <span
               class="badge"
@@ -683,19 +711,45 @@ const formatMove = (move: string, index: number) => {
                 max="3000"
                 step="50"
                 :disabled="isStockfishDisabled"
-                style="width: 100%;"
+                style="width: 100%"
               />
               <span class="config-value black-text">ELO {{ baseStockfishConfig.blackElo }}</span>
             </div>
             <div class="config-item">
               <span class="config-label">Mode de limitation :</span>
-              <div style="display: flex; gap: 12px; margin-top: 4px;">
-                <label style="cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 0.85rem;">
-                  <input v-model="searchLimitType" type="radio" value="time" :disabled="isStockfishDisabled" />
+              <div style="display: flex; gap: 12px; margin-top: 4px">
+                <label
+                  style="
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    font-size: 0.85rem;
+                  "
+                >
+                  <input
+                    v-model="searchLimitType"
+                    type="radio"
+                    value="time"
+                    :disabled="isStockfishDisabled"
+                  />
                   ⏱️ Temps (ms)
                 </label>
-                <label style="cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 0.85rem;">
-                  <input v-model="searchLimitType" type="radio" value="nodes" :disabled="isStockfishDisabled" />
+                <label
+                  style="
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    font-size: 0.85rem;
+                  "
+                >
+                  <input
+                    v-model="searchLimitType"
+                    type="radio"
+                    value="nodes"
+                    :disabled="isStockfishDisabled"
+                  />
                   🔢 Nœuds (Formule Elo)
                 </label>
               </div>
@@ -709,16 +763,21 @@ const formatMove = (move: string, index: number) => {
                 max="5000"
                 step="100"
                 :disabled="isStockfishDisabled"
-                style="width: 100%;"
+                style="width: 100%"
               />
-              <span class="config-value">{{ (baseStockfishConfig.stockfishMoveTime || 1000) / 1000 }}s</span>
+              <span class="config-value"
+                >{{ (baseStockfishConfig.stockfishMoveTime || 1000) / 1000 }}s</span
+              >
             </div>
             <div v-else class="config-item">
               <span class="config-label">Nœuds alloués :</span>
-              <span class="config-value" style="color: #60a5fa; font-weight: 700;">
-                {{ getNodesForElo(baseStockfishConfig.blackElo || 1400).toLocaleString('fr-FR') }} nœuds
+              <span class="config-value" style="color: #60a5fa; font-weight: 700">
+                {{
+                  getNodesForElo(baseStockfishConfig.blackElo || 1400).toLocaleString('fr-FR')
+                }}
+                nœuds
               </span>
-              <span style="font-size: 0.75rem; color: #a1a1aa; margin-top: 2px;">
+              <span style="font-size: 0.75rem; color: #a1a1aa; margin-top: 2px">
                 Formule exponentielle : 500 × 10^((Elo - 800) / 500)
               </span>
             </div>
@@ -826,9 +885,13 @@ const formatMove = (move: string, index: number) => {
                 class="review-move-row"
                 @click="viewReviewMove(m.ply)"
               >
-                <span class="move-ply">{{ Math.ceil(m.ply / 2) }}.{{ m.ply % 2 === 1 ? '' : '..' }}</span>
+                <span class="move-ply"
+                  >{{ Math.ceil(m.ply / 2) }}.{{ m.ply % 2 === 1 ? '' : '..' }}</span
+                >
                 <span class="move-san">{{ m.san }}</span>
-                <span class="move-judgement-tag" :class="m.judgement">{{ m.judgement.toUpperCase() }}</span>
+                <span class="move-judgement-tag" :class="m.judgement">{{
+                  m.judgement.toUpperCase()
+                }}</span>
                 <span class="move-diff">-{{ m.diffPercentage }}%</span>
               </div>
             </div>
@@ -1186,6 +1249,12 @@ const formatMove = (move: string, index: number) => {
       </section>
     </main>
 
+    <ReactSandboxWrapper
+      v-else-if="activeTab === 'react'"
+      :piece-set="selectedPieceSet"
+      :board-theme="selectedBoardTheme"
+    />
+
     <PgnApp v-else :piece-set="selectedPieceSet" :board-theme="selectedBoardTheme" />
   </div>
 </template>
@@ -1496,11 +1565,26 @@ body {
   border-radius: 4px;
   font-weight: 700;
 }
-.badge.brilliant { background: #06b6d4; color: #fff; }
-.badge.best { background: #10b981; color: #fff; }
-.badge.inaccuracy { background: #f59e0b; color: #fff; }
-.badge.mistake { background: #f97316; color: #fff; }
-.badge.blunder { background: #ef4444; color: #fff; }
+.badge.brilliant {
+  background: #06b6d4;
+  color: #fff;
+}
+.badge.best {
+  background: #10b981;
+  color: #fff;
+}
+.badge.inaccuracy {
+  background: #f59e0b;
+  color: #fff;
+}
+.badge.mistake {
+  background: #f97316;
+  color: #fff;
+}
+.badge.blunder {
+  background: #ef4444;
+  color: #fff;
+}
 
 .review-moves-list {
   max-height: 220px;
@@ -1538,13 +1622,34 @@ body {
   border-radius: 4px;
   text-transform: uppercase;
 }
-.move-judgement-tag.brilliant { background: rgba(6, 182, 212, 0.2); color: #22d3ee; }
-.move-judgement-tag.best { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-.move-judgement-tag.excellent { background: rgba(52, 211, 153, 0.15); color: #6ee7b7; }
-.move-judgement-tag.good { background: rgba(255, 255, 255, 0.1); color: #e4e4e7; }
-.move-judgement-tag.inaccuracy { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-.move-judgement-tag.mistake { background: rgba(249, 115, 22, 0.2); color: #fb923c; }
-.move-judgement-tag.blunder { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+.move-judgement-tag.brilliant {
+  background: rgba(6, 182, 212, 0.2);
+  color: #22d3ee;
+}
+.move-judgement-tag.best {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+.move-judgement-tag.excellent {
+  background: rgba(52, 211, 153, 0.15);
+  color: #6ee7b7;
+}
+.move-judgement-tag.good {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e4e4e7;
+}
+.move-judgement-tag.inaccuracy {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+.move-judgement-tag.mistake {
+  background: rgba(249, 115, 22, 0.2);
+  color: #fb923c;
+}
+.move-judgement-tag.blunder {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
 .move-diff {
   margin-left: auto;
   font-size: 0.75rem;

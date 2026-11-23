@@ -183,10 +183,17 @@ export class BoardAdapter {
       },
     };
 
+    const isCrossDocument = Boolean(
+      this.element?.ownerDocument &&
+      typeof document !== 'undefined' &&
+      this.element.ownerDocument !== document
+    );
+
     return {
       fen: makeFen(this.session.pos.toSetup()),
       orientation: 'white',
       turnColor: this.session.getTurnColor(),
+      ...(isCrossDocument ? { trustAllEvents: true } : {}),
       ...userConfig,
       highlight: {
         lastMove: userConfig.highlight?.lastMove ?? true,
@@ -501,9 +508,7 @@ export class BoardAdapter {
       return;
     }
     if (!res.wasViewingHistory) {
-      const isAlreadyPlayed = res.move
-        ? !this.board.state.pieces.has(res.move.from as Key)
-        : false;
+      const isAlreadyPlayed = res.move ? !this.board.state.pieces.has(res.move.from as Key) : false;
 
       if (res.move && !isAlreadyPlayed) {
         this.board.move(res.move.from as Key, res.move.to as Key);
@@ -645,7 +650,16 @@ export class BoardAdapter {
       this.clearDomBounds();
     };
 
-    if (typeof window !== 'undefined' && 'PointerEvent' in window) {
+    const ownerDoc =
+      this.element.ownerDocument || (typeof document !== 'undefined' ? document : null);
+    const ownerWin = ownerDoc?.defaultView || (typeof window !== 'undefined' ? window : null);
+
+    const hasPointerEvent = Boolean(
+      (ownerWin && 'PointerEvent' in ownerWin) ||
+      (typeof window !== 'undefined' && 'PointerEvent' in window)
+    );
+
+    if (hasPointerEvent) {
       addListener(this.element, 'pointerdown', onDown as EventListener, { capture: true });
       addListener(this.element, 'pointerup', onUp as EventListener, { capture: true });
     } else {
@@ -663,8 +677,83 @@ export class BoardAdapter {
 
     addListener(this.element, 'contextmenu', onContextMenu as EventListener, { capture: true });
 
-    if (typeof window !== 'undefined' && typeof window.ResizeObserver !== 'undefined') {
-      this.resizeObserver = new ResizeObserver(() => {
+    if (ownerDoc && typeof document !== 'undefined' && ownerDoc !== document) {
+      const isInstanceInteracting = (): boolean => {
+        const state = this.board?.state as
+          | {
+              draggable?: { current?: unknown };
+              drawable?: { current?: unknown };
+            }
+          | undefined;
+        return Boolean(state?.draggable?.current || state?.drawable?.current);
+      };
+
+      const forwardMouseEvent = (e: Event) => {
+        if (!isInstanceInteracting()) return;
+        const me = e as MouseEvent;
+        const forwarded = new MouseEvent(e.type, {
+          bubbles: true,
+          cancelable: true,
+          clientX: me.clientX,
+          clientY: me.clientY,
+          button: me.button,
+          buttons: me.buttons,
+          ctrlKey: me.ctrlKey,
+          shiftKey: me.shiftKey,
+          altKey: me.altKey,
+          metaKey: me.metaKey,
+        });
+        document.dispatchEvent(forwarded);
+      };
+
+      const forwardTouchEvent = (e: Event) => {
+        if (!isInstanceInteracting()) return;
+        const te = e as TouchEvent & { clientX?: number; clientY?: number };
+        const forwarded = new Event(e.type, { bubbles: true, cancelable: true });
+        const primaryTouch = te.targetTouches?.[0] ?? te.changedTouches?.[0];
+        const props: PropertyDescriptorMap = {
+          touches: { value: te.touches, enumerable: true },
+          targetTouches: { value: te.targetTouches, enumerable: true },
+          changedTouches: { value: te.changedTouches, enumerable: true },
+        };
+        if (primaryTouch) {
+          props.clientX = { value: primaryTouch.clientX, enumerable: true };
+          props.clientY = { value: primaryTouch.clientY, enumerable: true };
+        } else if (typeof te.clientX === 'number' && typeof te.clientY === 'number') {
+          props.clientX = { value: te.clientX, enumerable: true };
+          props.clientY = { value: te.clientY, enumerable: true };
+        }
+        Object.defineProperties(forwarded, props);
+        document.dispatchEvent(forwarded);
+      };
+
+      addListener(ownerDoc, 'mousemove', forwardMouseEvent);
+      addListener(ownerDoc, 'mouseup', forwardMouseEvent);
+      addListener(ownerDoc, 'touchmove', forwardTouchEvent, { passive: true });
+      addListener(ownerDoc, 'touchend', forwardTouchEvent, { passive: true });
+      addListener(ownerDoc, 'scroll', () => this.clearDomBounds(), {
+        capture: true,
+        passive: true,
+      });
+
+      if (ownerWin && (typeof window === 'undefined' || ownerWin !== window)) {
+        addListener(
+          ownerWin,
+          'resize',
+          () => {
+            this.clearDomBounds();
+            this.board?.redrawAll();
+          },
+          { passive: true }
+        );
+      }
+    }
+
+    const ResizeObserverCtor =
+      ownerWin?.ResizeObserver ||
+      (typeof window !== 'undefined' ? window.ResizeObserver : undefined);
+    if (typeof ResizeObserverCtor !== 'undefined') {
+      this.resizeObserver = new ResizeObserverCtor(() => {
         this.clearDomBounds();
       });
       this.resizeObserver.observe(this.element);
