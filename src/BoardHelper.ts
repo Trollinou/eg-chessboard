@@ -166,15 +166,11 @@ export function getGameOverReason(
         : lang === 'fr'
           ? 'Blancs'
           : 'White';
-    return lang === 'fr'
-      ? `Échec et mat ! Les ${winner} ont gagné.`
-      : `Checkmate! ${winner} won.`;
+    return lang === 'fr' ? `Échec et mat ! Les ${winner} ont gagné.` : `Checkmate! ${winner} won.`;
   }
   if (pos.isStalemate()) return lang === 'fr' ? 'Match nul par Pat.' : 'Draw by stalemate.';
   if (pos.isInsufficientMaterial())
-    return lang === 'fr'
-      ? 'Match nul par matériel insuffisant.'
-      : 'Draw by insufficient material.';
+    return lang === 'fr' ? 'Match nul par matériel insuffisant.' : 'Draw by insufficient material.';
   if (isThreefold)
     return lang === 'fr' ? 'Match nul par triple répétition.' : 'Draw by threefold repetition.';
   if (pos.halfmoves >= 100)

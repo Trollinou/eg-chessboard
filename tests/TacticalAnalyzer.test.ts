@@ -17,8 +17,7 @@ function playMoveOnFen(fen: string, san: string) {
 describe('TacticalAnalyzer (analyzeMoveTactics)', () => {
   it('short-circuits on checkmate (e.g. Qxf7#) and never flags checkmate as a blunder', () => {
     // Scholar's mate: 1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Qxf7#
-    const fenBeforeMate =
-      'r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4';
+    const fenBeforeMate = 'r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4';
     const { posAfter, movePojo } = playMoveOnFen(fenBeforeMate, 'Qxf7#');
 
     const tactics = analyzeMoveTactics(posAfter, 'white', movePojo);
@@ -29,17 +28,12 @@ describe('TacticalAnalyzer (analyzeMoveTactics)', () => {
 
   it('does not confuse giving check (+) to opponent with own king being in check', () => {
     // White plays Bxf7+ supported by Queen or Knight (or simply Bb5+ check)
-    const fen =
-      'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3';
+    const fen = 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3';
     const { posAfter, movePojo } = playMoveOnFen(fen, 'Bb5');
 
     // Now Black plays a6, White plays Bxc6, etc. Or test direct check:
-    const fenCheck =
-      'rnbqkbnr/ppp2ppp/3p4/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3';
-    const { posAfter: posAfterCheck, movePojo: moveCheck } = playMoveOnFen(
-      fenCheck,
-      'Bb5+'
-    );
+    const fenCheck = 'rnbqkbnr/ppp2ppp/3p4/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3';
+    const { posAfter: posAfterCheck, movePojo: moveCheck } = playMoveOnFen(fenCheck, 'Bb5+');
 
     const tactics = analyzeMoveTactics(posAfterCheck, 'white', moveCheck);
     expect(tactics.isKingInCheck).toBe(false);
@@ -59,8 +53,7 @@ describe('TacticalAnalyzer (analyzeMoveTactics)', () => {
   });
 
   it('ignores capture by enemy king when the square is defended (e.g. Qxf7+ defended by Bc4)', () => {
-    const fen =
-      'r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 3 3';
+    const fen = 'r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 3 3';
     const { posAfter, movePojo } = playMoveOnFen(fen, 'Qxf7+');
 
     const tactics = analyzeMoveTactics(posAfter, 'white', movePojo);
@@ -87,8 +80,7 @@ describe('TacticalAnalyzer (analyzeMoveTactics)', () => {
 
   it('excludes equal or winning captures from undefendedSquares (e.g. Bxc6, Rxd8)', () => {
     // Ruy Lopez Exchange: 1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 (Bishop takes Knight defended by b7 and d7 pawns)
-    const fen =
-      'r1bqkbnr/1ppp1ppp/p1n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4';
+    const fen = 'r1bqkbnr/1ppp1ppp/p1n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4';
     const { posAfter, movePojo } = playMoveOnFen(fen, 'Bxc6');
 
     const tactics = analyzeMoveTactics(posAfter, 'white', movePojo);
@@ -98,8 +90,7 @@ describe('TacticalAnalyzer (analyzeMoveTactics)', () => {
 
   it('flags losing trade (e.g. Qxc6 where Queen takes defended Knight) as major threat', () => {
     // White Queen on b5 captures Black Knight on c6 (defended by b7 and d7 pawns)
-    const fen =
-      'r1bqkbnr/pppp1ppp/2n5/1Q2p3/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3';
+    const fen = 'r1bqkbnr/pppp1ppp/2n5/1Q2p3/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3';
     const { posAfter, movePojo } = playMoveOnFen(fen, 'Qxc6');
 
     const tactics = analyzeMoveTactics(posAfter, 'white', movePojo);
@@ -109,8 +100,7 @@ describe('TacticalAnalyzer (analyzeMoveTactics)', () => {
 
   it('flags hanging piece when moved directly onto an undefended attacked square', () => {
     // 1. e4 e5 2. Qh5 Nc6 3. Qg6 (hanging to f7/h7 pawns)
-    const fen =
-      'r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3';
+    const fen = 'r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3';
     const { posAfter, movePojo } = playMoveOnFen(fen, 'Qg6');
 
     const tactics = analyzeMoveTactics(posAfter, 'white', movePojo);

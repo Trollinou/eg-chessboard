@@ -44,4 +44,3 @@ function promotionSelected(piece: PromotionPiece): void {
     </div>
   </dialog>
 </template>
-

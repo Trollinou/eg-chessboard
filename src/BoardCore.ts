@@ -203,8 +203,7 @@ export class BoardCore {
     if (!suggestedUci) return false;
     const playedUci = `${move.from}${move.to}${move.promotion ? move.promotion.toLowerCase() : ''}`;
     return (
-      normalizeCastlingUci(playedUci, move.san, move.color) ===
-      normalizeCastlingUci(suggestedUci)
+      normalizeCastlingUci(playedUci, move.san, move.color) === normalizeCastlingUci(suggestedUci)
     );
   }
 
@@ -225,8 +224,7 @@ export class BoardCore {
 
     const moveColor: Color = data.move.color === 'w' ? 'white' : 'black';
     const modeForColor = moveColor === 'white' ? sfConfig.whiteMode : sfConfig.blackMode;
-    const isHumanMove =
-      !modeForColor || modeForColor === 'disabled' || modeForColor === 'hint';
+    const isHumanMove = !modeForColor || modeForColor === 'disabled' || modeForColor === 'hint';
 
     if (!isHumanMove) {
       this.stockfishManager.lastSuggestedMoves = [];
@@ -272,8 +270,7 @@ export class BoardCore {
       this.onStateChange();
 
       const isBadTrade =
-        !!data.move.captured &&
-        tactics.undefendedSquares.includes(data.move.to as Key);
+        !!data.move.captured && tactics.undefendedSquares.includes(data.move.to as Key);
       const reason: CoachAlertReason = isBadTrade ? 'bad_trade' : 'hanging_piece';
       const detail: CoachAlertDetail = {
         ply: data.ply,
@@ -619,11 +616,7 @@ export class BoardCore {
     moves: Array<{ from: Key | string; to: Key | string; brush?: string }>,
     append = true
   ): void {
-    this.annotationService.drawMoves(
-      moves,
-      !!this.state.preserveShapesOnPositionChange,
-      append
-    );
+    this.annotationService.drawMoves(moves, !!this.state.preserveShapesOnPositionChange, append);
   }
 
   public drawCircle(square: Key | string, brush: string): void {
@@ -819,8 +812,7 @@ export class BoardCore {
     byColor?: 'white' | 'black',
     reason: 'too_early' | 'advantage' = 'advantage'
   ): void {
-    const decliningColor =
-      byColor ?? (this.state.playerColor === 'white' ? 'black' : 'white');
+    const decliningColor = byColor ?? (this.state.playerColor === 'white' ? 'black' : 'white');
     this.emitEvent('draw-declined', { byColor: decliningColor, reason });
   }
 

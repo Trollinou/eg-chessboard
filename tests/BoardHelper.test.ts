@@ -256,8 +256,26 @@ describe('BoardHelper', () => {
 
     it('collects captured pieces from history', () => {
       const history: Move[] = [
-        { from: 'e4', to: 'd5', piece: 'p', color: 'w', san: 'exd5', captured: 'p', before: '', after: '' },
-        { from: 'c6', to: 'd5', piece: 'n', color: 'b', san: 'Nxd5', captured: 'p', before: '', after: '' },
+        {
+          from: 'e4',
+          to: 'd5',
+          piece: 'p',
+          color: 'w',
+          san: 'exd5',
+          captured: 'p',
+          before: '',
+          after: '',
+        },
+        {
+          from: 'c6',
+          to: 'd5',
+          piece: 'n',
+          color: 'b',
+          san: 'Nxd5',
+          captured: 'p',
+          before: '',
+          after: '',
+        },
       ];
       const captured = getCapturedPieces(history);
       expect(captured.white).toEqual(['p']);

@@ -250,8 +250,10 @@ export class StockfishManager {
       return;
     }
 
-    const mode = currentTurn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
-    const elo = currentTurn === 'white' ? this.stockfishConfig.whiteElo : this.stockfishConfig.blackElo;
+    const mode =
+      currentTurn === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
+    const elo =
+      currentTurn === 'white' ? this.stockfishConfig.whiteElo : this.stockfishConfig.blackElo;
 
     // 1. If it's the bot's turn to play (only when at live position, not viewing past history)
     const isPastHistory =
@@ -306,7 +308,9 @@ export class StockfishManager {
       if (!ok) return;
 
       const moveTime =
-        this.stockfishConfig.searchLimit?.movetime || this.stockfishConfig.stockfishMoveTime || 1200;
+        this.stockfishConfig.searchLimit?.movetime ||
+        this.stockfishConfig.stockfishMoveTime ||
+        1200;
 
       this.engine.search({
         movetime: moveTime,
@@ -374,13 +378,12 @@ export class StockfishManager {
   }
 
   public isStockfishActiveForColor(color: 'white' | 'black'): boolean {
-    const mode = color === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
+    const mode =
+      color === 'white' ? this.stockfishConfig.whiteMode : this.stockfishConfig.blackMode;
     return !!mode && mode !== 'disabled';
   }
 
-  public async evaluateDrawOffer(
-    offeringColor: 'white' | 'black'
-  ): Promise<{
+  public async evaluateDrawOffer(offeringColor: 'white' | 'black'): Promise<{
     accepted: boolean;
     reason: 'too_early' | 'advantage' | 'equal_or_worse';
     score?: number;
@@ -543,8 +546,7 @@ export class StockfishManager {
         hintOpts?.maxScoreDiffCp ??
         this.stockfishConfig.hintMaxScoreDiffCp ??
         (this.stockfishConfig.coachMode ? 50 : undefined);
-      const drawArrows =
-        hintOpts?.drawArrows ?? this.stockfishConfig.drawHintArrows ?? false;
+      const drawArrows = hintOpts?.drawArrows ?? this.stockfishConfig.drawHintArrows ?? false;
 
       const evals = evaluations && evaluations.length > 0 ? evaluations : this.getLastEvaluations();
       const hints = this.buildHints(bestMove, evals, maxScoreDiffCp);
@@ -652,7 +654,12 @@ export class StockfishManager {
             multipvIndex: 1,
           };
         } else {
-          evalAfter = await this.evaluatePosition(rootFen, [...playedMovesUci], depth, effectiveSignal);
+          evalAfter = await this.evaluatePosition(
+            rootFen,
+            [...playedMovesUci],
+            depth,
+            effectiveSignal
+          );
         }
         currentEval = evalAfter;
 
@@ -686,9 +693,7 @@ export class StockfishManager {
 
         const bestMoveUci = evalBefore.bestMove || moveUci;
         const bestMoveSan =
-          bestMoveUci === moveUci
-            ? move.san
-            : this.uciToSan(move.before, bestMoveUci);
+          bestMoveUci === moveUci ? move.san : this.uciToSan(move.before, bestMoveUci);
 
         movesReport.push({
           ply: i + 1,
@@ -858,7 +863,8 @@ export class StockfishManager {
   private classifyMove(diff: number, isMissedWin: boolean, san: string): MoveJudgement {
     if (isMissedWin) return 'missed_win';
     if (diff <= 1.5) {
-      if (san.includes('!!') || (san.includes('#') && san.includes('x') && diff < 0.5)) return 'brilliant';
+      if (san.includes('!!') || (san.includes('#') && san.includes('x') && diff < 0.5))
+        return 'brilliant';
       return 'best';
     }
     if (diff <= 5.0) return 'excellent';

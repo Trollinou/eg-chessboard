@@ -12,11 +12,7 @@ import {
   defaultHeaders,
   type PgnNodeData,
 } from 'chessops/pgn';
-import {
-  isNormal,
-  type Role,
-  type Move as ChessopsMove,
-} from 'chessops/types';
+import { isNormal, type Role, type Move as ChessopsMove } from 'chessops/types';
 import type { Key, Color } from '@lichess-org/chessground/types';
 
 import type { Move, PgnNodeMeta, VariationInfo, PgnTreeNode, GameTermination } from '../types';
@@ -310,7 +306,8 @@ export class GameSession {
       return { success: false };
     }
 
-    const normalizedMoveObj = typeof moveObj === 'string' ? BoardHelper.normalizePgn(moveObj) : moveObj;
+    const normalizedMoveObj =
+      typeof moveObj === 'string' ? BoardHelper.normalizePgn(moveObj) : moveObj;
     const wasViewingHistory = this.isViewingHistory();
 
     if (wasViewingHistory) {
@@ -437,7 +434,10 @@ export class GameSession {
       } else {
         currentNode.children.push(childNode);
       }
-    } else if (currentNode.children[0] !== childNode && this.undoneNodes.has(currentNode.children[0])) {
+    } else if (
+      currentNode.children[0] !== childNode &&
+      this.undoneNodes.has(currentNode.children[0])
+    ) {
       const idx = currentNode.children.indexOf(childNode);
       if (idx > 0) {
         currentNode.children.splice(idx, 1);

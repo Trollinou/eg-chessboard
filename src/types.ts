@@ -169,37 +169,14 @@ export interface HintRequestOptions {
 export type TacticalGlyph = 'pin' | 'undefended' | 'checkable' | 'trapped';
 
 export type AssessmentGlyph =
-  | '!'
-  | '?'
-  | '!!'
-  | '??'
-  | '!?'
-  | '?!'
-  | '✓'
-  | '✗'
-  | '□'
-  | '⨀'
-  | '='
-  | '+-'
-  | '-+';
+  '!' | '?' | '!!' | '??' | '!?' | '?!' | '✓' | '✗' | '□' | '⨀' | '=' | '+-' | '-+';
 
 export type BoardGlyph = TacticalGlyph | AssessmentGlyph;
 
 export type MoveJudgement =
-  | 'brilliant'
-  | 'best'
-  | 'excellent'
-  | 'good'
-  | 'inaccuracy'
-  | 'mistake'
-  | 'blunder'
-  | 'missed_win';
+  'brilliant' | 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder' | 'missed_win';
 
-export type CoachAlertReason =
-  | 'hanging_piece'
-  | 'bad_trade'
-  | 'blunder'
-  | 'missed_win';
+export type CoachAlertReason = 'hanging_piece' | 'bad_trade' | 'blunder' | 'missed_win';
 
 export interface TacticalAnalysisResult {
   undefendedSquares: Key[];

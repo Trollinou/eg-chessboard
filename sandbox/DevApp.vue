@@ -772,9 +772,7 @@ const formatMove = (move: string, index: number) => {
             <div v-else class="config-item">
               <span class="config-label">Nœuds alloués :</span>
               <span class="config-value" style="color: #60a5fa; font-weight: 700">
-                {{
-                  getNodesForElo(baseStockfishConfig.blackElo || 1400).toLocaleString('fr-FR')
-                }}
+                {{ getNodesForElo(baseStockfishConfig.blackElo || 1400).toLocaleString('fr-FR') }}
                 nœuds
               </span>
               <span style="font-size: 0.75rem; color: #a1a1aa; margin-top: 2px">

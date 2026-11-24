@@ -307,7 +307,8 @@ describe('StockfishManager', () => {
 
   it('handles queenside castle (0-0-0 and O-O-O) during reviewGame', async () => {
     // 0-0-0 with zeros and standard O-O-O
-    const pgnWithZeros = '1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. Bf4 Bf5 5. Qb3 Qb6 6. 0-0-0 Nbd7 7. e3 0-0-0';
+    const pgnWithZeros =
+      '1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. Bf4 Bf5 5. Qb3 Qb6 6. 0-0-0 Nbd7 7. e3 0-0-0';
     session.loadPgn(pgnWithZeros);
     expect(session.getHistory(true).length).toBe(14);
 
@@ -398,7 +399,7 @@ describe('StockfishManager', () => {
         workerUrl: '/stockfish.js',
         blackMode: 'bot',
         minDrawMoves: 5,
-        drawAcceptanceThresholdPawns: 0.30,
+        drawAcceptanceThresholdPawns: 0.3,
       });
 
       manager.initStockfish(false);
@@ -422,7 +423,7 @@ describe('StockfishManager', () => {
         workerUrl: '/stockfish.js',
         blackMode: 'bot',
         minDrawMoves: 5,
-        drawAcceptanceThresholdPawns: 0.30,
+        drawAcceptanceThresholdPawns: 0.3,
       });
 
       manager.initStockfish(false);
@@ -501,4 +502,3 @@ describe('StockfishManager', () => {
     });
   });
 });
-

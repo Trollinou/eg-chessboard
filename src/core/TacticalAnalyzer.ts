@@ -60,10 +60,7 @@ function cloneWithTurn(pos: Chess, turn: Color): Chess {
   return cloned;
 }
 
-function analyzePositionVulnerability(
-  pos: Chess,
-  playerColor: Color
-): Map<Key, VulnerabilityInfo> {
+function analyzePositionVulnerability(pos: Chess, playerColor: Color): Map<Key, VulnerabilityInfo> {
   const enemyColor: Color = playerColor === 'white' ? 'black' : 'white';
   const posForEnemy = cloneWithTurn(pos, enemyColor);
   const enemyCtx = posForEnemy.ctx();
@@ -102,8 +99,7 @@ function analyzePositionVulnerability(
         posForEnemy.epSquare !== undefined &&
         dests.has(posForEnemy.epSquare)
       ) {
-        const epCapturedSq =
-          posForEnemy.epSquare + (playerColor === 'white' ? 8 : -8);
+        const epCapturedSq = posForEnemy.epSquare + (playerColor === 'white' ? 8 : -8);
         if (epCapturedSq === sq) {
           canCapture = true;
         }
@@ -234,9 +230,7 @@ function analyzePositionVulnerability(
       }
     }
 
-    const nonKingDefendersCount = rawDefenders.filter(
-      (d) => d.role !== 'king'
-    ).length;
+    const nonKingDefendersCount = rawDefenders.filter((d) => d.role !== 'king').length;
     const defenders = rawDefenders.filter(
       (d) => d.role !== 'king' || nonKingDefendersCount + 1 >= enemyAttackers.length
     );
@@ -296,9 +290,7 @@ export function analyzeMoveTactics(
 
   // Pinned friendly pieces
   const posForPlayer = cloneWithTurn(posAfter, playerColor);
-  const playerBlockers = posForPlayer
-    .ctx()
-    .blockers.intersect(posAfter.board[playerColor]);
+  const playerBlockers = posForPlayer.ctx().blockers.intersect(posAfter.board[playerColor]);
   const pinnedSquares: Key[] = [];
   for (const sq of playerBlockers) {
     pinnedSquares.push(makeSquare(sq) as Key);
@@ -363,8 +355,7 @@ export function analyzeMoveTactics(
     } else {
       // Already vulnerable before the move
       const ignoredExistingThreat =
-        (beforeInfo.isHanging ||
-          (beforeInfo.pieceValue >= 3 && beforeInfo.isAttackedByLesser)) &&
+        (beforeInfo.isHanging || (beforeInfo.pieceValue >= 3 && beforeInfo.isAttackedByLesser)) &&
         info.pieceValue >= movedPieceValue &&
         !givesCheck &&
         capturedValue < info.pieceValue;
